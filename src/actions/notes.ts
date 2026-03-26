@@ -331,6 +331,8 @@ export async function getNoteStats(): Promise<
     favoriteNotes: number
     archivedNotes: number
     deletedNotes: number
+    totalFolders: number
+    totalTags: number
   }>
 > {
   try {
@@ -339,16 +341,18 @@ export async function getNoteStats(): Promise<
       return { success: false, error: 'No autorizado' }
     }
 
-    const [totalNotes, favoriteNotes, archivedNotes, deletedNotes] = await Promise.all([
+    const [totalNotes, favoriteNotes, archivedNotes, deletedNotes, totalFolders, totalTags] = await Promise.all([
       prisma.note.count({ where: { userId, isDeleted: false } }),
       prisma.note.count({ where: { userId, isFavorite: true, isDeleted: false } }),
       prisma.note.count({ where: { userId, isArchived: true, isDeleted: false } }),
       prisma.note.count({ where: { userId, isDeleted: true } }),
+      prisma.folder.count({ where: { userId } }),
+      prisma.tag.count({ where: { userId } }),
     ])
 
     return {
       success: true,
-      data: { totalNotes, favoriteNotes, archivedNotes, deletedNotes },
+      data: { totalNotes, favoriteNotes, archivedNotes, deletedNotes, totalFolders, totalTags },
     }
   } catch (error) {
     console.error('Error fetching stats:', error)

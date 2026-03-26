@@ -170,11 +170,9 @@ export default function NotePage({ params }: PageProps) {
           </Button>
 
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
+            <DropdownMenuTrigger render={<Button variant="ghost" size="icon" />}>
                 <MoreVertical className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
+              </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={handleToggleFavorite}>
                 <Star className="mr-2 h-4 w-4" />

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { ArrowRight, Check, FileText, Folder, Search, Star, Moon, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { SignedIn, SignedOut } from '@clerk/nextjs'
+import { useAuth } from '@clerk/nextjs'
 import { useTheme } from 'next-themes'
 
 const features = [
@@ -48,6 +48,7 @@ const pricing = [
 
 export default function LandingPage() {
   const { theme, setTheme } = useTheme()
+  const { isSignedIn } = useAuth()
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
@@ -69,22 +70,24 @@ export default function LandingPage() {
             >
               {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </Button>
-            <SignedOut>
-              <Link href="/sign-in">
-                <Button variant="ghost">Iniciar Sesión</Button>
-              </Link>
-              <Link href="/sign-up">
-                <Button>Registrarse</Button>
-              </Link>
-            </SignedOut>
-            <SignedIn>
+            {!isSignedIn && (
+              <>
+                <Link href="/sign-in">
+                  <Button variant="ghost">Iniciar Sesión</Button>
+                </Link>
+                <Link href="/sign-up">
+                  <Button>Registrarse</Button>
+                </Link>
+              </>
+            )}
+            {isSignedIn && (
               <Link href="/dashboard">
                 <Button>
                   Ir al Dashboard
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
-            </SignedIn>
+            )}
           </div>
         </div>
       </header>
@@ -100,22 +103,22 @@ export default function LandingPage() {
             tus ideas en segundos. Simple, rápido y elegante.
           </p>
           <div className="mt-10 flex items-center justify-center gap-4">
-            <SignedOut>
+            {!isSignedIn && (
               <Link href="/sign-up">
                 <Button size="lg" className="text-lg px-8">
                   Empezar Gratis
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
-            </SignedOut>
-            <SignedIn>
+            )}
+            {isSignedIn && (
               <Link href="/dashboard">
                 <Button size="lg" className="text-lg px-8">
                   Ir al Dashboard
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
-            </SignedIn>
+            )}
           </div>
         </div>
 
@@ -207,22 +210,22 @@ export default function LandingPage() {
           <p className="text-muted-foreground mb-8 max-w-md mx-auto">
             Únete a miles de usuarios que ya usan Xnote para ser más productivos.
           </p>
-          <SignedOut>
+          {!isSignedIn && (
             <Link href="/sign-up">
               <Button size="lg" className="text-lg px-8">
                 Crear cuenta gratis
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
-          </SignedOut>
-          <SignedIn>
+          )}
+          {isSignedIn && (
             <Link href="/dashboard">
               <Button size="lg" className="text-lg px-8">
                 Ir al Dashboard
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
-          </SignedIn>
+          )}
         </div>
       </section>
 

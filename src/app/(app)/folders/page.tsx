@@ -104,11 +104,9 @@ export default function FoldersPage() {
         </div>
         
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Nueva Carpeta
-            </Button>
+          <DialogTrigger render={<Button />}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nueva Carpeta
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -192,11 +190,9 @@ export default function FoldersPage() {
                     </div>
                   </Link>
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
+                    <DropdownMenuTrigger render={<Button variant="ghost" size="icon" />}>
                         <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
+                      </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem>
                         <Edit className="mr-2 h-4 w-4" />

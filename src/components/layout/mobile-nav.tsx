@@ -94,7 +94,7 @@ export function MobileNav({ currentPath }: MobileNavProps) {
                   </Button>
                 </Link>
                 <div className="flex items-center justify-center">
-                  <UserButton afterSignOutUrl="/" />
+                  <UserButton />
                 </div>
               </div>
             </div>

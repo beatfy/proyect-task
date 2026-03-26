@@ -1,8 +1,6 @@
 'use client'
 
 import { Sidebar } from '@/components/layout/sidebar'
-import { auth } from '@clerk/nextjs/client'
-import { redirect } from 'next/navigation'
 
 export default function AppLayout({
   children,

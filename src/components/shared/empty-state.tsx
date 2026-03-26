@@ -31,13 +31,15 @@ export function EmptyState({ type, title, description, action }: EmptyStateProps
       <h3 className="text-lg font-semibold mb-2">{title}</h3>
       <p className="text-sm text-muted-foreground mb-4 max-w-sm">{description}</p>
       {action && (
-        <Button asChild={!!action.href} onClick={action.onClick}>
-          {action.href ? (
-            <a href={action.href}>{action.label}</a>
-          ) : (
-            <span>{action.label}</span>
-          )}
-        </Button>
+        action.href ? (
+          <Button render={<a href={action.href} />}>
+            {action.label}
+          </Button>
+        ) : (
+          <Button onClick={action.onClick}>
+            {action.label}
+          </Button>
+        )
       )}
     </div>
   )
