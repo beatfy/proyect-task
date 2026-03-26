@@ -5,6 +5,18 @@ export type { Note, Folder, Tag, User }
 
 // Note with relations
 export interface NoteWithTags extends Note {
+  id: string
+  title: string
+  content: string
+  excerpt?: string | null
+  isFavorite: boolean
+  isArchived: boolean
+  isDeleted: boolean
+  deletedAt?: Date | null
+  userId: string
+  folderId?: string | null
+  createdAt: Date
+  updatedAt: Date
   tags: Array<{ tag: Tag }>
   folder?: Folder | null
 }
