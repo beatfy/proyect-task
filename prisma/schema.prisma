@@ -1,0 +1,103 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model - extends Clerk user data
+model User {
+  id        String   @id
+  email     String   @unique
+  name      String?
+  image     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  notes    Note[]
+  folders  Folder[]
+  tags     Tag[]
+
+  @@map("users")
+}
+
+// Note model - main content entity
+model Note {
+  id          String    @id @default(cuid())
+  title       String
+  content     String    @db.Text
+  excerpt     String?   @db.Text
+  isFavorite  Boolean   @default(false)
+  isArchived  Boolean   @default(false)
+  isDeleted   Boolean   @default(false)
+  deletedAt   DateTime?
+  userId      String
+  folderId    String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folder Folder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  tags   NoteTag[]
+
+  @@index([userId])
+  @@index([userId, isDeleted])
+  @@index([userId, isFavorite])
+  @@index([userId, folderId])
+  @@index([userId, createdAt])
+  @@map("notes")
+}
+
+// Folder model - for organizing notes
+model Folder {
+  id        String   @id @default(cuid())
+  name      String
+  color     String?
+  icon      String?
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notes Note[]
+
+  @@index([userId])
+  @@map("folders")
+}
+
+// Tag model - for labeling notes
+model Tag {
+  id        String   @id @default(cuid())
+  name      String
+  color     String?
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notes NoteTag[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("tags")
+}
+
+// NoteTag - many-to-many relationship between Notes and Tags
+model NoteTag {
+  noteId String
+  tagId  String
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([noteId, tagId])
+  @@map("note_tags")
+}
