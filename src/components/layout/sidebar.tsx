@@ -13,13 +13,16 @@ import {
   Menu,
   X,
   Star,
+  LayoutProject,
+  CheckSquare,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { useTheme } from 'next-themes'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
+  { name: 'Proyectos', href: '/projects', icon: LayoutProject },
+  { name: 'Tareas', href: '/tasks', icon: CheckSquare },
   { name: 'Notas', href: '/notes', icon: FileText },
   { name: 'Favoritos', href: '/notes?favorites=true', icon: Star },
   { name: 'Carpetas', href: '/folders', icon: FolderOpen },
@@ -30,7 +33,6 @@ const navigation = [
 export function Sidebar() {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
-  const { theme } = useTheme()
 
   const SidebarContent = () => (
     <div className="flex h-full flex-col">
@@ -43,7 +45,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 p-4">
+      <nav className="flex-1 space-y-1 p-4 overflow-y-auto">
         {navigation.map(item => {
           const isActive = pathname === item.href || 
             (item.href !== '/dashboard' && pathname?.startsWith(item.href.split('?')[0]))
@@ -66,10 +68,16 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* New Note Button */}
-      <div className="border-t p-4">
-        <Link href="/notes/new">
-          <Button className="w-full" onClick={() => setMobileOpen(false)}>
+      {/* New Button */}
+      <div className="border-t p-4 space-y-2">
+        <Link href="/projects" className="block">
+          <Button className="w-full" variant="default" onClick={() => setMobileOpen(false)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo Proyecto
+          </Button>
+        </Link>
+        <Link href="/notes/new" className="block">
+          <Button className="w-full" variant="outline" onClick={() => setMobileOpen(false)}>
             <Plus className="mr-2 h-4 w-4" />
             Nueva Nota
           </Button>
