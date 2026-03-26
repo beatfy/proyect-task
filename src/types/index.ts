@@ -25,8 +25,8 @@ export interface NoteWithTags extends Note {
 export interface FolderWithNotes extends Folder {
   id: string
   name: string
-  color?: string | null
-  icon?: string | null
+  color: string | null
+  icon: string | null
   userId: string
   createdAt: Date
   updatedAt: Date
@@ -39,7 +39,7 @@ export interface FolderWithNotes extends Folder {
 export interface TagWithNotes extends Tag {
   id: string
   name: string
-  color?: string | null
+  color: string | null
   userId: string
   createdAt: Date
   updatedAt: Date
