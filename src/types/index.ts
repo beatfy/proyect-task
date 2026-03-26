@@ -1,28 +1,28 @@
-import { Note, Folder, Tag, User } from '@prisma/client'
+import type { Note, Folder, Tag, User } from '@prisma/client'
 
 // Base types from Prisma
 export type { Note, Folder, Tag, User }
 
 // Note with relations
-export interface NoteWithTags extends Note {
+export interface NoteWithTags {
   id: string
   title: string
   content: string
-  excerpt?: string | null
+  excerpt: string | null
   isFavorite: boolean
   isArchived: boolean
   isDeleted: boolean
-  deletedAt?: Date | null
+  deletedAt: Date | null
   userId: string
-  folderId?: string | null
+  folderId: string | null
   createdAt: Date
   updatedAt: Date
   tags: Array<{ tag: Tag }>
-  folder?: Folder | null
+  folder: Folder | null
 }
 
 // Folder with note count
-export interface FolderWithNotes extends Folder {
+export interface FolderWithNotes {
   id: string
   name: string
   color: string | null
@@ -36,7 +36,7 @@ export interface FolderWithNotes extends Folder {
 }
 
 // Tag with note count
-export interface TagWithNotes extends Tag {
+export interface TagWithNotes {
   id: string
   name: string
   color: string | null
@@ -83,6 +83,6 @@ export interface FormState {
 export interface UserSession {
   id: string
   email: string
-  name?: string | null
-  image?: string | null
+  name: string | null
+  image: string | null
 }
