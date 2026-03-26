@@ -23,6 +23,13 @@ export interface NoteWithTags extends Note {
 
 // Folder with note count
 export interface FolderWithNotes extends Folder {
+  id: string
+  name: string
+  color?: string | null
+  icon?: string | null
+  userId: string
+  createdAt: Date
+  updatedAt: Date
   _count?: {
     notes: number
   }
@@ -30,6 +37,12 @@ export interface FolderWithNotes extends Folder {
 
 // Tag with note count
 export interface TagWithNotes extends Tag {
+  id: string
+  name: string
+  color?: string | null
+  userId: string
+  createdAt: Date
+  updatedAt: Date
   _count?: {
     notes: number
   }
