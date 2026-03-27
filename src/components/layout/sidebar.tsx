@@ -13,7 +13,7 @@ import {
   Menu,
   X,
   Star,
-  LayoutProject,
+  Layout,
   CheckSquare,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
-  { name: 'Proyectos', href: '/projects', icon: LayoutProject },
+  { name: 'Proyectos', href: '/projects', icon: Layout },
   { name: 'Tareas', href: '/tasks', icon: CheckSquare },
   { name: 'Notas', href: '/notes', icon: FileText },
   { name: 'Favoritos', href: '/notes?favorites=true', icon: Star },
