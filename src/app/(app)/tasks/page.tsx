@@ -55,11 +55,11 @@ const columns = [
 ];
 
 const priorityColors: Record<string, string> = {
-  NONE: "bg-gray-500/20 text-white border-gray-500/30",
-  LOW: "bg-slate-500/20 text-white border-slate-500/30",
-  MEDIUM: "bg-orange-500/20 text-white border-orange-500/30",
-  HIGH: "bg-red-500/20 text-white border-red-500/30",
-  URGENT: "bg-purple-500/20 text-white border-purple-500/30",
+  NONE: "bg-gray-100 text-gray-600 border-gray-200",
+  LOW: "bg-slate-100 text-slate-600 border-slate-200",
+  MEDIUM: "bg-orange-100 text-orange-600 border-orange-200",
+  HIGH: "bg-red-100 text-red-600 border-red-200",
+  URGENT: "bg-purple-100 text-purple-600 border-purple-200",
 };
 
 const priorityLabels: Record<string, string> = {
@@ -78,10 +78,10 @@ const statusLabels: Record<string, string> = {
 };
 
 const statusColors: Record<string, string> = {
-  TODO: "bg-gray-500/20 text-white border-gray-500/30",
-  INPROGRESS: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-  INREVIEW: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
-  DONE: "bg-green-500/20 text-green-300 border-green-500/30",
+  TODO: "bg-gray-100 text-gray-600 border-gray-200",
+  INPROGRESS: "bg-blue-100 text-blue-600 border-blue-200",
+  INREVIEW: "bg-yellow-100 text-yellow-600 border-yellow-200",
+  DONE: "bg-green-100 text-green-600 border-green-200",
 };
 
 type ViewType = "kanban" | "list" | "table";
@@ -477,7 +477,7 @@ export default function TasksPage() {
   }
 
   return (
-    <div className="h-full bg-gray-50">
+    <div className="min-h-screen bg-slate-50 pb-8">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Tareas</h1>
