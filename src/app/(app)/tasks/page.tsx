@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, MoreHorizontal, User, Pencil, Trash2, FolderOpen, LayoutGrid, List, Table } from "lucide-react";
+import { Plus, MoreHorizontal, User, Pencil, Trash2, FolderOpen, LayoutGrid, List, Table, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -99,6 +99,8 @@ function TaskDialog({
   setStatus,
   priority,
   setPriority,
+  dueDate,
+  setDueDate,
   assignedTo,
   setAssignedTo,
   projectId,
@@ -117,6 +119,8 @@ function TaskDialog({
   setStatus: (v: string) => void;
   priority: string;
   setPriority: (v: string) => void;
+  dueDate: string;
+  setDueDate: (v: string) => void;
   assignedTo: string;
   setAssignedTo: (v: string) => void;
   projectId: string;
@@ -125,36 +129,36 @@ function TaskDialog({
   onSubmit: () => void;
 }) {
   return (
-    <DialogContent className="bg-zinc-900 border-zinc-800">
+    <DialogContent className="bg-white border-gray-200">
       <DialogHeader>
-        <DialogTitle className="text-white">{mode === "create" ? "Crear Tarea" : "Editar Tarea"}</DialogTitle>
+        <DialogTitle className="text-gray-900">{mode === "create" ? "Crear Tarea" : "Editar Tarea"}</DialogTitle>
       </DialogHeader>
       <div className="space-y-4 pt-4">
         <div className="space-y-2">
-          <Label className="text-white">Título</Label>
+          <Label className="text-gray-700">Título</Label>
           <Input
             placeholder="Título de la tarea"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="bg-zinc-800 border-zinc-700 text-white"
+            className="bg-white border-gray-300 text-gray-900"
           />
         </div>
         <div className="space-y-2">
-          <Label className="text-white">Descripción</Label>
+          <Label className="text-gray-700">Descripción</Label>
           <Input
             placeholder="Descripción opcional"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="bg-zinc-800 border-zinc-700 text-white"
+            className="bg-white border-gray-300 text-gray-900"
           />
         </div>
         <div className="space-y-2">
-          <Label className="text-white">Proyecto</Label>
+          <Label className="text-gray-700">Proyecto</Label>
           <Select value={projectId} onValueChange={setProjectId}>
-            <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
+            <SelectTrigger className="bg-white border-gray-300 text-gray-900">
               <SelectValue placeholder="Sin proyecto" />
             </SelectTrigger>
-            <SelectContent className="bg-zinc-800 border-zinc-700">
+            <SelectContent className="bg-white border-gray-200">
               <SelectItem value="none">Sin proyecto</SelectItem>
               {projects.map((p) => (
                 <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
@@ -164,12 +168,12 @@ function TaskDialog({
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label className="text-white">Estado</Label>
+            <Label className="text-gray-700">Estado</Label>
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
+              <SelectTrigger className="bg-white border-gray-300 text-gray-900">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-zinc-800 border-zinc-700">
+              <SelectContent className="bg-white border-gray-200">
                 {columns.map((col) => (
                   <SelectItem key={col.id} value={col.id}>{col.title}</SelectItem>
                 ))}
@@ -177,12 +181,12 @@ function TaskDialog({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label className="text-white">Prioridad</Label>
+            <Label className="text-gray-700">Prioridad</Label>
             <Select value={priority} onValueChange={setPriority}>
-              <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
+              <SelectTrigger className="bg-white border-gray-300 text-gray-900">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-zinc-800 border-zinc-700">
+              <SelectContent className="bg-white border-gray-200">
                 {Object.entries(priorityLabels).map(([v, l]) => (
                   <SelectItem key={v} value={v}>{l}</SelectItem>
                 ))}
@@ -191,12 +195,21 @@ function TaskDialog({
           </div>
         </div>
         <div className="space-y-2">
-          <Label className="text-white">Asignar a (email)</Label>
+          <Label className="text-gray-700">Fecha de finalización</Label>
+          <Input
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            className="bg-white border-gray-300 text-gray-900"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-gray-700">Asignar a (email)</Label>
           <Input
             placeholder="email@ejemplo.com"
             value={assignedTo}
             onChange={(e) => setAssignedTo(e.target.value)}
-            className="bg-zinc-800 border-zinc-700 text-white"
+            className="bg-white border-gray-300 text-gray-900"
           />
         </div>
         <Button onClick={onSubmit} className="w-full">
@@ -225,47 +238,53 @@ function TaskCard({
     <Card
       draggable
       onDragStart={() => onDragStart(task)}
-      className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow bg-zinc-800 border-zinc-700"
+      className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow bg-white border-gray-200"
     >
       <CardContent className="p-3">
         <div className="flex items-start justify-between gap-2 mb-2">
-          <h4 className="font-medium text-sm leading-tight text-white">{task.title}</h4>
+          <h4 className="font-medium text-sm leading-tight text-gray-900">{task.title}</h4>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-zinc-700">
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-gray-100">
                 <MoreHorizontal className="h-4 w-4 text-gray-400" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-zinc-800 border-zinc-700">
-              <DropdownMenuItem onClick={() => onEdit(task)} className="text-white hover:bg-zinc-700 cursor-pointer">
+            <DropdownMenuContent align="end" className="bg-white border-gray-200">
+              <DropdownMenuItem onClick={() => onEdit(task)} className="text-gray-700 hover:bg-gray-100 cursor-pointer">
                 <Pencil className="h-4 w-4 mr-2" /> Editar
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onDelete(task.id)} className="text-red-400 hover:bg-zinc-700 cursor-pointer">
+              <DropdownMenuItem onClick={() => onDelete(task.id)} className="text-red-500 hover:bg-gray-100 cursor-pointer">
                 <Trash2 className="h-4 w-4 mr-2" /> Eliminar
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        {task.description && <p className="text-xs text-gray-400 mb-3 line-clamp-2">{task.description}</p>}
+        {task.description && <p className="text-xs text-gray-500 mb-3 line-clamp-2">{task.description}</p>}
         <div className="flex items-center gap-2 flex-wrap mb-2">
           {task.priority !== "NONE" && (
             <Badge variant="secondary" className={cn("text-[10px] px-1.5 py-0 h-5 border", priorityColors[task.priority])}>
               {priorityLabels[task.priority]}
             </Badge>
           )}
+          {task.dueDate && (
+            <div className="flex items-center gap-1 text-xs text-gray-500">
+              <Calendar className="h-3 w-3" />
+              <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+            </div>
+          )}
         </div>
         {(task.project?.name || getProjectName(task.projectId)) && (
           <div className="flex items-center gap-1.5 mb-2">
             <FolderOpen className="h-3 w-3 text-gray-400" />
-            <span className="text-xs text-gray-400">{task.project?.name || getProjectName(task.projectId)}</span>
+            <span className="text-xs text-gray-500">{task.project?.name || getProjectName(task.projectId)}</span>
           </div>
         )}
         {task.assignedTo && (
-          <div className="flex items-center gap-1.5 pt-2 border-t border-zinc-700">
-            <div className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center">
-              <User className="h-3 w-3 text-blue-400" />
+          <div className="flex items-center gap-1.5 pt-2 border-t border-gray-100">
+            <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">
+              <User className="h-3 w-3 text-blue-500" />
             </div>
-            <span className="text-xs text-gray-400 truncate">{task.assignedTo}</span>
+            <span className="text-xs text-gray-500 truncate">{task.assignedTo}</span>
           </div>
         )}
       </CardContent>
@@ -287,6 +306,7 @@ export default function TasksPage() {
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState("TODO");
   const [priority, setPriority] = useState("NONE");
+  const [dueDate, setDueDate] = useState("");
   const [assignedTo, setAssignedTo] = useState("");
   const [projectId, setProjectId] = useState("none");
 
@@ -328,6 +348,7 @@ export default function TasksPage() {
     setDescription("");
     setStatus("TODO");
     setPriority("NONE");
+    setDueDate("");
     setAssignedTo("");
     setProjectId("none");
   };
@@ -344,6 +365,7 @@ export default function TasksPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title, description, status, priority,
+          dueDate: dueDate || null,
           assignedTo: assignedTo || null, projectId: projectId === "none" ? null : projectId || null
         }),
       });
@@ -371,6 +393,7 @@ export default function TasksPage() {
     setDescription(task.description || "");
     setStatus(task.status);
     setPriority(task.priority);
+    setDueDate(task.dueDate ? task.dueDate.split("T")[0] : "");
     setAssignedTo(task.assignedTo || "");
     setProjectId(task.projectId || "none");
     setEditOpen(true);
@@ -388,6 +411,7 @@ export default function TasksPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: editingTask.id, title, description, status, priority,
+          dueDate: dueDate || null,
           assignedTo: assignedTo || null, projectId: projectId === "none" ? null : projectId || null
         }),
       });
@@ -453,21 +477,21 @@ export default function TasksPage() {
   }
 
   return (
-    <div className="h-full">
+    <div className="h-full bg-gray-50">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-white">Tareas</h1>
-          <p className="text-gray-400 text-sm mt-1">Gestiona todas tus tareas</p>
+          <h1 className="text-2xl font-semibold text-gray-900">Tareas</h1>
+          <p className="text-gray-500 text-sm mt-1">Gestiona todas tus tareas</p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center bg-zinc-800 rounded-lg p-1">
-            <Button variant={view === "kanban" ? "secondary" : "ghost"} size="sm" onClick={() => setView("kanban")} className="h-8 px-3">
+          <div className="flex items-center bg-white rounded-lg p-1 border border-gray-200">
+            <Button variant={view === "kanban" ? "default" : "ghost"} size="sm" onClick={() => setView("kanban")} className="h-8 px-3">
               <LayoutGrid className="h-4 w-4 mr-1" /> Kanban
             </Button>
-            <Button variant={view === "table" ? "secondary" : "ghost"} size="sm" onClick={() => setView("table")} className="h-8 px-3">
+            <Button variant={view === "table" ? "default" : "ghost"} size="sm" onClick={() => setView("table")} className="h-8 px-3">
               <Table className="h-4 w-4 mr-1" /> Tabla
             </Button>
-            <Button variant={view === "list" ? "secondary" : "ghost"} size="sm" onClick={() => setView("list")} className="h-8 px-3">
+            <Button variant={view === "list" ? "default" : "ghost"} size="sm" onClick={() => setView("list")} className="h-8 px-3">
               <List className="h-4 w-4 mr-1" /> Lista
             </Button>
           </div>
@@ -491,6 +515,8 @@ export default function TasksPage() {
           setStatus={setStatus}
           priority={priority}
           setPriority={setPriority}
+          dueDate={dueDate}
+          setDueDate={setDueDate}
           assignedTo={assignedTo}
           setAssignedTo={setAssignedTo}
           projectId={projectId}
@@ -514,6 +540,8 @@ export default function TasksPage() {
           setStatus={setStatus}
           priority={priority}
           setPriority={setPriority}
+          dueDate={dueDate}
+          setDueDate={setDueDate}
           assignedTo={assignedTo}
           setAssignedTo={setAssignedTo}
           projectId={projectId}
@@ -530,12 +558,12 @@ export default function TasksPage() {
             <div key={column.id} className="flex-1 min-w-[280px] max-w-[350px] flex flex-col" onDragOver={handleDragOver} onDrop={() => handleDrop(column.id)}>
               <div className="flex items-center gap-2 mb-3 px-1">
                 <div className={cn("w-3 h-3 rounded-full", column.color)} />
-                <h3 className="font-medium text-sm text-white">{column.title}</h3>
+                <h3 className="font-medium text-sm text-gray-700">{column.title}</h3>
                 <span className="text-xs text-gray-400 ml-auto">{getTasksByStatus(column.id).length}</span>
               </div>
-              <div className="flex-1 bg-zinc-900/50 rounded-lg p-2 space-y-2 overflow-y-auto">
+              <div className="flex-1 bg-white rounded-lg p-2 space-y-2 overflow-y-auto border border-gray-200">
                 {getTasksByStatus(column.id).length === 0 ? (
-                  <div className="text-center py-8 text-gray-500 text-sm">Sin tareas</div>
+                  <div className="text-center py-8 text-gray-400 text-sm">Sin tareas</div>
                 ) : (
                   getTasksByStatus(column.id).map((task) => (
                     <TaskCard
@@ -556,27 +584,28 @@ export default function TasksPage() {
 
       {/* TABLE VIEW */}
       {view === "table" && (
-        <div className="rounded-lg border border-zinc-800 overflow-hidden">
+        <div className="rounded-lg border border-gray-200 overflow-hidden bg-white">
           <table className="w-full">
-            <thead className="bg-zinc-900">
+            <thead className="bg-gray-50">
               <tr>
-                <th className="text-left p-3 text-sm font-medium text-gray-400">Tarea</th>
-                <th className="text-left p-3 text-sm font-medium text-gray-400">Estado</th>
-                <th className="text-left p-3 text-sm font-medium text-gray-400">Prioridad</th>
-                <th className="text-left p-3 text-sm font-medium text-gray-400">Proyecto</th>
-                <th className="text-left p-3 text-sm font-medium text-gray-400">Asignado</th>
-                <th className="text-right p-3 text-sm font-medium text-gray-400">Acciones</th>
+                <th className="text-left p-3 text-sm font-medium text-gray-600">Tarea</th>
+                <th className="text-left p-3 text-sm font-medium text-gray-600">Estado</th>
+                <th className="text-left p-3 text-sm font-medium text-gray-600">Prioridad</th>
+                <th className="text-left p-3 text-sm font-medium text-gray-600">Fecha límite</th>
+                <th className="text-left p-3 text-sm font-medium text-gray-600">Proyecto</th>
+                <th className="text-left p-3 text-sm font-medium text-gray-600">Asignado</th>
+                <th className="text-right p-3 text-sm font-medium text-gray-600">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800">
+            <tbody className="divide-y divide-gray-200">
               {tasks.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-12 text-gray-500">No hay tareas</td></tr>
+                <tr><td colSpan={7} className="text-center py-12 text-gray-500">No hay tareas</td></tr>
               ) : (
                 tasks.map((task) => (
-                  <tr key={task.id} className="hover:bg-zinc-900/50">
+                  <tr key={task.id} className="hover:bg-gray-50">
                     <td className="p-3">
                       <div>
-                        <p className="font-medium text-white">{task.title}</p>
+                        <p className="font-medium text-gray-900">{task.title}</p>
                         {task.description && <p className="text-xs text-gray-500 mt-0.5 truncate max-w-[300px]">{task.description}</p>}
                       </div>
                     </td>
@@ -588,15 +617,23 @@ export default function TasksPage() {
                         <Badge variant="secondary" className={cn("border", priorityColors[task.priority])}>{priorityLabels[task.priority]}</Badge>
                       )}
                     </td>
-                    <td className="p-3 text-sm text-gray-400">{task.project?.name || getProjectName(task.projectId) || "-"}</td>
-                    <td className="p-3 text-sm text-gray-400">{task.assignedTo || "-"}</td>
+                    <td className="p-3">
+                      {task.dueDate && (
+                        <div className="flex items-center gap-1 text-sm text-gray-600">
+                          <Calendar className="h-4 w-4" />
+                          <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+                        </div>
+                      )}
+                    </td>
+                    <td className="p-3 text-sm text-gray-600">{task.project?.name || getProjectName(task.projectId) || "-"}</td>
+                    <td className="p-3 text-sm text-gray-600">{task.assignedTo || "-"}</td>
                     <td className="p-3 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(task)} className="h-8 w-8 p-0 hover:bg-zinc-700">
-                          <Pencil className="h-4 w-4 text-gray-400" />
+                        <Button variant="ghost" size="sm" onClick={() => handleEdit(task)} className="h-8 w-8 p-0 hover:bg-gray-100">
+                          <Pencil className="h-4 w-4 text-gray-500" />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(task.id)} className="h-8 w-8 p-0 hover:bg-zinc-700">
-                          <Trash2 className="h-4 w-4 text-red-400" />
+                        <Button variant="ghost" size="sm" onClick={() => handleDelete(task.id)} className="h-8 w-8 p-0 hover:bg-gray-100">
+                          <Trash2 className="h-4 w-4 text-red-500" />
                         </Button>
                       </div>
                     </td>
@@ -612,22 +649,28 @@ export default function TasksPage() {
       {view === "list" && (
         <div className="space-y-2">
           {tasks.length === 0 ? (
-            <Card className="bg-zinc-900 border-zinc-800">
+            <Card className="bg-white border-gray-200">
               <CardContent className="py-12 text-center text-gray-500">No hay tareas</CardContent>
             </Card>
           ) : (
             tasks.map((task) => (
-              <Card key={task.id} className="bg-zinc-900 border-zinc-800 hover:border-zinc-700 transition-colors">
+              <Card key={task.id} className="bg-white border-gray-200 hover:border-gray-300 transition-colors">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4 flex-1 min-w-0">
                       <div className={cn("w-2 h-2 rounded-full flex-shrink-0", columns.find(c => c.id === task.status)?.color)} />
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-medium text-white truncate">{task.title}</h3>
+                        <h3 className="font-medium text-gray-900 truncate">{task.title}</h3>
                         <div className="flex items-center gap-3 mt-1">
                           <Badge variant="secondary" className={cn("text-[10px] border", statusColors[task.status])}>{statusLabels[task.status]}</Badge>
                           {task.priority !== "NONE" && (
                             <Badge variant="secondary" className={cn("text-[10px] border", priorityColors[task.priority])}>{priorityLabels[task.priority]}</Badge>
+                          )}
+                          {task.dueDate && (
+                            <span className="text-xs text-gray-500 flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {new Date(task.dueDate).toLocaleDateString()}
+                            </span>
                           )}
                           {(task.project?.name || getProjectName(task.projectId)) && (
                             <span className="text-xs text-gray-500">{task.project?.name || getProjectName(task.projectId)}</span>
@@ -639,11 +682,11 @@ export default function TasksPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => handleEdit(task)} className="h-8 w-8 p-0 hover:bg-zinc-700">
-                        <Pencil className="h-4 w-4 text-gray-400" />
+                      <Button variant="ghost" size="sm" onClick={() => handleEdit(task)} className="h-8 w-8 p-0 hover:bg-gray-100">
+                        <Pencil className="h-4 w-4 text-gray-500" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(task.id)} className="h-8 w-8 p-0 hover:bg-zinc-700">
-                        <Trash2 className="h-4 w-4 text-red-400" />
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete(task.id)} className="h-8 w-8 p-0 hover:bg-gray-100">
+                        <Trash2 className="h-4 w-4 text-red-500" />
                       </Button>
                     </div>
                   </div>
