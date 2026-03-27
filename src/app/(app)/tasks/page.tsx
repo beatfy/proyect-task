@@ -101,7 +101,7 @@ export default function TasksPage() {
   const [status, setStatus] = useState("TODO");
   const [priority, setPriority] = useState("NONE");
   const [assignedTo, setAssignedTo] = useState("");
-  const [projectId, setProjectId] = useState("");
+  const [projectId, setProjectId] = useState("none");
 
   useEffect(() => {
     fetchTasks();
@@ -143,7 +143,7 @@ export default function TasksPage() {
     setStatus("TODO");
     setPriority("NONE");
     setAssignedTo("");
-    setProjectId("");
+    setProjectId("none");
   };
 
   const handleCreate = async () => {
@@ -158,7 +158,7 @@ export default function TasksPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           title, description, status, priority,
-          assignedTo: assignedTo || null, projectId: projectId || null
+          assignedTo: assignedTo || null, projectId: projectId === "none" ? null : projectId || null
         }),
       });
 
@@ -190,7 +190,7 @@ export default function TasksPage() {
     setStatus(task.status);
     setPriority(task.priority);
     setAssignedTo(task.assignedTo || "");
-    setProjectId(task.projectId || "");
+    setProjectId(task.projectId || "none");
     setEditOpen(true);
   };
 
@@ -206,7 +206,7 @@ export default function TasksPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           id: editingTask.id, title, description, status, priority,
-          assignedTo: assignedTo || null, projectId: projectId || null
+          assignedTo: assignedTo || null, projectId: projectId === "none" ? null : projectId || null
         }),
       });
 
@@ -281,7 +281,7 @@ export default function TasksPage() {
           <Select value={projectId} onValueChange={setProjectId}>
             <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white"><SelectValue placeholder="Sin proyecto" /></SelectTrigger>
             <SelectContent className="bg-zinc-800 border-zinc-700">
-              <SelectItem value="">Sin proyecto</SelectItem>
+              <SelectItem value="none">Sin proyecto</SelectItem>
               {projects.map((p) => (<SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>))}
             </SelectContent>
           </Select>
