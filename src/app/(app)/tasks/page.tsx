@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, MoreHorizontal, Calendar, User, Pencil, Trash2, FolderOpen } from "lucide-react";
+import { Plus, MoreHorizontal, Calendar, User, Pencil, Trash2, FolderOpen, LayoutGrid, List, Table } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -70,16 +70,32 @@ const priorityLabels: Record<string, string> = {
   URGENT: "Urgente",
 };
 
+const statusLabels: Record<string, string> = {
+  TODO: "Por hacer",
+  INPROGRESS: "En progreso",
+  INREVIEW: "En revisión",
+  DONE: "Hecho",
+};
+
+const statusColors: Record<string, string> = {
+  TODO: "bg-gray-500/20 text-white border-gray-500/30",
+  INPROGRESS: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+  INREVIEW: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
+  DONE: "bg-green-500/20 text-green-300 border-green-500/30",
+};
+
+type ViewType = "kanban" | "list" | "table";
+
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<ViewType>("kanban");
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
   
-  // Form state
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState("TODO");
@@ -113,9 +129,7 @@ export default function TasksPage() {
         const data = await response.json();
         setProjects(data);
       }
-    } catch {
-      // Ignore
-    }
+    } catch {}
   };
 
   const resetForm = () => {
@@ -138,12 +152,8 @@ export default function TasksPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          title, 
-          description, 
-          status, 
-          priority,
-          assignedTo: assignedTo || null,
-          projectId: projectId || null
+          title, description, status, priority,
+          assignedTo: assignedTo || null, projectId: projectId || null
         }),
       });
 
@@ -181,13 +191,8 @@ export default function TasksPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          id: editingTask.id,
-          title, 
-          description, 
-          status, 
-          priority,
-          assignedTo: assignedTo || null,
-          projectId: projectId || null
+          id: editingTask.id, title, description, status, priority,
+          assignedTo: assignedTo || null, projectId: projectId || null
         }),
       });
 
@@ -208,10 +213,7 @@ export default function TasksPage() {
     if (!confirm("¿Estás seguro de eliminar esta tarea?")) return;
 
     try {
-      const response = await fetch(`/api/tasks?id=${taskId}`, {
-        method: "DELETE",
-      });
-
+      const response = await fetch(`/api/tasks?id=${taskId}`, { method: "DELETE" });
       if (response.ok) {
         setTasks(tasks.filter(t => t.id !== taskId));
         toast.success("Tarea eliminada");
@@ -221,21 +223,12 @@ export default function TasksPage() {
     }
   };
 
-  const handleDragStart = (task: Task) => {
-    setDraggedTask(task);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
-
+  const handleDragStart = (task: Task) => setDraggedTask(task);
+  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
+  
   const handleDrop = async (newStatus: string) => {
     if (!draggedTask) return;
-
-    setTasks(tasks.map(t => 
-      t.id === draggedTask.id ? { ...t, status: newStatus } : t
-    ));
-
+    setTasks(tasks.map(t => t.id === draggedTask.id ? { ...t, status: newStatus } : t));
     try {
       await fetch("/api/tasks", {
         method: "PATCH",
@@ -243,23 +236,119 @@ export default function TasksPage() {
         body: JSON.stringify({ id: draggedTask.id, status: newStatus }),
       });
     } catch {
-      setTasks(tasks.map(t => 
-        t.id === draggedTask.id ? { ...t, status: draggedTask.status } : t
-      ));
+      setTasks(tasks.map(t => t.id === draggedTask.id ? { ...t, status: draggedTask.status } : t));
       toast.error("Error al mover tarea");
     }
-
     setDraggedTask(null);
   };
 
-  const getTasksByStatus = (status: string) => 
-    tasks.filter(t => t.status === status);
-
+  const getTasksByStatus = (status: string) => tasks.filter(t => t.status === status);
   const getProjectName = (id: string | null) => {
     if (!id) return null;
-    const project = projects.find(p => p.id === id);
-    return project?.name || null;
+    return projects.find(p => p.id === id)?.name || null;
   };
+
+  const TaskDialog = ({ mode }: { mode: "create" | "edit" }) => (
+    <DialogContent className="bg-zinc-900 border-zinc-800">
+      <DialogHeader>
+        <DialogTitle className="text-white">{mode === "create" ? "Crear Tarea" : "Editar Tarea"}</DialogTitle>
+      </DialogHeader>
+      <div className="space-y-4 pt-4">
+        <div className="space-y-2">
+          <Label className="text-white">Título</Label>
+          <Input placeholder="Título de la tarea" value={title} onChange={(e) => setTitle(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-white">Descripción</Label>
+          <Input placeholder="Descripción opcional" value={description} onChange={(e) => setDescription(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-white">Proyecto</Label>
+          <Select value={projectId} onValueChange={setProjectId}>
+            <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white"><SelectValue placeholder="Sin proyecto" /></SelectTrigger>
+            <SelectContent className="bg-zinc-800 border-zinc-700">
+              <SelectItem value="">Sin proyecto</SelectItem>
+              {projects.map((p) => (<SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label className="text-white">Estado</Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white"><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-zinc-800 border-zinc-700">
+                {columns.map((col) => (<SelectItem key={col.id} value={col.id}>{col.title}</SelectItem>))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-white">Prioridad</Label>
+            <Select value={priority} onValueChange={setPriority}>
+              <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white"><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-zinc-800 border-zinc-700">
+                {Object.entries(priorityLabels).map(([v, l]) => (<SelectItem key={v} value={v}>{l}</SelectItem>))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label className="text-white">Asignar a (email)</Label>
+          <Input placeholder="email@ejemplo.com" value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
+        </div>
+        <Button onClick={mode === "create" ? handleCreate : handleUpdate} className="w-full">
+          {mode === "create" ? "Crear Tarea" : "Guardar Cambios"}
+        </Button>
+      </div>
+    </DialogContent>
+  );
+
+  const TaskCard = ({ task }: { task: Task }) => (
+    <Card draggable onDragStart={() => handleDragStart(task)} className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow bg-zinc-800 border-zinc-700">
+      <CardContent className="p-3">
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <h4 className="font-medium text-sm leading-tight text-white">{task.title}</h4>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-zinc-700">
+                <MoreHorizontal className="h-4 w-4 text-gray-400" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-zinc-800 border-zinc-700">
+              <DropdownMenuItem onClick={() => handleEdit(task)} className="text-white hover:bg-zinc-700 cursor-pointer">
+                <Pencil className="h-4 w-4 mr-2" /> Editar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleDelete(task.id)} className="text-red-400 hover:bg-zinc-700 cursor-pointer">
+                <Trash2 className="h-4 w-4 mr-2" /> Eliminar
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        {task.description && <p className="text-xs text-gray-400 mb-3 line-clamp-2">{task.description}</p>}
+        <div className="flex items-center gap-2 flex-wrap mb-2">
+          {task.priority !== "NONE" && (
+            <Badge variant="secondary" className={cn("text-[10px] px-1.5 py-0 h-5 border", priorityColors[task.priority])}>
+              {priorityLabels[task.priority]}
+            </Badge>
+          )}
+        </div>
+        {(task.project?.name || getProjectName(task.projectId)) && (
+          <div className="flex items-center gap-1.5 mb-2">
+            <FolderOpen className="h-3 w-3 text-gray-400" />
+            <span className="text-xs text-gray-400">{task.project?.name || getProjectName(task.projectId)}</span>
+          </div>
+        )}
+        {task.assignedTo && (
+          <div className="flex items-center gap-1.5 pt-2 border-t border-zinc-700">
+            <div className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center">
+              <User className="h-3 w-3 text-blue-400" />
+            </div>
+            <span className="text-xs text-gray-400 truncate">{task.assignedTo}</span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 
   if (loading) {
     return (
@@ -274,307 +363,158 @@ export default function TasksPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-white">Tareas</h1>
-          <p className="text-gray-400 text-sm mt-1">
-            Arrastra las tareas entre columnas para cambiar su estado
-          </p>
+          <p className="text-gray-400 text-sm mt-1">Gestiona todas tus tareas</p>
         </div>
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
-          <Button onClick={() => setOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nueva Tarea
+        <div className="flex items-center gap-2">
+          {/* View Toggle */}
+          <div className="flex items-center bg-zinc-800 rounded-lg p-1">
+            <Button variant={view === "kanban" ? "secondary" : "ghost"} size="sm" onClick={() => setView("kanban")} className="h-8 px-3">
+              <LayoutGrid className="h-4 w-4 mr-1" /> Kanban
+            </Button>
+            <Button variant={view === "table" ? "secondary" : "ghost"} size="sm" onClick={() => setView("table")} className="h-8 px-3">
+              <Table className="h-4 w-4 mr-1" /> Tabla
+            </Button>
+            <Button variant={view === "list" ? "secondary" : "ghost"} size="sm" onClick={() => setView("list")} className="h-8 px-3">
+              <List className="h-4 w-4 mr-1" /> Lista
+            </Button>
+          </div>
+          <Button onClick={() => { resetForm(); setOpen(true); }}>
+            <Plus className="h-4 w-4 mr-2" /> Nueva Tarea
           </Button>
-        </Dialog>
+        </div>
       </div>
 
       {/* Create Dialog */}
       <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
-        <DialogContent className="bg-zinc-900 border-zinc-800">
-          <DialogHeader>
-            <DialogTitle className="text-white">Crear Tarea</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-4">
-            <div className="space-y-2">
-              <Label className="text-white">Título</Label>
-              <Input
-                placeholder="Título de la tarea"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="bg-zinc-800 border-zinc-700 text-white"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-white">Descripción</Label>
-              <Input
-                placeholder="Descripción opcional"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="bg-zinc-800 border-zinc-700 text-white"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-white">Proyecto</Label>
-              <Select value={projectId} onValueChange={setProjectId}>
-                <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
-                  <SelectValue placeholder="Sin proyecto" />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-800 border-zinc-700">
-                  <SelectItem value="">Sin proyecto</SelectItem>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-white">Estado inicial</Label>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-800 border-zinc-700">
-                  {columns.map((col) => (
-                    <SelectItem key={col.id} value={col.id}>
-                      {col.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-white">Prioridad</Label>
-              <Select value={priority} onValueChange={setPriority}>
-                <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-800 border-zinc-700">
-                  {Object.entries(priorityLabels).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-white">Asignar a (email)</Label>
-              <Input
-                placeholder="email@ejemplo.com"
-                value={assignedTo}
-                onChange={(e) => setAssignedTo(e.target.value)}
-                className="bg-zinc-800 border-zinc-700 text-white"
-              />
-            </div>
-            <Button onClick={handleCreate} className="w-full">
-              Crear Tarea
-            </Button>
-          </div>
-        </DialogContent>
+        <TaskDialog mode="create" />
       </Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={editOpen} onOpenChange={(v) => { setEditOpen(v); if (!v) { resetForm(); setEditingTask(null); }}}>
-        <DialogContent className="bg-zinc-900 border-zinc-800">
-          <DialogHeader>
-            <DialogTitle className="text-white">Editar Tarea</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-4">
-            <div className="space-y-2">
-              <Label className="text-white">Título</Label>
-              <Input
-                placeholder="Título de la tarea"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="bg-zinc-800 border-zinc-700 text-white"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-white">Descripción</Label>
-              <Input
-                placeholder="Descripción opcional"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="bg-zinc-800 border-zinc-700 text-white"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-white">Proyecto</Label>
-              <Select value={projectId} onValueChange={setProjectId}>
-                <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
-                  <SelectValue placeholder="Sin proyecto" />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-800 border-zinc-700">
-                  <SelectItem value="">Sin proyecto</SelectItem>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-white">Estado</Label>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-800 border-zinc-700">
-                  {columns.map((col) => (
-                    <SelectItem key={col.id} value={col.id}>
-                      {col.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-white">Prioridad</Label>
-              <Select value={priority} onValueChange={setPriority}>
-                <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-800 border-zinc-700">
-                  {Object.entries(priorityLabels).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-white">Asignar a (email)</Label>
-              <Input
-                placeholder="email@ejemplo.com"
-                value={assignedTo}
-                onChange={(e) => setAssignedTo(e.target.value)}
-                className="bg-zinc-800 border-zinc-700 text-white"
-              />
-            </div>
-            <Button onClick={handleUpdate} className="w-full">
-              Guardar Cambios
-            </Button>
-          </div>
-        </DialogContent>
+        <TaskDialog mode="edit" />
       </Dialog>
 
-      {/* Kanban Board */}
-      <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-220px)]">
-        {columns.map((column) => (
-          <div
-            key={column.id}
-            className="flex-1 min-w-[280px] max-w-[350px] flex flex-col"
-            onDragOver={handleDragOver}
-            onDrop={() => handleDrop(column.id)}
-          >
-            {/* Column Header */}
-            <div className="flex items-center gap-2 mb-3 px-1">
-              <div className={cn("w-3 h-3 rounded-full", column.color)} />
-              <h3 className="font-medium text-sm text-white">{column.title}</h3>
-              <span className="text-xs text-gray-400 ml-auto">
-                {getTasksByStatus(column.id).length}
-              </span>
+      {/* KANBAN VIEW */}
+      {view === "kanban" && (
+        <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-220px)]">
+          {columns.map((column) => (
+            <div key={column.id} className="flex-1 min-w-[280px] max-w-[350px] flex flex-col" onDragOver={handleDragOver} onDrop={() => handleDrop(column.id)}>
+              <div className="flex items-center gap-2 mb-3 px-1">
+                <div className={cn("w-3 h-3 rounded-full", column.color)} />
+                <h3 className="font-medium text-sm text-white">{column.title}</h3>
+                <span className="text-xs text-gray-400 ml-auto">{getTasksByStatus(column.id).length}</span>
+              </div>
+              <div className="flex-1 bg-zinc-900/50 rounded-lg p-2 space-y-2 overflow-y-auto">
+                {getTasksByStatus(column.id).length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 text-sm">Sin tareas</div>
+                ) : (
+                  getTasksByStatus(column.id).map((task) => <TaskCard key={task.id} task={task} />)
+                )}
+              </div>
             </div>
+          ))}
+        </div>
+      )}
 
-            {/* Column Content */}
-            <div className="flex-1 bg-zinc-900/50 rounded-lg p-2 space-y-2 overflow-y-auto">
-              {getTasksByStatus(column.id).length === 0 ? (
-                <div className="text-center py-8 text-gray-500 text-sm">
-                  Sin tareas
-                </div>
+      {/* TABLE VIEW */}
+      {view === "table" && (
+        <div className="rounded-lg border border-zinc-800 overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-zinc-900">
+              <tr>
+                <th className="text-left p-3 text-sm font-medium text-gray-400">Tarea</th>
+                <th className="text-left p-3 text-sm font-medium text-gray-400">Estado</th>
+                <th className="text-left p-3 text-sm font-medium text-gray-400">Prioridad</th>
+                <th className="text-left p-3 text-sm font-medium text-gray-400">Proyecto</th>
+                <th className="text-left p-3 text-sm font-medium text-gray-400">Asignado</th>
+                <th className="text-right p-3 text-sm font-medium text-gray-400">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-800">
+              {tasks.length === 0 ? (
+                <tr><td colSpan={6} className="text-center py-12 text-gray-500">No hay tareas</td></tr>
               ) : (
-                getTasksByStatus(column.id).map((task) => (
-                  <Card
-                    key={task.id}
-                    draggable
-                    onDragStart={() => handleDragStart(task)}
-                    className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow bg-zinc-800 border-zinc-700"
-                  >
-                    <CardContent className="p-3">
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <h4 className="font-medium text-sm leading-tight text-white">
-                          {task.title}
-                        </h4>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-zinc-700">
-                              <MoreHorizontal className="h-4 w-4 text-gray-400" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="bg-zinc-800 border-zinc-700">
-                            <DropdownMenuItem 
-                              onClick={() => handleEdit(task)}
-                              className="text-white hover:bg-zinc-700 cursor-pointer"
-                            >
-                              <Pencil className="h-4 w-4 mr-2" />
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleDelete(task.id)}
-                              className="text-red-400 hover:bg-zinc-700 cursor-pointer"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Eliminar
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                tasks.map((task) => (
+                  <tr key={task.id} className="hover:bg-zinc-900/50">
+                    <td className="p-3">
+                      <div>
+                        <p className="font-medium text-white">{task.title}</p>
+                        {task.description && <p className="text-xs text-gray-500 mt-0.5 truncate max-w-[300px]">{task.description}</p>}
                       </div>
-
-                      {task.description && (
-                        <p className="text-xs text-gray-400 mb-3 line-clamp-2">
-                          {task.description}
-                        </p>
+                    </td>
+                    <td className="p-3">
+                      <Badge variant="secondary" className={cn("border", statusColors[task.status])}>{statusLabels[task.status]}</Badge>
+                    </td>
+                    <td className="p-3">
+                      {task.priority !== "NONE" && (
+                        <Badge variant="secondary" className={cn("border", priorityColors[task.priority])}>{priorityLabels[task.priority]}</Badge>
                       )}
-
-                      <div className="flex items-center gap-2 flex-wrap mb-2">
-                        {task.priority !== "NONE" && (
-                          <Badge 
-                            variant="secondary" 
-                            className={cn("text-[10px] px-1.5 py-0 h-5 border", priorityColors[task.priority])}
-                          >
-                            {priorityLabels[task.priority]}
-                          </Badge>
-                        )}
-                        
-                        {task.dueDate && (
-                          <div className="flex items-center gap-1 text-xs text-gray-400">
-                            <Calendar className="h-3 w-3" />
-                            <span>{new Date(task.dueDate).toLocaleDateString()}</span>
-                          </div>
-                        )}
+                    </td>
+                    <td className="p-3 text-sm text-gray-400">{task.project?.name || getProjectName(task.projectId) || "-"}</td>
+                    <td className="p-3 text-sm text-gray-400">{task.assignedTo || "-"}</td>
+                    <td className="p-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => handleEdit(task)} className="h-8 w-8 p-0 hover:bg-zinc-700">
+                          <Pencil className="h-4 w-4 text-gray-400" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDelete(task.id)} className="h-8 w-8 p-0 hover:bg-zinc-700">
+                          <Trash2 className="h-4 w-4 text-red-400" />
+                        </Button>
                       </div>
-
-                      {/* Project */}
-                      {(task.project?.name || getProjectName(task.projectId)) && (
-                        <div className="flex items-center gap-1.5 mb-2">
-                          <FolderOpen className="h-3 w-3 text-gray-400" />
-                          <span className="text-xs text-gray-400">
-                            {task.project?.name || getProjectName(task.projectId)}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Assignee */}
-                      {task.assignedTo && (
-                        <div className="flex items-center gap-1.5 pt-2 border-t border-zinc-700">
-                          <div className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center">
-                            <User className="h-3 w-3 text-blue-400" />
-                          </div>
-                          <span className="text-xs text-gray-400 truncate">
-                            {task.assignedTo}
-                          </span>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                    </td>
+                  </tr>
                 ))
               )}
-            </div>
-          </div>
-        ))}
-      </div>
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* LIST VIEW */}
+      {view === "list" && (
+        <div className="space-y-2">
+          {tasks.length === 0 ? (
+            <Card className="bg-zinc-900 border-zinc-800">
+              <CardContent className="py-12 text-center text-gray-500">No hay tareas</CardContent>
+            </Card>
+          ) : (
+            tasks.map((task) => (
+              <Card key={task.id} className="bg-zinc-900 border-zinc-800 hover:border-zinc-700 transition-colors">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                      <div className={cn("w-2 h-2 rounded-full flex-shrink-0", columns.find(c => c.id === task.status)?.color)} />
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-medium text-white truncate">{task.title}</h3>
+                        <div className="flex items-center gap-3 mt-1">
+                          <Badge variant="secondary" className={cn("text-[10px] border", statusColors[task.status])}>{statusLabels[task.status]}</Badge>
+                          {task.priority !== "NONE" && (
+                            <Badge variant="secondary" className={cn("text-[10px] border", priorityColors[task.priority])}>{priorityLabels[task.priority]}</Badge>
+                          )}
+                          {(task.project?.name || getProjectName(task.projectId)) && (
+                            <span className="text-xs text-gray-500">{task.project?.name || getProjectName(task.projectId)}</span>
+                          )}
+                          {task.assignedTo && (
+                            <span className="text-xs text-gray-500 flex items-center gap-1"><User className="h-3 w-3" />{task.assignedTo}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => handleEdit(task)} className="h-8 w-8 p-0 hover:bg-zinc-700">
+                        <Pencil className="h-4 w-4 text-gray-400" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete(task.id)} className="h-8 w-8 p-0 hover:bg-zinc-700">
+                        <Trash2 className="h-4 w-4 text-red-400" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }
