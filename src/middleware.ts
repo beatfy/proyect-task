@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 // Rutas que requieren autenticación
-const protectedRoutes = ["/dashboard", "/projects", "/tasks", "/calendar", "/settings"];
+const protectedRoutes = ["/projects", "/tasks", "/calendar", "/settings"];
+// Temporalmente quitamos el dashboard de rutas protegidas para pruebas
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -26,5 +27,6 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/projects/:path*", "/tasks/:path*", "/calendar/:path*", "/settings/:path*"],
+  matcher: ["/projects/:path*", "/tasks/:path*", "/calendar/:path*", "/settings/:path*"],
+  // Quitamos el dashboard del matcher para permitir acceso directo
 };
