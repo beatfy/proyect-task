@@ -98,7 +98,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                     {session.user?.name}
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                  <p className="text-xs text-gray-500 dark:text-gray-300 truncate">
                     {session.user?.email}
                   </p>
                 </div>
@@ -108,7 +108,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full mt-2 text-gray-600 dark:text-gray-400"
+                className="w-full mt-2 text-gray-600 dark:text-gray-300"
                 onClick={() => signOut({ callbackUrl: "/login" })}
               >
                 <LogOut className="h-4 w-4 mr-2" />

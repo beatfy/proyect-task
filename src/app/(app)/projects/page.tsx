@@ -142,11 +142,11 @@ export default function ProjectsPage() {
       {projects.length === 0 ? (
         <Card className="bg-zinc-900 border-zinc-800">
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <FolderOpen className="h-12 w-12 text-gray-500 mb-4" />
+            <FolderOpen className="h-12 w-12 text-gray-400 mb-4" />
             <h3 className="text-lg font-medium text-white mb-1">
               No hay proyectos
             </h3>
-            <p className="text-gray-400 text-sm">
+            <p className="text-gray-300 text-sm">
               Crea tu primer proyecto para comenzar
             </p>
           </CardContent>

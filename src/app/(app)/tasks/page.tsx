@@ -278,7 +278,7 @@ export default function TasksPage() {
         </div>
         <div className="space-y-2">
           <Label className="text-white">Proyecto</Label>
-          <Select value={projectId} onValueChange={setProjectId}>
+          <Select value={projectId || "none"} onValueChange={setProjectId}>
             <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white"><SelectValue placeholder="Sin proyecto" /></SelectTrigger>
             <SelectContent className="bg-zinc-800 border-zinc-700">
               <SelectItem value="none">Sin proyecto</SelectItem>
@@ -289,7 +289,7 @@ export default function TasksPage() {
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label className="text-white">Estado</Label>
-            <Select value={status} onValueChange={setStatus}>
+            <Select value={status || "TODO"} onValueChange={setStatus}>
               <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white"><SelectValue /></SelectTrigger>
               <SelectContent className="bg-zinc-800 border-zinc-700">
                 {columns.map((col) => (<SelectItem key={col.id} value={col.id}>{col.title}</SelectItem>))}
@@ -298,7 +298,7 @@ export default function TasksPage() {
           </div>
           <div className="space-y-2">
             <Label className="text-white">Prioridad</Label>
-            <Select value={priority} onValueChange={setPriority}>
+            <Select value={priority || "NONE"} onValueChange={setPriority}>
               <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white"><SelectValue /></SelectTrigger>
               <SelectContent className="bg-zinc-800 border-zinc-700">
                 {Object.entries(priorityLabels).map(([v, l]) => (<SelectItem key={v} value={v}>{l}</SelectItem>))}

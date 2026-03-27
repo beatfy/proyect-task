@@ -109,7 +109,7 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           {recentTasks.length === 0 ? (
-            <p className="text-gray-400 text-center py-8">
+            <p className="text-gray-300 text-center py-8">
               No hay tareas recientes. ¡Crea tu primera tarea!
             </p>
           ) : (
