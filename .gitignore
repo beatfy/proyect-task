@@ -36,4 +36,4 @@ yarn-error.log*
 next-env.d.ts
 
 # prisma
-/src/generated/prisma
+/src/generated/prisma// build trigger 1774601156
