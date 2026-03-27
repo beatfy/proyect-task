@@ -22,15 +22,17 @@ export default function LoginPage() {
       const result = await signIn("credentials", {
         email,
         password,
-        redirect: false, // Mantener redirect: false para manejar la respuesta
+        redirect: false,
       });
 
       if (result?.error) {
         toast.error("Credenciales incorrectas");
         setLoading(false);
-      } else {
-        // Redirigir manualmente después de un inicio de sesión exitoso
-        window.location.href = "/dashboard";
+      } else if (result?.ok) {
+        // Esperar un poco para asegurar que la sesión se establezca
+        setTimeout(() => {
+          window.location.href = "/dashboard";
+        }, 100);
       }
     } catch (error) {
       console.error("Login error:", error);
