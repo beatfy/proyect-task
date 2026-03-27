@@ -4,7 +4,6 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +15,6 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,15 +24,16 @@ export default function LoginPage() {
       const result = await signIn("credentials", {
         email,
         password,
-        redirect: true, // Permitir redirección automática
-        callbackUrl: "/dashboard" // Especificar la URL de redirección
+        redirect: false, // Mantener redirect: false para manejar la respuesta
       });
 
       if (result?.error) {
         toast.error("Credenciales incorrectas");
         setLoading(false);
+      } else {
+        // Redirigir manualmente después de un inicio de sesión exitoso
+        window.location.href = "/dashboard";
       }
-      // Si no hay error, la redirección ocurre automáticamente
     } catch (error) {
       console.error("Login error:", error);
       toast.error("Error al iniciar sesión");

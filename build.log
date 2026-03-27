@@ -1,0 +1,30 @@
+
+> taskx@1.0.0 build
+> prisma generate && next build
+
+Prisma schema loaded from prisma/schema.prisma
+
+✔ Generated Prisma Client (v6.19.2) to ./node_modules/@prisma/client in 105ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
+
+   ▲ Next.js 15.5.14
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 2.9s
+   Linting and checking validity of types ...
+Failed to compile.
+
+./src/app/(auth)/login/page.fixed.tsx:29:19
+Type error: Property 'error' does not exist on type 'never'.
+
+[0m [90m 27 |[39m       })[33m;[39m
+ [90m 28 |[39m
+[31m[1m>[22m[39m[90m 29 |[39m       [36mif[39m (result[33m?[39m[33m.[39merror) {
+ [90m    |[39m                   [31m[1m^[22m[39m
+ [90m 30 |[39m         toast[33m.[39merror([32m"Credenciales incorrectas"[39m)[33m;[39m
+ [90m 31 |[39m         setLoading([36mfalse[39m)[33m;[39m
+ [90m 32 |[39m       }[0m
+Next.js build worker exited with code: 1 and signal: null
