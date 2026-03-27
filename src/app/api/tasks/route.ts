@@ -24,6 +24,15 @@ export async function GET(request: NextRequest) {
       whereClause.projectId = projectId;
     }
 
+    // Filter by parentId for subtasks
+    const parentId = searchParams.get("parentId");
+    if (parentId) {
+      whereClause.parentId = parentId;
+    } else {
+      // Only main tasks by default (no parentId)
+      whereClause.parentId = null;
+    }
+
     const tasks = await prisma.task.findMany({
       where: whereClause,
       include: {
@@ -58,7 +67,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, description, status, priority, dueDate, projectId, assignedTo, assigneeId } = body;
+    const { title, description, status, priority, dueDate, projectId, assignedTo, assigneeId, parentId } = body;
 
     // Resolve assigneeId - can come directly or via email
     let finalAssigneeId: string | null = null;
@@ -81,6 +90,7 @@ export async function POST(request: NextRequest) {
         projectId: projectId || null,
         creatorId: session.user.id,
         assigneeId: finalAssigneeId,
+        parentId: parentId || null,
       },
       include: {
         project: {
