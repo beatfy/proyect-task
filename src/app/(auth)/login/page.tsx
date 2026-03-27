@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +10,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,18 +22,23 @@ export default function LoginPage() {
       const result = await signIn("credentials", {
         email,
         password,
-        redirect: false,
+        callbackUrl: "/dashboard",
       });
 
+      // signIn con callbackUrl hace redirect automáticamente
+      // Si hay error, result será null o tendrá error
+      if (result === undefined) {
+        // Redirect está ocurriendo
+        return;
+      }
+      
       if (result?.error) {
         toast.error("Credenciales incorrectas");
-      } else {
-        router.push("/dashboard");
-        toast.success("Bienvenido a TaskX");
+        setLoading(false);
       }
-    } catch {
+    } catch (error) {
+      console.error("Login error:", error);
       toast.error("Error al iniciar sesión");
-    } finally {
       setLoading(false);
     }
   };
