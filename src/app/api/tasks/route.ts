@@ -2,20 +2,30 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const projectId = searchParams.get("projectId");
+
+    const whereClause: Record<string, unknown> = {
+      OR: [
+        { creatorId: session.user.id },
+        { assigneeId: session.user.id },
+      ],
+    };
+
+    // Filter by project if provided
+    if (projectId) {
+      whereClause.projectId = projectId;
+    }
+
     const tasks = await prisma.task.findMany({
-      where: {
-        OR: [
-          { creatorId: session.user.id },
-          { assigneeId: session.user.id },
-        ],
-      },
+      where: whereClause,
       include: {
         project: {
           select: { id: true, name: true, color: true }
@@ -47,14 +57,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const { title, description, status, priority, dueDate, projectId, assignedTo } = await request.json();
+    const body = await request.json();
+    const { title, description, status, priority, dueDate, projectId, assignedTo, assigneeId } = body;
 
-    let assigneeId: string | null = null;
-    if (assignedTo) {
+    // Resolve assigneeId - can come directly or via email
+    let finalAssigneeId: string | null = null;
+    if (assigneeId) {
+      finalAssigneeId = assigneeId;
+    } else if (assignedTo) {
       const assignee = await prisma.user.findUnique({
         where: { email: assignedTo },
       });
-      assigneeId = assignee?.id || null;
+      finalAssigneeId = assignee?.id || null;
     }
 
     const task = await prisma.task.create({
@@ -66,7 +80,7 @@ export async function POST(request: NextRequest) {
         dueDate: dueDate ? new Date(dueDate) : null,
         projectId: projectId || null,
         creatorId: session.user.id,
-        assigneeId,
+        assigneeId: finalAssigneeId,
       },
       include: {
         project: {
@@ -95,7 +109,8 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const { id, status, priority, title, description, projectId, assignedTo } = await request.json();
+    const body = await request.json();
+    const { id, status, priority, title, description, projectId, assignedTo, assigneeId, dueDate } = body;
 
     if (!id) {
       return NextResponse.json({ error: "ID requerido" }, { status: 400 });
@@ -107,8 +122,12 @@ export async function PATCH(request: NextRequest) {
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
     if (projectId !== undefined) updateData.projectId = projectId || null;
+    if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null;
 
-    if (assignedTo !== undefined) {
+    // Resolve assigneeId
+    if (assigneeId !== undefined) {
+      updateData.assigneeId = assigneeId || null;
+    } else if (assignedTo !== undefined) {
       if (assignedTo) {
         const assignee = await prisma.user.findUnique({
           where: { email: assignedTo },
