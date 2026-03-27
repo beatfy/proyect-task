@@ -8,15 +8,15 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+      <h1 className="text-3xl font-bold text-slate-900">
         Proyecto {id}
       </h1>
-      <Card>
+      <Card className="bg-white border-slate-200">
         <CardHeader>
-          <CardTitle>Tareas del Proyecto</CardTitle>
+          <CardTitle className="text-slate-900">Tareas del Proyecto</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-gray-500 dark:text-gray-400 text-center py-8">
+          <p className="text-slate-500 text-center py-8">
             Selecciona un proyecto para ver sus tareas
           </p>
         </CardContent>

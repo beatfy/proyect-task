@@ -28,7 +28,7 @@ export default function CalendarPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+        <h1 className="text-3xl font-bold text-slate-900">
           Calendario
         </h1>
         <div className="flex items-center gap-2">
@@ -36,25 +36,27 @@ export default function CalendarPage() {
             variant="outline"
             size="icon"
             onClick={() => setCurrentDate(subMonths(currentDate, 1))}
+            className="border-slate-200"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-lg font-medium min-w-[150px] text-center">
+          <span className="text-lg font-medium min-w-[150px] text-center text-slate-900">
             {format(currentDate, "MMMM yyyy", { locale: es })}
           </span>
           <Button
             variant="outline"
             size="icon"
             onClick={() => setCurrentDate(addMonths(currentDate, 1))}
+            className="border-slate-200"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      <Card>
+      <Card className="bg-white border-slate-200">
         <CardHeader>
-          <CardTitle>Vista Mensual</CardTitle>
+          <CardTitle className="text-slate-900">Vista Mensual</CardTitle>
         </CardHeader>
         <CardContent>
           {/* Week days header */}
@@ -62,7 +64,7 @@ export default function CalendarPage() {
             {weekDays.map((day) => (
               <div
                 key={day}
-                className="text-center text-sm font-medium text-gray-500 dark:text-gray-400 py-2"
+                className="text-center text-sm font-medium text-slate-500 py-2"
               >
                 {day}
               </div>
@@ -77,10 +79,10 @@ export default function CalendarPage() {
             {days.map((day) => (
               <button
                 key={day.toISOString()}
-                className={`aspect-square p-2 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                className={`aspect-square p-2 text-sm rounded-lg transition-colors ${
                   isToday(day)
-                    ? "bg-primary text-white hover:bg-primary/90"
-                    : ""
+                    ? "bg-indigo-500 text-white hover:bg-indigo-600"
+                    : "text-slate-700 hover:bg-slate-100"
                 }`}
               >
                 {format(day, "d")}

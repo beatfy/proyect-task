@@ -78,7 +78,7 @@ export default function ProjectsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
       </div>
     );
   }
@@ -87,8 +87,8 @@ export default function ProjectsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">Proyectos</h1>
-          <p className="text-gray-400 mt-1">
+          <h1 className="text-3xl font-bold text-slate-900">Proyectos</h1>
+          <p className="text-slate-500 mt-1">
             Gestiona tus proyectos y tareas
           </p>
         </div>
@@ -100,36 +100,36 @@ export default function ProjectsPage() {
 
       {/* Create Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="bg-zinc-900 border-zinc-800">
+        <DialogContent className="bg-white border-slate-200">
           <DialogHeader>
-            <DialogTitle className="text-white">Crear Proyecto</DialogTitle>
+            <DialogTitle className="text-slate-900">Crear Proyecto</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             <div className="space-y-2">
-              <Label className="text-white">Nombre</Label>
+              <Label className="text-slate-700">Nombre</Label>
               <Input
                 placeholder="Nombre del proyecto"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="bg-zinc-800 border-zinc-700 text-white"
+                className="bg-white border-slate-300 text-slate-900"
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-white">Descripción</Label>
+              <Label className="text-slate-700">Descripción</Label>
               <Input
                 placeholder="Descripción opcional"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="bg-zinc-800 border-zinc-700 text-white"
+                className="bg-white border-slate-300 text-slate-900"
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-white">Color</Label>
+              <Label className="text-slate-700">Color</Label>
               <Input
                 type="color"
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
-                className="bg-zinc-800 border-zinc-700 h-10"
+                className="bg-white border-slate-300 h-10"
               />
             </div>
             <Button onClick={handleCreate} className="w-full">
@@ -140,13 +140,13 @@ export default function ProjectsPage() {
       </Dialog>
 
       {projects.length === 0 ? (
-        <Card className="bg-zinc-900 border-zinc-800">
+        <Card className="bg-white border-slate-200">
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <FolderOpen className="h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-white mb-1">
+            <FolderOpen className="h-12 w-12 text-slate-400 mb-4" />
+            <h3 className="text-lg font-medium text-slate-900 mb-1">
               No hay proyectos
             </h3>
-            <p className="text-gray-300 text-sm">
+            <p className="text-slate-500 text-sm">
               Crea tu primer proyecto para comenzar
             </p>
           </CardContent>
@@ -155,18 +155,18 @@ export default function ProjectsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {projects.map((project) => (
             <Link key={project.id} href={`/projects/${project.id}`}>
-              <Card className="hover:shadow-md transition-shadow cursor-pointer bg-zinc-900 border-zinc-800 hover:border-zinc-700">
+              <Card className="hover:shadow-md transition-shadow cursor-pointer bg-white border-slate-200 hover:border-slate-300">
                 <CardHeader>
                   <div className="flex items-center gap-3">
                     <div
                       className="w-3 h-3 rounded-full"
                       style={{ backgroundColor: project.color }}
                     />
-                    <CardTitle className="text-lg text-white">{project.name}</CardTitle>
+                    <CardTitle className="text-lg text-slate-900">{project.name}</CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-400 text-sm">
+                  <p className="text-slate-500 text-sm">
                     {project.description || "Sin descripción"}
                   </p>
                 </CardContent>
