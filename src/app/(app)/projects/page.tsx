@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, FolderOpen } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, FolderOpen, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -26,10 +26,29 @@ interface Project {
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState("#6366f1");
+
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  const fetchProjects = async () => {
+    try {
+      const response = await fetch("/api/projects");
+      if (response.ok) {
+        const data = await response.json();
+        setProjects(data);
+      }
+    } catch {
+      toast.error("Error al cargar proyectos");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleCreate = async () => {
     if (!name.trim()) {
@@ -57,12 +76,20 @@ export default function ProjectsPage() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Proyectos</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <h1 className="text-3xl font-bold">Proyectos</h1>
+          <p className="text-muted-foreground mt-1">
             Gestiona tus proyectos y tareas
           </p>
         </div>
@@ -116,11 +143,11 @@ export default function ProjectsPage() {
       {projects.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <FolderOpen className="h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">
+            <FolderOpen className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium mb-1">
               No hay proyectos
             </h3>
-            <p className="text-gray-500 dark:text-gray-400 text-sm">
+            <p className="text-muted-foreground text-sm">
               Crea tu primer proyecto para comenzar
             </p>
           </CardContent>
@@ -140,7 +167,7 @@ export default function ProjectsPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm">
+                  <p className="text-muted-foreground text-sm">
                     {project.description || "Sin descripción"}
                   </p>
                 </CardContent>
