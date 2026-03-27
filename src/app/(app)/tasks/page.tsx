@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, CheckSquare, Loader2, User } from "lucide-react";
+import { Plus, MoreHorizontal, Calendar, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -20,7 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface Task {
   id: string;
@@ -32,20 +34,19 @@ interface Task {
   assignedTo: string | null;
 }
 
-const statusLabels: Record<string, string> = {
-  TODO: "Por hacer",
-  INPROGRESS: "En progreso",
-  INREVIEW: "En revisión",
-  DONE: "Hecho",
-  CANCELLED: "Cancelado",
-};
+const columns = [
+  { id: "TODO", title: "Por hacer", color: "bg-slate-500" },
+  { id: "INPROGRESS", title: "En progreso", color: "bg-blue-500" },
+  { id: "INREVIEW", title: "En revisión", color: "bg-yellow-500" },
+  { id: "DONE", title: "Hecho", color: "bg-green-500" },
+];
 
-const statusColors: Record<string, string> = {
-  TODO: "bg-gray-500/20 text-gray-700 dark:text-gray-300",
-  INPROGRESS: "bg-blue-500/20 text-blue-700 dark:text-blue-300",
-  INREVIEW: "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300",
-  DONE: "bg-green-500/20 text-green-700 dark:text-green-300",
-  CANCELLED: "bg-red-500/20 text-red-700 dark:text-red-300",
+const priorityColors: Record<string, string> = {
+  NONE: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+  LOW: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+  MEDIUM: "bg-orange-100 text-orange-600 dark:bg-orange-900 dark:text-orange-400",
+  HIGH: "bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-400",
+  URGENT: "bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-400",
 };
 
 const priorityLabels: Record<string, string> = {
@@ -56,18 +57,11 @@ const priorityLabels: Record<string, string> = {
   URGENT: "Urgente",
 };
 
-const priorityColors: Record<string, string> = {
-  NONE: "bg-gray-500/20 text-gray-700 dark:text-gray-300",
-  LOW: "bg-slate-500/20 text-slate-700 dark:text-slate-300",
-  MEDIUM: "bg-orange-500/20 text-orange-700 dark:text-orange-300",
-  HIGH: "bg-red-500/20 text-red-700 dark:text-red-300",
-  URGENT: "bg-purple-500/20 text-purple-700 dark:text-purple-300",
-};
-
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [draggedTask, setDraggedTask] = useState<Task | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState("TODO");
@@ -127,40 +121,65 @@ export default function TasksPage() {
     }
   };
 
-  const handleUpdateStatus = async (taskId: string, newStatus: string) => {
+  const handleDragStart = (task: Task) => {
+    setDraggedTask(task);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = async (newStatus: string) => {
+    if (!draggedTask) return;
+
+    // Optimistic update
+    setTasks(tasks.map(t => 
+      t.id === draggedTask.id ? { ...t, status: newStatus } : t
+    ));
+
     try {
       const response = await fetch("/api/tasks", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: taskId, status: newStatus }),
+        body: JSON.stringify({ id: draggedTask.id, status: newStatus }),
       });
 
-      if (response.ok) {
+      if (!response.ok) {
+        // Revert on error
         setTasks(tasks.map(t => 
-          t.id === taskId ? { ...t, status: newStatus } : t
+          t.id === draggedTask.id ? { ...t, status: draggedTask.status } : t
         ));
-        toast.success("Estado actualizado");
+        toast.error("Error al mover tarea");
       }
     } catch {
-      toast.error("Error al actualizar");
+      // Revert on error
+      setTasks(tasks.map(t => 
+        t.id === draggedTask.id ? { ...t, status: draggedTask.status } : t
+      ));
+      toast.error("Error al mover tarea");
     }
+
+    setDraggedTask(null);
   };
+
+  const getTasksByStatus = (status: string) => 
+    tasks.filter(t => t.status === status);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="h-full">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Tareas</h1>
-          <p className="text-muted-foreground mt-1">
-            Gestiona todas tus tareas
+          <h1 className="text-2xl font-semibold">Tareas</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Arrastra las tareas entre columnas para cambiar su estado
           </p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
@@ -194,15 +213,15 @@ export default function TasksPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Estado</Label>
+                <Label>Estado inicial</Label>
                 <Select value={status} onValueChange={setStatus}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(statusLabels).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
+                    {columns.map((col) => (
+                      <SelectItem key={col.id} value={col.id}>
+                        {col.title}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -240,68 +259,90 @@ export default function TasksPage() {
         </Dialog>
       </div>
 
-      {tasks.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <CheckSquare className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-1">
-              No hay tareas
-            </h3>
-            <p className="text-muted-foreground text-sm">
-              Crea tu primera tarea para comenzar
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {tasks.map((task) => (
-            <Card key={task.id} className="overflow-hidden">
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium truncate">
-                      {task.title}
-                    </h3>
-                    {task.description && (
-                      <p className="text-sm text-muted-foreground mt-1 truncate">
-                        {task.description}
-                      </p>
-                    )}
-                    {task.assignedTo && (
-                      <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
-                        <User className="h-3 w-3" />
-                        <span>{task.assignedTo}</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Select 
-                      value={task.status} 
-                      onValueChange={(v) => handleUpdateStatus(task.id, v)}
-                    >
-                      <SelectTrigger className="w-[130px] h-8">
-                        <span className={`px-2 py-0.5 text-xs rounded-full ${statusColors[task.status]}`}>
-                          {statusLabels[task.status]}
-                        </span>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(statusLabels).map(([value, label]) => (
-                          <SelectItem key={value} value={value}>
-                            {label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <span className={`px-2 py-1 text-xs rounded-full ${priorityColors[task.priority]}`}>
-                      {priorityLabels[task.priority]}
-                    </span>
-                  </div>
+      {/* Kanban Board */}
+      <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-220px)]">
+        {columns.map((column) => (
+          <div
+            key={column.id}
+            className="flex-1 min-w-[280px] max-w-[350px] flex flex-col"
+            onDragOver={handleDragOver}
+            onDrop={() => handleDrop(column.id)}
+          >
+            {/* Column Header */}
+            <div className="flex items-center gap-2 mb-3 px-1">
+              <div className={cn("w-3 h-3 rounded-full", column.color)} />
+              <h3 className="font-medium text-sm">{column.title}</h3>
+              <span className="text-xs text-muted-foreground ml-auto">
+                {getTasksByStatus(column.id).length}
+              </span>
+            </div>
+
+            {/* Column Content */}
+            <div className="flex-1 bg-muted/30 rounded-lg p-2 space-y-2 overflow-y-auto">
+              {getTasksByStatus(column.id).length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground text-sm">
+                  Sin tareas
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+              ) : (
+                getTasksByStatus(column.id).map((task) => (
+                  <Card
+                    key={task.id}
+                    draggable
+                    onDragStart={() => handleDragStart(task)}
+                    className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow bg-background border-0 shadow-sm"
+                  >
+                    <CardContent className="p-3">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <h4 className="font-medium text-sm leading-tight">
+                          {task.title}
+                        </h4>
+                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                          <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </div>
+
+                      {task.description && (
+                        <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
+                          {task.description}
+                        </p>
+                      )}
+
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {task.priority !== "NONE" && (
+                          <Badge 
+                            variant="secondary" 
+                            className={cn("text-[10px] px-1.5 py-0 h-5", priorityColors[task.priority])}
+                          >
+                            {priorityLabels[task.priority]}
+                          </Badge>
+                        )}
+                        
+                        {task.dueDate && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Calendar className="h-3 w-3" />
+                            <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {task.assignedTo && (
+                        <div className="flex items-center gap-1.5 mt-3 pt-2 border-t">
+                          <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
+                            <User className="h-3 w-3 text-primary" />
+                          </div>
+                          <span className="text-xs text-muted-foreground truncate">
+                            {task.assignedTo}
+                          </span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
