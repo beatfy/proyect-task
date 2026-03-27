@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -22,19 +24,16 @@ export default function LoginPage() {
       const result = await signIn("credentials", {
         email,
         password,
-        callbackUrl: "/dashboard",
+        redirect: false,
       });
 
-      // signIn con callbackUrl hace redirect automáticamente
-      // Si hay error, result será null o tendrá error
-      if (result === undefined) {
-        // Redirect está ocurriendo
-        return;
-      }
-      
       if (result?.error) {
         toast.error("Credenciales incorrectas");
         setLoading(false);
+      } else {
+        toast.success("¡Bienvenido!");
+        // Forzar redirección
+        window.location.href = "/dashboard";
       }
     } catch (error) {
       console.error("Login error:", error);
