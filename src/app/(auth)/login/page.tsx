@@ -21,18 +21,22 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      // Intentar iniciar sesión con redirección automática
       const result = await signIn("credentials", {
         email,
         password,
-        redirect: false,
+        redirect: true,
+        callbackUrl: "/dashboard"
       });
 
+      // Si llegamos aquí, hubo un error
       if (result?.error) {
         toast.error("Credenciales incorrectas");
         setLoading(false);
-      } else if (result?.ok) {
-        // Usar router.replace para navegar a dashboard
-        router.replace('/dashboard');
+      } else {
+        // Si no hay error, debería haber redirigido automáticamente
+        // pero por si acaso, intentamos redirigir manualmente
+        router.push('/dashboard');
       }
     } catch (error) {
       console.error("Login error:", error);
