@@ -111,12 +111,17 @@ export default function TasksPage() {
   const fetchTasks = async () => {
     try {
       const response = await fetch("/api/tasks");
+      if (response.status === 401) {
+        // No autenticado - mostrar lista vacía
+        setTasks([]);
+        return;
+      }
       if (response.ok) {
         const data = await response.json();
         setTasks(data);
       }
-    } catch {
-      toast.error("Error al cargar tareas");
+    } catch (error) {
+      console.error("Error loading tasks:", error);
     } finally {
       setLoading(false);
     }
@@ -157,15 +162,24 @@ export default function TasksPage() {
         }),
       });
 
-      if (response.ok) {
-        const task = await response.json();
-        setTasks([task, ...tasks]);
-        resetForm();
-        setOpen(false);
-        toast.success("Tarea creada");
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          toast.error("Debes iniciar sesión para crear tareas");
+        } else {
+          toast.error(data.error || "Error al crear tarea");
+        }
+        return;
       }
-    } catch {
-      toast.error("Error al crear tarea");
+
+      setTasks([data, ...tasks]);
+      resetForm();
+      setOpen(false);
+      toast.success("Tarea creada");
+    } catch (error) {
+      console.error("Create task error:", error);
+      toast.error("Error de conexión");
     }
   };
 
