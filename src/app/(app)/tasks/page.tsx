@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, MoreHorizontal, Calendar, User, Pencil, Trash2, FolderOpen, LayoutGrid, List, Table } from "lucide-react";
+import { Plus, MoreHorizontal, User, Pencil, Trash2, FolderOpen, LayoutGrid, List, Table } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -86,6 +86,193 @@ const statusColors: Record<string, string> = {
 
 type ViewType = "kanban" | "list" | "table";
 
+// MOVED OUTSIDE: TaskDialog component
+function TaskDialog({
+  open,
+  onOpenChange,
+  mode,
+  title,
+  setTitle,
+  description,
+  setDescription,
+  status,
+  setStatus,
+  priority,
+  setPriority,
+  assignedTo,
+  setAssignedTo,
+  projectId,
+  setProjectId,
+  projects,
+  onSubmit,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  mode: "create" | "edit";
+  title: string;
+  setTitle: (v: string) => void;
+  description: string;
+  setDescription: (v: string) => void;
+  status: string;
+  setStatus: (v: string) => void;
+  priority: string;
+  setPriority: (v: string) => void;
+  assignedTo: string;
+  setAssignedTo: (v: string) => void;
+  projectId: string;
+  setProjectId: (v: string) => void;
+  projects: Project[];
+  onSubmit: () => void;
+}) {
+  return (
+    <DialogContent className="bg-zinc-900 border-zinc-800">
+      <DialogHeader>
+        <DialogTitle className="text-white">{mode === "create" ? "Crear Tarea" : "Editar Tarea"}</DialogTitle>
+      </DialogHeader>
+      <div className="space-y-4 pt-4">
+        <div className="space-y-2">
+          <Label className="text-white">Título</Label>
+          <Input
+            placeholder="Título de la tarea"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="bg-zinc-800 border-zinc-700 text-white"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-white">Descripción</Label>
+          <Input
+            placeholder="Descripción opcional"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="bg-zinc-800 border-zinc-700 text-white"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-white">Proyecto</Label>
+          <Select value={projectId} onValueChange={setProjectId}>
+            <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
+              <SelectValue placeholder="Sin proyecto" />
+            </SelectTrigger>
+            <SelectContent className="bg-zinc-800 border-zinc-700">
+              <SelectItem value="none">Sin proyecto</SelectItem>
+              {projects.map((p) => (
+                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label className="text-white">Estado</Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-zinc-800 border-zinc-700">
+                {columns.map((col) => (
+                  <SelectItem key={col.id} value={col.id}>{col.title}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-white">Prioridad</Label>
+            <Select value={priority} onValueChange={setPriority}>
+              <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-zinc-800 border-zinc-700">
+                {Object.entries(priorityLabels).map(([v, l]) => (
+                  <SelectItem key={v} value={v}>{l}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label className="text-white">Asignar a (email)</Label>
+          <Input
+            placeholder="email@ejemplo.com"
+            value={assignedTo}
+            onChange={(e) => setAssignedTo(e.target.value)}
+            className="bg-zinc-800 border-zinc-700 text-white"
+          />
+        </div>
+        <Button onClick={onSubmit} className="w-full">
+          {mode === "create" ? "Crear Tarea" : "Guardar Cambios"}
+        </Button>
+      </div>
+    </DialogContent>
+  );
+}
+
+// MOVED OUTSIDE: TaskCard component
+function TaskCard({
+  task,
+  onEdit,
+  onDelete,
+  onDragStart,
+  getProjectName,
+}: {
+  task: Task;
+  onEdit: (task: Task) => void;
+  onDelete: (id: string) => void;
+  onDragStart: (task: Task) => void;
+  getProjectName: (id: string | null) => string | null;
+}) {
+  return (
+    <Card
+      draggable
+      onDragStart={() => onDragStart(task)}
+      className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow bg-zinc-800 border-zinc-700"
+    >
+      <CardContent className="p-3">
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <h4 className="font-medium text-sm leading-tight text-white">{task.title}</h4>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-zinc-700">
+                <MoreHorizontal className="h-4 w-4 text-gray-400" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-zinc-800 border-zinc-700">
+              <DropdownMenuItem onClick={() => onEdit(task)} className="text-white hover:bg-zinc-700 cursor-pointer">
+                <Pencil className="h-4 w-4 mr-2" /> Editar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onDelete(task.id)} className="text-red-400 hover:bg-zinc-700 cursor-pointer">
+                <Trash2 className="h-4 w-4 mr-2" /> Eliminar
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        {task.description && <p className="text-xs text-gray-400 mb-3 line-clamp-2">{task.description}</p>}
+        <div className="flex items-center gap-2 flex-wrap mb-2">
+          {task.priority !== "NONE" && (
+            <Badge variant="secondary" className={cn("text-[10px] px-1.5 py-0 h-5 border", priorityColors[task.priority])}>
+              {priorityLabels[task.priority]}
+            </Badge>
+          )}
+        </div>
+        {(task.project?.name || getProjectName(task.projectId)) && (
+          <div className="flex items-center gap-1.5 mb-2">
+            <FolderOpen className="h-3 w-3 text-gray-400" />
+            <span className="text-xs text-gray-400">{task.project?.name || getProjectName(task.projectId)}</span>
+          </div>
+        )}
+        {task.assignedTo && (
+          <div className="flex items-center gap-1.5 pt-2 border-t border-zinc-700">
+            <div className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center">
+              <User className="h-3 w-3 text-blue-400" />
+            </div>
+            <span className="text-xs text-gray-400 truncate">{task.assignedTo}</span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -95,7 +282,7 @@ export default function TasksPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
-  
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState("TODO");
@@ -112,7 +299,6 @@ export default function TasksPage() {
     try {
       const response = await fetch("/api/tasks");
       if (response.status === 401) {
-        // No autenticado - mostrar lista vacía
         setTasks([]);
         return;
       }
@@ -156,7 +342,7 @@ export default function TasksPage() {
       const response = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           title, description, status, priority,
           assignedTo: assignedTo || null, projectId: projectId === "none" ? null : projectId || null
         }),
@@ -165,11 +351,7 @@ export default function TasksPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        if (response.status === 401) {
-          toast.error("Debes iniciar sesión para crear tareas");
-        } else {
-          toast.error(data.error || "Error al crear tarea");
-        }
+        toast.error(data.error || "Error al crear tarea");
         return;
       }
 
@@ -204,7 +386,7 @@ export default function TasksPage() {
       const response = await fetch("/api/tasks", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           id: editingTask.id, title, description, status, priority,
           assignedTo: assignedTo || null, projectId: projectId === "none" ? null : projectId || null
         }),
@@ -239,7 +421,7 @@ export default function TasksPage() {
 
   const handleDragStart = (task: Task) => setDraggedTask(task);
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
-  
+
   const handleDrop = async (newStatus: string) => {
     if (!draggedTask) return;
     setTasks(tasks.map(t => t.id === draggedTask.id ? { ...t, status: newStatus } : t));
@@ -256,113 +438,11 @@ export default function TasksPage() {
     setDraggedTask(null);
   };
 
-  const getTasksByStatus = (status: string) => tasks.filter(t => t.status === status);
+  const getTasksByStatus = (s: string) => tasks.filter(t => t.status === s);
   const getProjectName = (id: string | null) => {
     if (!id) return null;
     return projects.find(p => p.id === id)?.name || null;
   };
-
-  const TaskDialog = ({ mode }: { mode: "create" | "edit" }) => (
-    <DialogContent className="bg-zinc-900 border-zinc-800">
-      <DialogHeader>
-        <DialogTitle className="text-white">{mode === "create" ? "Crear Tarea" : "Editar Tarea"}</DialogTitle>
-      </DialogHeader>
-      <div className="space-y-4 pt-4">
-        <div className="space-y-2">
-          <Label className="text-white">Título</Label>
-          <Input placeholder="Título de la tarea" value={title} onChange={(e) => setTitle(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
-        </div>
-        <div className="space-y-2">
-          <Label className="text-white">Descripción</Label>
-          <Input placeholder="Descripción opcional" value={description} onChange={(e) => setDescription(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
-        </div>
-        <div className="space-y-2">
-          <Label className="text-white">Proyecto</Label>
-          <Select value={projectId || "none"} onValueChange={setProjectId}>
-            <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white"><SelectValue placeholder="Sin proyecto" /></SelectTrigger>
-            <SelectContent className="bg-zinc-800 border-zinc-700">
-              <SelectItem value="none">Sin proyecto</SelectItem>
-              {projects.map((p) => (<SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label className="text-white">Estado</Label>
-            <Select value={status || "TODO"} onValueChange={setStatus}>
-              <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-zinc-800 border-zinc-700">
-                {columns.map((col) => (<SelectItem key={col.id} value={col.id}>{col.title}</SelectItem>))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label className="text-white">Prioridad</Label>
-            <Select value={priority || "NONE"} onValueChange={setPriority}>
-              <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-zinc-800 border-zinc-700">
-                {Object.entries(priorityLabels).map(([v, l]) => (<SelectItem key={v} value={v}>{l}</SelectItem>))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <div className="space-y-2">
-          <Label className="text-white">Asignar a (email)</Label>
-          <Input placeholder="email@ejemplo.com" value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white" />
-        </div>
-        <Button onClick={mode === "create" ? handleCreate : handleUpdate} className="w-full">
-          {mode === "create" ? "Crear Tarea" : "Guardar Cambios"}
-        </Button>
-      </div>
-    </DialogContent>
-  );
-
-  const TaskCard = ({ task }: { task: Task }) => (
-    <Card draggable onDragStart={() => handleDragStart(task)} className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow bg-zinc-800 border-zinc-700">
-      <CardContent className="p-3">
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <h4 className="font-medium text-sm leading-tight text-white">{task.title}</h4>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-zinc-700">
-                <MoreHorizontal className="h-4 w-4 text-gray-400" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-zinc-800 border-zinc-700">
-              <DropdownMenuItem onClick={() => handleEdit(task)} className="text-white hover:bg-zinc-700 cursor-pointer">
-                <Pencil className="h-4 w-4 mr-2" /> Editar
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleDelete(task.id)} className="text-red-400 hover:bg-zinc-700 cursor-pointer">
-                <Trash2 className="h-4 w-4 mr-2" /> Eliminar
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-        {task.description && <p className="text-xs text-gray-400 mb-3 line-clamp-2">{task.description}</p>}
-        <div className="flex items-center gap-2 flex-wrap mb-2">
-          {task.priority !== "NONE" && (
-            <Badge variant="secondary" className={cn("text-[10px] px-1.5 py-0 h-5 border", priorityColors[task.priority])}>
-              {priorityLabels[task.priority]}
-            </Badge>
-          )}
-        </div>
-        {(task.project?.name || getProjectName(task.projectId)) && (
-          <div className="flex items-center gap-1.5 mb-2">
-            <FolderOpen className="h-3 w-3 text-gray-400" />
-            <span className="text-xs text-gray-400">{task.project?.name || getProjectName(task.projectId)}</span>
-          </div>
-        )}
-        {task.assignedTo && (
-          <div className="flex items-center gap-1.5 pt-2 border-t border-zinc-700">
-            <div className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center">
-              <User className="h-3 w-3 text-blue-400" />
-            </div>
-            <span className="text-xs text-gray-400 truncate">{task.assignedTo}</span>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
 
   if (loading) {
     return (
@@ -380,7 +460,6 @@ export default function TasksPage() {
           <p className="text-gray-400 text-sm mt-1">Gestiona todas tus tareas</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* View Toggle */}
           <div className="flex items-center bg-zinc-800 rounded-lg p-1">
             <Button variant={view === "kanban" ? "secondary" : "ghost"} size="sm" onClick={() => setView("kanban")} className="h-8 px-3">
               <LayoutGrid className="h-4 w-4 mr-1" /> Kanban
@@ -400,12 +479,48 @@ export default function TasksPage() {
 
       {/* Create Dialog */}
       <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
-        <TaskDialog mode="create" />
+        <TaskDialog
+          open={open}
+          onOpenChange={setOpen}
+          mode="create"
+          title={title}
+          setTitle={setTitle}
+          description={description}
+          setDescription={setDescription}
+          status={status}
+          setStatus={setStatus}
+          priority={priority}
+          setPriority={setPriority}
+          assignedTo={assignedTo}
+          setAssignedTo={setAssignedTo}
+          projectId={projectId}
+          setProjectId={setProjectId}
+          projects={projects}
+          onSubmit={handleCreate}
+        />
       </Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={editOpen} onOpenChange={(v) => { setEditOpen(v); if (!v) { resetForm(); setEditingTask(null); }}}>
-        <TaskDialog mode="edit" />
+        <TaskDialog
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          mode="edit"
+          title={title}
+          setTitle={setTitle}
+          description={description}
+          setDescription={setDescription}
+          status={status}
+          setStatus={setStatus}
+          priority={priority}
+          setPriority={setPriority}
+          assignedTo={assignedTo}
+          setAssignedTo={setAssignedTo}
+          projectId={projectId}
+          setProjectId={setProjectId}
+          projects={projects}
+          onSubmit={handleUpdate}
+        />
       </Dialog>
 
       {/* KANBAN VIEW */}
@@ -422,7 +537,16 @@ export default function TasksPage() {
                 {getTasksByStatus(column.id).length === 0 ? (
                   <div className="text-center py-8 text-gray-500 text-sm">Sin tareas</div>
                 ) : (
-                  getTasksByStatus(column.id).map((task) => <TaskCard key={task.id} task={task} />)
+                  getTasksByStatus(column.id).map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                      onDragStart={handleDragStart}
+                      getProjectName={getProjectName}
+                    />
+                  ))
                 )}
               </div>
             </div>
