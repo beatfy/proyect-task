@@ -4,12 +4,12 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
 }
 
 model User {
-  id           String         @id @default(cuid())
+  id           String         @id
   name         String?
   email        String         @unique
   password     String?
@@ -18,13 +18,16 @@ model User {
   projects     ProjectMember[]
   tasks        Task[]         @relation("AssignedTasks")
   createdTasks Task[]         @relation("CreatedTasks")
-  comments     Comment[]
+  comments     Comment[]      @relation("AuthorComments")
   accounts     Account[]
   sessions     Session[]
+  sentInvitations Invitation[]   @relation("Inviter")
+  createdInviteTokens ProjectInviteToken[] @relation("TokenCreator")
+  notifications Notification[]
 }
 
 model Project {
-  id          String          @id @default(cuid())
+  id          String          @id
   name        String
   description String?
   color       String          @default("#6366f1")
@@ -33,10 +36,12 @@ model Project {
   updatedAt   DateTime        @updatedAt
   members     ProjectMember[]
   tasks       Task[]
+  invitations Invitation[]
+  inviteTokens ProjectInviteToken[]
 }
 
 model ProjectMember {
-  id        String     @id @default(cuid())
+  id        String     @id
   role      MemberRole @default(MEMBER)
   userId    String
   projectId String
@@ -46,7 +51,7 @@ model ProjectMember {
 }
 
 model Task {
-  id          String      @id @default(cuid())
+  id          String      @id
   title       String
   description String?
   status      TaskStatus  @default(TODO)
@@ -70,20 +75,20 @@ model Task {
 }
 
 model Comment {
-  id        String   @id @default(cuid())
+  id        String   @id
   content   String
   createdAt DateTime @default(now())
   taskId    String
   task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author    User     @relation("AuthorComments", fields: [authorId], references: [id], onDelete: Cascade)
 }
 
 model Attachment {
-  id        String   @id @default(cuid())
+  id        String   @id
   name      String
   url       String
-  type      String   // image, document, etc.
+  type      String
   size      Int?
   createdAt DateTime @default(now())
   taskId    String
@@ -91,7 +96,7 @@ model Attachment {
 }
 
 model TaskTag {
-  id     String @id @default(cuid())
+  id     String @id
   name   String
   color  String @default("#6366f1")
   taskId String
@@ -127,7 +132,7 @@ enum MemberRole {
 }
 
 model Account {
-  id                String  @id @default(cuid())
+  id                String  @id
   userId            String
   type              String
   provider          String
@@ -144,7 +149,7 @@ model Account {
 }
 
 model Session {
-  id           String   @id @default(cuid())
+  id           String   @id
   sessionToken String   @unique
   userId       String
   expires      DateTime
@@ -156,4 +161,62 @@ model VerificationToken {
   token      String   @unique
   expires    DateTime
   @@unique([identifier, token])
+}
+
+// ========== INVITACIONES Y NOTIFICACIONES ==========
+
+model Invitation {
+  id        String           @id
+  email     String
+  projectId String
+  project   Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  invitedBy String
+  inviter   User             @relation("Inviter", fields: [invitedBy], references: [id], onDelete: Cascade)
+  role      MemberRole       @default(MEMBER)
+  status    InvitationStatus @default(PENDING)
+  createdAt DateTime         @default(now())
+  expiresAt DateTime
+
+  @@unique([email, projectId])
+}
+
+model ProjectInviteToken {
+  id        String     @id
+  token     String     @unique
+  projectId String
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy String
+  creator   User       @relation("TokenCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  role      MemberRole @default(MEMBER)
+  maxUses   Int?
+  uses      Int        @default(0)
+  expiresAt DateTime?
+  createdAt DateTime   @default(now())
+}
+
+model Notification {
+  id        String           @id
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  content   String?
+  data      Json?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum NotificationType {
+  PROJECT_INVITATION
+  TASK_ASSIGNED
+  TASK_STATUS_CHANGED
+  COMMENT_MENTION
+  PROJECT_JOINED
 }

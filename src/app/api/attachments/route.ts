@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { writeFile, unlink } from "fs/promises";
 import { join } from "path";
+import { cuid } from "@/lib/utils";
 
 // GET attachments for a task
 export async function GET(request: NextRequest) {
@@ -68,6 +69,7 @@ export async function POST(request: NextRequest) {
     // Save to database
     const attachment = await prisma.attachment.create({
       data: {
+        id: cuid(),
         name: file.name,
         url: `/uploads/${filename}`,
         type,

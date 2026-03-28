@@ -2,17 +2,20 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, FolderOpen, CheckSquare, Calendar, Settings, LogOut, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Home, FolderOpen, CheckSquare, Calendar, Settings, LogOut, Plus, ChevronLeft, ChevronRight, Mail, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import NotificationCenter from "@/components/notifications/NotificationCenter";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
   { name: "Proyectos", href: "/projects", icon: FolderOpen },
   { name: "Tareas", href: "/tasks", icon: CheckSquare },
   { name: "Calendario", href: "/calendar", icon: Calendar },
+  { name: "Invitaciones", href: "/invitations", icon: Mail },
+  { name: "Notificaciones", href: "/notifications", icon: Bell },
   { name: "Configuración", href: "/settings", icon: Settings },
 ];
 
@@ -55,14 +58,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 TaskX
               </Link>
             )}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setCollapsed(!collapsed)}
-              className="ml-auto"
-            >
-              {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-            </Button>
+            <div className="flex items-center gap-2 ml-auto">
+              <NotificationCenter compact />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setCollapsed(!collapsed)}
+              >
+                {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+              </Button>
+            </div>
           </div>
 
           {/* Navigation */}

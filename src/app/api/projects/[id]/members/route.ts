@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { cuid } from "@/lib/utils";
 
 // GET members of a project
 export async function GET(
@@ -72,6 +73,7 @@ export async function POST(
     // Add member
     const member = await prisma.projectMember.create({
       data: {
+        id: cuid(),
         userId: user.id,
         projectId: id,
         role

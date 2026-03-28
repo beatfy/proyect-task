@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { cuid } from "@/lib/utils";
 
 // GET comments for a task
 export async function GET(request: NextRequest) {
@@ -47,6 +48,7 @@ export async function POST(request: NextRequest) {
 
     const comment = await prisma.comment.create({
       data: {
+        id: cuid(),
         taskId,
         content: content.trim(),
         authorId: session.user.id
