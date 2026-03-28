@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { UserPlus, Check, X, Clock, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 interface Invitation {
   id: string;
@@ -28,6 +27,7 @@ interface Invitation {
 export default function InvitationsList() {
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -36,11 +36,23 @@ export default function InvitationsList() {
 
   const fetchInvitations = async () => {
     try {
+      setError(null);
       const res = await fetch("/api/invitations");
       const data = await res.json();
-      setInvitations(data);
+      
+      // Si es un array, usarlo; si es un objeto con error, mostrar vacío
+      if (Array.isArray(data)) {
+        setInvitations(data);
+      } else {
+        setInvitations([]);
+        if (data.error) {
+          setError(data.error);
+        }
+      }
     } catch (err) {
       console.error("Error fetching invitations:", err);
+      setInvitations([]);
+      setError("Error de conexión");
     } finally {
       setLoading(false);
     }
@@ -88,6 +100,15 @@ export default function InvitationsList() {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center p-8">
+        <p className="text-red-500 mb-4">{error}</p>
+        <Button onClick={fetchInvitations}>Reintentar</Button>
       </div>
     );
   }

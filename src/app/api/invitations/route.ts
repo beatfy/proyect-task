@@ -7,7 +7,7 @@ import { cuid } from "@/lib/utils";
 export async function GET() {
   try {
     const session = await auth();
-    if (!session?.user?.id) {
+    if (!session?.user?.id || !session?.user?.email) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
@@ -31,7 +31,8 @@ export async function GET() {
     return NextResponse.json(invitations);
   } catch (error) {
     console.error("Get invitations error:", error);
-    return NextResponse.json({ error: "Error interno" }, { status: 500 });
+    // Devolver array vacío en caso de error para evitar crash en cliente
+    return NextResponse.json([]);
   }
 }
 
@@ -136,6 +137,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(invitation);
   } catch (error) {
     console.error("Create invitation error:", error);
-    return NextResponse.json({ error: "Error interno" }, { status: 500 });
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }
