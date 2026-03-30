@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, FolderOpen, Loader2 } from "lucide-react";
+import { Plus, FolderOpen, Loader2, MoreHorizontal, Trash2, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -9,9 +9,16 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import Link from "next/link";
 
@@ -30,6 +37,7 @@ export default function ProjectsPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState("#6366f1");
+  const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
 
   useEffect(() => {
     fetchProjects();
@@ -72,6 +80,44 @@ export default function ProjectsPage() {
       }
     } catch {
       toast.error("Error al crear proyecto");
+    }
+  };
+
+  const handleDelete = async (project: Project) => {
+    try {
+      const response = await fetch(`/api/projects/${project.id}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        setProjects(projects.filter((p) => p.id !== project.id));
+        setDeleteTarget(null);
+        toast.success("Proyecto eliminado");
+      } else {
+        const data = await response.json();
+        toast.error(data.error || "Error al eliminar proyecto");
+      }
+    } catch {
+      toast.error("Error al eliminar proyecto");
+    }
+  };
+
+  const handleDuplicate = async (project: Project) => {
+    try {
+      const response = await fetch(`/api/projects/${project.id}`, {
+        method: "POST",
+      });
+
+      if (response.ok) {
+        const duplicated = await response.json();
+        setProjects([...projects, duplicated]);
+        toast.success(`Proyecto duplicado como "${duplicated.name}"`);
+      } else {
+        const data = await response.json();
+        toast.error(data.error || "Error al duplicar proyecto");
+      }
+    } catch {
+      toast.error("Error al duplicar proyecto");
     }
   };
 
@@ -139,6 +185,34 @@ export default function ProjectsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+          <DialogHeader>
+            <DialogTitle className="text-slate-900 dark:text-slate-100">Eliminar Proyecto</DialogTitle>
+            <DialogDescription className="text-slate-500 dark:text-slate-400">
+              ¿Eliminar este proyecto y todas sus tareas? Esta acción no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteTarget(null)}
+              className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300"
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteTarget && handleDelete(deleteTarget)}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Eliminar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {projects.length === 0 ? (
         <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
           <CardContent className="flex flex-col items-center justify-center py-12">
@@ -154,24 +228,65 @@ export default function ProjectsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {projects.map((project) => (
-            <Link key={project.id} href={`/projects/${project.id}`}>
-              <Card className="hover:shadow-md transition-shadow cursor-pointer bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600">
-                <CardHeader>
-                  <div className="flex items-center gap-3">
+            <Card
+              key={project.id}
+              className="hover:shadow-md transition-shadow bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
+            >
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <Link href={`/projects/${project.id}`} className="flex items-center gap-3 flex-1 min-w-0">
                     <div
-                      className="w-3 h-3 rounded-full"
+                      className="w-3 h-3 rounded-full flex-shrink-0"
                       style={{ backgroundColor: project.color }}
                     />
-                    <CardTitle className="text-lg text-slate-900 dark:text-slate-100">{project.name}</CardTitle>
-                  </div>
-                </CardHeader>
+                    <CardTitle className="text-lg text-slate-900 dark:text-slate-100 truncate">
+                      {project.name}
+                    </CardTitle>
+                  </Link>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 flex-shrink-0 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDuplicate(project);
+                        }}
+                        className="text-slate-700 dark:text-slate-300 focus:bg-slate-100 dark:focus:bg-slate-800"
+                      >
+                        <Copy className="h-4 w-4 mr-2" />
+                        Duplicar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteTarget(project);
+                        }}
+                        className="text-red-600 dark:text-red-400 focus:bg-red-50 dark:focus:bg-red-950"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Eliminar
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </CardHeader>
+              <Link href={`/projects/${project.id}`}>
                 <CardContent>
                   <p className="text-slate-500 dark:text-slate-400 text-sm">
                     {project.description || "Sin descripción"}
                   </p>
                 </CardContent>
-              </Card>
-            </Link>
+              </Link>
+            </Card>
           ))}
         </div>
       )}

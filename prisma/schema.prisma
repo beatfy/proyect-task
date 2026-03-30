@@ -26,6 +26,7 @@ model User {
   createdInviteTokens ProjectInviteToken[] @relation("TokenCreator")
   notifications Notification[]
   timeEntries  TimeEntry[]
+  emailConfig  EmailConfig?
 }
 
 model Project {
@@ -208,4 +209,19 @@ model TaskTemplate {
   tags        Json?
   isDefault   Boolean  @default(false)
   createdAt   DateTime @default(now())
+}
+
+// ========== EMAIL / IMAP ==========
+
+model EmailConfig {
+  id               String   @id
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  host             String
+  port             Int      @default(993)
+  email            String
+  encryptedPassword String
+  ssl              Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
