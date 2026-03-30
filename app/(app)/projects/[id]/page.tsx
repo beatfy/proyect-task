@@ -61,8 +61,8 @@ const columns = [
 ];
 
 const priorityColors: Record<string, string> = {
-  NONE: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700",
-  LOW: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700",
+  NONE: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700",
+  LOW: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700",
   MEDIUM: "bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800",
   HIGH: "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800",
   URGENT: "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800",
@@ -84,7 +84,7 @@ const statusLabels: Record<string, string> = {
 };
 
 const statusColors: Record<string, string> = {
-  TODO: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700",
+  TODO: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700",
   INPROGRESS: "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800",
   INREVIEW: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800",
   DONE: "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800",
@@ -99,7 +99,7 @@ const roleLabels: Record<string, string> = {
 const roleColors: Record<string, string> = {
   OWNER: "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800",
   ADMIN: "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800",
-  MEMBER: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700",
+  MEMBER: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700",
 };
 
 export default function ProjectDetailPage() {
@@ -366,7 +366,7 @@ export default function ProjectDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -377,7 +377,7 @@ export default function ProjectDetailPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-4 h-4 rounded-full" style={{ backgroundColor: project?.color }} />
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">{project?.name}</h1>
+          <h1 className="text-3xl font-bold text-foreground">{project?.name}</h1>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => { fetchInviteLinks(); setInviteOpen(true); }}>
@@ -394,23 +394,23 @@ export default function ProjectDetailPage() {
 
       {/* Description */}
       {project?.description && (
-        <p className="text-slate-500 dark:text-slate-400">{project.description}</p>
+        <p className="text-muted-foreground">{project.description}</p>
       )}
 
       {/* Members quick view */}
       {members.length > 0 && (
-        <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+        <Card className="bg-card border-border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-slate-600 dark:text-slate-400">Miembros ({members.length})</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">Miembros ({members.length})</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
               {members.map((m) => (
-                <div key={m.id} className="flex items-center gap-2 px-2 py-1 rounded-full bg-slate-100">
+                <div key={m.id} className="flex items-center gap-2 px-2 py-1 rounded-full bg-muted">
                   <div className="w-6 h-6 rounded-full bg-indigo-500 text-white flex items-center justify-center text-xs">
                     {m.user.name?.[0]?.toUpperCase() || m.user.email[0].toUpperCase()}
                   </div>
-                  <span className="text-sm text-slate-700 dark:text-slate-300">{m.user.name || m.user.email}</span>
+                  <span className="text-sm text-foreground">{m.user.name || m.user.email}</span>
                   <Badge variant="secondary" className={cn("text-xs border", roleColors[m.role])}>
                     {roleLabels[m.role]}
                   </Badge>
@@ -427,25 +427,25 @@ export default function ProjectDetailPage() {
           <div key={col.id} className="flex-1 min-w-[280px] max-w-[350px]">
             <div className="flex items-center gap-2 mb-3 px-1">
               <div className={cn("w-3 h-3 rounded-full", col.color)} />
-              <h3 className="font-medium text-sm text-slate-700 dark:text-slate-300">{col.title}</h3>
-              <span className="text-xs text-slate-400 dark:text-slate-500 ml-auto">{getTasksByStatus(col.id).length}</span>
+              <h3 className="font-medium text-sm text-foreground">{col.title}</h3>
+              <span className="text-xs text-muted-foreground ml-auto">{getTasksByStatus(col.id).length}</span>
             </div>
-            <div className="bg-white dark:bg-slate-900 rounded-lg p-2 space-y-2 border border-slate-200 dark:border-slate-700">
+            <div className="bg-card rounded-lg p-2 space-y-2 border border-border">
               {getTasksByStatus(col.id).length === 0 ? (
-                <div className="text-center py-8 text-slate-400 text-sm">Sin tareas</div>
+                <div className="text-center py-8 text-muted-foreground text-sm">Sin tareas</div>
               ) : (
                 getTasksByStatus(col.id).map((task) => (
-                  <Card key={task.id} className="bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:shadow-sm">
+                  <Card key={task.id} className="bg-muted border-border hover:shadow-sm">
                     <CardContent className="p-3">
                       <div className="flex items-start justify-between gap-2 mb-2">
-                        <h4 className="font-medium text-sm text-slate-900 dark:text-slate-100">{task.title}</h4>
+                        <h4 className="font-medium text-sm text-foreground">{task.title}</h4>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                              <MoreHorizontal className="h-4 w-4 text-slate-400" />
+                              <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                          <DropdownMenuContent align="end" className="bg-card border-border">
                             <DropdownMenuItem onClick={() => { openEditTask(task); setTaskOpen(true); }} className="cursor-pointer">
                               <Pencil className="h-4 w-4 mr-2" /> Editar
                             </DropdownMenuItem>
@@ -455,7 +455,7 @@ export default function ProjectDetailPage() {
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
-                      {task.description && <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">{task.description}</p>}
+                      {task.description && <p className="text-xs text-muted-foreground mb-2">{task.description}</p>}
                       <div className="flex items-center gap-2 flex-wrap">
                         {task.priority !== "NONE" && (
                           <Badge variant="secondary" className={cn("text-xs border", priorityColors[task.priority])}>
@@ -463,13 +463,13 @@ export default function ProjectDetailPage() {
                           </Badge>
                         )}
                         {task.dueDate && (
-                          <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <Calendar className="h-3 w-3" />
                             {new Date(task.dueDate).toLocaleDateString()}
                           </div>
                         )}
                         {task.assignee && (
-                          <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <User className="h-3 w-3" />
                             {task.assignee.name || task.assignee.email}
                           </div>
@@ -486,39 +486,39 @@ export default function ProjectDetailPage() {
 
       {/* Create/Edit Task Dialog */}
       <Dialog open={taskOpen} onOpenChange={(v) => { setTaskOpen(v); if (!v) resetTaskForm(); }}>
-        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+        <DialogContent className="bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="text-slate-900 dark:text-slate-100">
+            <DialogTitle className="text-foreground">
               {editTask ? "Editar Tarea" : "Crear Tarea"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             <div className="space-y-2">
-              <Label className="text-slate-700 dark:text-slate-300">Título</Label>
+              <Label className="text-foreground">Título</Label>
               <Input
                 placeholder="Título"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
+                className="bg-card border-border text-foreground"
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-slate-700 dark:text-slate-300">Descripción</Label>
+              <Label className="text-foreground">Descripción</Label>
               <Input
                 placeholder="Descripción"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
+                className="bg-card border-border text-foreground"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-slate-700 dark:text-slate-300">Estado</Label>
+                <Label className="text-foreground">Estado</Label>
                 <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100">
+                  <SelectTrigger className="bg-card border-border text-foreground">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                  <SelectContent className="bg-card border-border">
                     {columns.map((c) => (
                       <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
                     ))}
@@ -526,12 +526,12 @@ export default function ProjectDetailPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label className="text-slate-700 dark:text-slate-300">Prioridad</Label>
+                <Label className="text-foreground">Prioridad</Label>
                 <Select value={priority} onValueChange={setPriority}>
-                  <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100">
+                  <SelectTrigger className="bg-card border-border text-foreground">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                  <SelectContent className="bg-card border-border">
                     {Object.entries(priorityLabels).map(([v, l]) => (
                       <SelectItem key={v} value={v}>{l}</SelectItem>
                     ))}
@@ -540,21 +540,21 @@ export default function ProjectDetailPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label className="text-slate-700 dark:text-slate-300">Fecha límite</Label>
+              <Label className="text-foreground">Fecha límite</Label>
               <Input
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
+                className="bg-card border-border text-foreground"
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-slate-700 dark:text-slate-300">Asignar a</Label>
+              <Label className="text-foreground">Asignar a</Label>
               <Select value={assigneeId} onValueChange={setAssigneeId}>
-                <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100">
+                <SelectTrigger className="bg-card border-border text-foreground">
                   <SelectValue placeholder="Sin asignar" />
                 </SelectTrigger>
-                <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                <SelectContent className="bg-card border-border">
                   <SelectItem value="">Sin asignar</SelectItem>
                   {members.map((m) => (
                     <SelectItem key={m.user.id} value={m.user.id}>
@@ -573,37 +573,37 @@ export default function ProjectDetailPage() {
 
       {/* Invite Link Dialog */}
       <Dialog open={inviteOpen} onOpenChange={(v) => { setInviteOpen(v); if (v) fetchInviteLinks(); else setInviteLink(""); }}>
-        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 max-w-lg">
+        <DialogContent className="bg-card border-border max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <DialogTitle className="text-foreground flex items-center gap-2">
               <Link2 className="h-5 w-5 text-indigo-500" /> Invitar con Link
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-5 pt-4">
             {/* Generate new link */}
             <div className="space-y-3">
-              <p className="text-sm text-slate-600 dark:text-slate-400">Genera un link único para invitar gente a este proyecto. Cualquiera con el link podrá unirse tras registrarse.</p>
+              <p className="text-sm text-muted-foreground">Genera un link único para invitar gente a este proyecto. Cualquiera con el link podrá unirse tras registrarse.</p>
               
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-xs text-slate-500 dark:text-slate-400">Rol</Label>
+                  <Label className="text-xs text-muted-foreground">Rol</Label>
                   <Select value={inviteRole} onValueChange={setInviteRole}>
-                    <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 h-9 text-sm">
+                    <SelectTrigger className="bg-card border-border text-foreground h-9 text-sm">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                    <SelectContent className="bg-card border-border">
                       <SelectItem value="MEMBER">Miembro</SelectItem>
                       <SelectItem value="ADMIN">Admin</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs text-slate-500 dark:text-slate-400">Expira en</Label>
+                  <Label className="text-xs text-muted-foreground">Expira en</Label>
                   <Select value={inviteExpires} onValueChange={setInviteExpires}>
-                    <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 h-9 text-sm">
+                    <SelectTrigger className="bg-card border-border text-foreground h-9 text-sm">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                    <SelectContent className="bg-card border-border">
                       <SelectItem value="1">1 día</SelectItem>
                       <SelectItem value="7">7 días</SelectItem>
                       <SelectItem value="30">30 días</SelectItem>
@@ -612,12 +612,12 @@ export default function ProjectDetailPage() {
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs text-slate-500 dark:text-slate-400">Usos máx.</Label>
+                  <Label className="text-xs text-muted-foreground">Usos máx.</Label>
                   <Input
                     placeholder="∞"
                     value={inviteMaxUses}
                     onChange={(e) => setInviteMaxUses(e.target.value)}
-                    className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 h-9 text-sm"
+                    className="bg-card border-border text-foreground h-9 text-sm"
                     type="number"
                     min="1"
                   />
@@ -632,15 +632,15 @@ export default function ProjectDetailPage() {
 
             {/* Generated link */}
             {inviteLink && (
-              <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-3 space-y-2">
+              <div className="bg-indigo-500/10 border border-indigo-300 dark:border-indigo-700 rounded-lg p-3 space-y-2">
                 <p className="text-xs font-medium text-indigo-700">✅ Link generado — compártelo:</p>
                 <div className="flex gap-2">
                   <Input
                     value={inviteLink}
                     readOnly
-                    className="bg-white dark:bg-slate-800 border-indigo-200 dark:border-indigo-700 text-slate-900 dark:text-slate-100 text-sm font-mono"
+                    className="bg-card border-indigo-300 dark:border-indigo-700 text-foreground text-sm font-mono"
                   />
-                  <Button variant="outline" size="icon" onClick={() => copyToClipboard(inviteLink)} className="shrink-0 border-indigo-200">
+                  <Button variant="outline" size="icon" onClick={() => copyToClipboard(inviteLink)} className="shrink-0 border-indigo-300">
                     {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
                   </Button>
                 </div>
@@ -650,19 +650,19 @@ export default function ProjectDetailPage() {
             {/* Existing links */}
             {inviteLinks.length > 0 && (
               <div className="space-y-2">
-                <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Links activos</p>
+                <p className="text-sm font-medium text-foreground">Links activos</p>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {inviteLinks.map((link, idx) => (
-                    <div key={link.token} className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+                    <div key={link.token} className="flex items-center gap-2 p-2 rounded-lg border border-border bg-muted">
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs text-slate-500 truncate font-mono">{link.url}</p>
+                        <p className="text-xs text-muted-foreground truncate font-mono">{link.url}</p>
                         <div className="flex gap-2 mt-1">
-                          <Badge variant="secondary" className="text-xs border bg-white">{roleLabels[link.role] || link.role}</Badge>
+                          <Badge variant="secondary" className="text-xs border bg-card">{roleLabels[link.role] || link.role}</Badge>
                           {link.maxUses && (
-                            <span className="text-xs text-slate-400">{link.uses}/{link.maxUses} usos</span>
+                            <span className="text-xs text-muted-foreground">{link.uses}/{link.maxUses} usos</span>
                           )}
                           {link.expiresAt && (
-                            <span className="text-xs text-slate-400">Expira {new Date(link.expiresAt).toLocaleDateString()}</span>
+                            <span className="text-xs text-muted-foreground">Expira {new Date(link.expiresAt).toLocaleDateString()}</span>
                           )}
                           {!link.expiresAt && (
                             <span className="text-xs text-green-500">Sin expiración</span>
@@ -670,7 +670,7 @@ export default function ProjectDetailPage() {
                         </div>
                       </div>
                       <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" onClick={() => copyToClipboard(link.url, idx)}>
-                        {copiedIdx === idx ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5 text-slate-400" />}
+                        {copiedIdx === idx ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
                       </Button>
                     </div>
                   ))}
@@ -683,9 +683,9 @@ export default function ProjectDetailPage() {
 
       {/* Members Dialog */}
       <Dialog open={memberOpen} onOpenChange={setMemberOpen}>
-        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 max-w-lg">
+        <DialogContent className="bg-card border-border max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-slate-900 dark:text-slate-100">Miembros del Proyecto</DialogTitle>
+            <DialogTitle className="text-foreground">Miembros del Proyecto</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             {/* Add member */}
@@ -694,13 +694,13 @@ export default function ProjectDetailPage() {
                 placeholder="Email del usuario"
                 value={newMemberEmail}
                 onChange={(e) => setNewMemberEmail(e.target.value)}
-                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
+                className="bg-card border-border text-foreground"
               />
               <Select value={newMemberRole} onValueChange={setNewMemberRole}>
-                <SelectTrigger className="w-[120px] bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100">
+                <SelectTrigger className="w-[120px] bg-card border-border text-foreground">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                <SelectContent className="bg-card border-border">
                   <SelectItem value="MEMBER">Miembro</SelectItem>
                   <SelectItem value="ADMIN">Admin</SelectItem>
                 </SelectContent>
@@ -711,17 +711,17 @@ export default function ProjectDetailPage() {
             {/* Members list */}
             <div className="space-y-2">
               {members.length === 0 ? (
-                <p className="text-center text-slate-500 dark:text-slate-400 py-4">No hay miembros</p>
+                <p className="text-center text-muted-foreground py-4">No hay miembros</p>
               ) : (
                 members.map((m) => (
-                  <div key={m.id} className="flex items-center justify-between p-2 rounded-lg border border-slate-200">
+                  <div key={m.id} className="flex items-center justify-between p-2 rounded-lg border border-border">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-indigo-500 text-white flex items-center justify-center text-sm">
                         {m.user.name?.[0]?.toUpperCase() || m.user.email[0].toUpperCase()}
                       </div>
                       <div>
-                        <p className="font-medium text-slate-900 dark:text-slate-100">{m.user.name || m.user.email}</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">{m.user.email}</p>
+                        <p className="font-medium text-foreground">{m.user.name || m.user.email}</p>
+                        <p className="text-xs text-muted-foreground">{m.user.email}</p>
                       </div>
                       <Badge variant="secondary" className={cn("text-xs border", roleColors[m.role])}>
                         {roleLabels[m.role]}
