@@ -61,11 +61,11 @@ const columns = [
 ];
 
 const priorityColors: Record<string, string> = {
-  NONE: "bg-gray-100 text-gray-600 border-gray-200",
-  LOW: "bg-slate-100 text-slate-600 border-slate-200",
-  MEDIUM: "bg-orange-100 text-orange-600 border-orange-200",
-  HIGH: "bg-red-100 text-red-600 border-red-200",
-  URGENT: "bg-purple-100 text-purple-600 border-purple-200",
+  NONE: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700",
+  LOW: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700",
+  MEDIUM: "bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800",
+  HIGH: "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800",
+  URGENT: "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800",
 };
 
 const priorityLabels: Record<string, string> = {
@@ -84,10 +84,10 @@ const statusLabels: Record<string, string> = {
 };
 
 const statusColors: Record<string, string> = {
-  TODO: "bg-gray-100 text-gray-600 border-gray-200",
-  INPROGRESS: "bg-blue-100 text-blue-600 border-blue-200",
-  INREVIEW: "bg-yellow-100 text-yellow-600 border-yellow-200",
-  DONE: "bg-green-100 text-green-600 border-green-200",
+  TODO: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700",
+  INPROGRESS: "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800",
+  INREVIEW: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800",
+  DONE: "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800",
 };
 
 const roleLabels: Record<string, string> = {
@@ -97,9 +97,9 @@ const roleLabels: Record<string, string> = {
 };
 
 const roleColors: Record<string, string> = {
-  OWNER: "bg-indigo-100 text-indigo-600 border-indigo-200",
-  ADMIN: "bg-blue-100 text-blue-600 border-blue-200",
-  MEMBER: "bg-gray-100 text-gray-600 border-gray-200",
+  OWNER: "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800",
+  ADMIN: "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800",
+  MEMBER: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700",
 };
 
 export default function ProjectDetailPage() {
@@ -377,7 +377,7 @@ export default function ProjectDetailPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-4 h-4 rounded-full" style={{ backgroundColor: project?.color }} />
-          <h1 className="text-3xl font-bold text-slate-900">{project?.name}</h1>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">{project?.name}</h1>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => { fetchInviteLinks(); setInviteOpen(true); }}>
@@ -394,14 +394,14 @@ export default function ProjectDetailPage() {
 
       {/* Description */}
       {project?.description && (
-        <p className="text-slate-500">{project.description}</p>
+        <p className="text-slate-500 dark:text-slate-400">{project.description}</p>
       )}
 
       {/* Members quick view */}
       {members.length > 0 && (
-        <Card className="bg-white border-slate-200">
+        <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-slate-600">Miembros ({members.length})</CardTitle>
+            <CardTitle className="text-sm text-slate-600 dark:text-slate-400">Miembros ({members.length})</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
@@ -410,7 +410,7 @@ export default function ProjectDetailPage() {
                   <div className="w-6 h-6 rounded-full bg-indigo-500 text-white flex items-center justify-center text-xs">
                     {m.user.name?.[0]?.toUpperCase() || m.user.email[0].toUpperCase()}
                   </div>
-                  <span className="text-sm text-slate-700">{m.user.name || m.user.email}</span>
+                  <span className="text-sm text-slate-700 dark:text-slate-300">{m.user.name || m.user.email}</span>
                   <Badge variant="secondary" className={cn("text-xs border", roleColors[m.role])}>
                     {roleLabels[m.role]}
                   </Badge>
@@ -427,25 +427,25 @@ export default function ProjectDetailPage() {
           <div key={col.id} className="flex-1 min-w-[280px] max-w-[350px]">
             <div className="flex items-center gap-2 mb-3 px-1">
               <div className={cn("w-3 h-3 rounded-full", col.color)} />
-              <h3 className="font-medium text-sm text-slate-700">{col.title}</h3>
-              <span className="text-xs text-slate-400 ml-auto">{getTasksByStatus(col.id).length}</span>
+              <h3 className="font-medium text-sm text-slate-700 dark:text-slate-300">{col.title}</h3>
+              <span className="text-xs text-slate-400 dark:text-slate-500 ml-auto">{getTasksByStatus(col.id).length}</span>
             </div>
-            <div className="bg-white rounded-lg p-2 space-y-2 border border-slate-200">
+            <div className="bg-white dark:bg-slate-900 rounded-lg p-2 space-y-2 border border-slate-200 dark:border-slate-700">
               {getTasksByStatus(col.id).length === 0 ? (
                 <div className="text-center py-8 text-slate-400 text-sm">Sin tareas</div>
               ) : (
                 getTasksByStatus(col.id).map((task) => (
-                  <Card key={task.id} className="bg-slate-50 border-slate-200 hover:shadow-sm">
+                  <Card key={task.id} className="bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:shadow-sm">
                     <CardContent className="p-3">
                       <div className="flex items-start justify-between gap-2 mb-2">
-                        <h4 className="font-medium text-sm text-slate-900">{task.title}</h4>
+                        <h4 className="font-medium text-sm text-slate-900 dark:text-slate-100">{task.title}</h4>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
                               <MoreHorizontal className="h-4 w-4 text-slate-400" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="bg-white border-slate-200">
+                          <DropdownMenuContent align="end" className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
                             <DropdownMenuItem onClick={() => { openEditTask(task); setTaskOpen(true); }} className="cursor-pointer">
                               <Pencil className="h-4 w-4 mr-2" /> Editar
                             </DropdownMenuItem>
@@ -455,7 +455,7 @@ export default function ProjectDetailPage() {
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
-                      {task.description && <p className="text-xs text-slate-500 mb-2">{task.description}</p>}
+                      {task.description && <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">{task.description}</p>}
                       <div className="flex items-center gap-2 flex-wrap">
                         {task.priority !== "NONE" && (
                           <Badge variant="secondary" className={cn("text-xs border", priorityColors[task.priority])}>
@@ -463,13 +463,13 @@ export default function ProjectDetailPage() {
                           </Badge>
                         )}
                         {task.dueDate && (
-                          <div className="flex items-center gap-1 text-xs text-slate-500">
+                          <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
                             <Calendar className="h-3 w-3" />
                             {new Date(task.dueDate).toLocaleDateString()}
                           </div>
                         )}
                         {task.assignee && (
-                          <div className="flex items-center gap-1 text-xs text-slate-500">
+                          <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
                             <User className="h-3 w-3" />
                             {task.assignee.name || task.assignee.email}
                           </div>
@@ -486,39 +486,39 @@ export default function ProjectDetailPage() {
 
       {/* Create/Edit Task Dialog */}
       <Dialog open={taskOpen} onOpenChange={(v) => { setTaskOpen(v); if (!v) resetTaskForm(); }}>
-        <DialogContent className="bg-white border-slate-200">
+        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
           <DialogHeader>
-            <DialogTitle className="text-slate-900">
+            <DialogTitle className="text-slate-900 dark:text-slate-100">
               {editTask ? "Editar Tarea" : "Crear Tarea"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             <div className="space-y-2">
-              <Label className="text-slate-700">Título</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Título</Label>
               <Input
                 placeholder="Título"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="bg-white border-slate-300 text-slate-900"
+                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-slate-700">Descripción</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Descripción</Label>
               <Input
                 placeholder="Descripción"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="bg-white border-slate-300 text-slate-900"
+                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-slate-700">Estado</Label>
+                <Label className="text-slate-700 dark:text-slate-300">Estado</Label>
                 <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger className="bg-white border-slate-300 text-slate-900">
+                  <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-white border-slate-200">
+                  <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
                     {columns.map((c) => (
                       <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
                     ))}
@@ -526,12 +526,12 @@ export default function ProjectDetailPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label className="text-slate-700">Prioridad</Label>
+                <Label className="text-slate-700 dark:text-slate-300">Prioridad</Label>
                 <Select value={priority} onValueChange={setPriority}>
-                  <SelectTrigger className="bg-white border-slate-300 text-slate-900">
+                  <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-white border-slate-200">
+                  <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
                     {Object.entries(priorityLabels).map(([v, l]) => (
                       <SelectItem key={v} value={v}>{l}</SelectItem>
                     ))}
@@ -540,21 +540,21 @@ export default function ProjectDetailPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label className="text-slate-700">Fecha límite</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Fecha límite</Label>
               <Input
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="bg-white border-slate-300 text-slate-900"
+                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-slate-700">Asignar a</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Asignar a</Label>
               <Select value={assigneeId} onValueChange={setAssigneeId}>
-                <SelectTrigger className="bg-white border-slate-300 text-slate-900">
+                <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100">
                   <SelectValue placeholder="Sin asignar" />
                 </SelectTrigger>
-                <SelectContent className="bg-white border-slate-200">
+                <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
                   <SelectItem value="">Sin asignar</SelectItem>
                   {members.map((m) => (
                     <SelectItem key={m.user.id} value={m.user.id}>
@@ -573,37 +573,37 @@ export default function ProjectDetailPage() {
 
       {/* Invite Link Dialog */}
       <Dialog open={inviteOpen} onOpenChange={(v) => { setInviteOpen(v); if (v) fetchInviteLinks(); else setInviteLink(""); }}>
-        <DialogContent className="bg-white border-slate-200 max-w-lg">
+        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-slate-900 flex items-center gap-2">
+            <DialogTitle className="text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Link2 className="h-5 w-5 text-indigo-500" /> Invitar con Link
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-5 pt-4">
             {/* Generate new link */}
             <div className="space-y-3">
-              <p className="text-sm text-slate-600">Genera un link único para invitar gente a este proyecto. Cualquiera con el link podrá unirse tras registrarse.</p>
+              <p className="text-sm text-slate-600 dark:text-slate-400">Genera un link único para invitar gente a este proyecto. Cualquiera con el link podrá unirse tras registrarse.</p>
               
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-xs text-slate-500">Rol</Label>
+                  <Label className="text-xs text-slate-500 dark:text-slate-400">Rol</Label>
                   <Select value={inviteRole} onValueChange={setInviteRole}>
-                    <SelectTrigger className="bg-white border-slate-300 text-slate-900 h-9 text-sm">
+                    <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 h-9 text-sm">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-white border-slate-200">
+                    <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
                       <SelectItem value="MEMBER">Miembro</SelectItem>
                       <SelectItem value="ADMIN">Admin</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs text-slate-500">Expira en</Label>
+                  <Label className="text-xs text-slate-500 dark:text-slate-400">Expira en</Label>
                   <Select value={inviteExpires} onValueChange={setInviteExpires}>
-                    <SelectTrigger className="bg-white border-slate-300 text-slate-900 h-9 text-sm">
+                    <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 h-9 text-sm">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-white border-slate-200">
+                    <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
                       <SelectItem value="1">1 día</SelectItem>
                       <SelectItem value="7">7 días</SelectItem>
                       <SelectItem value="30">30 días</SelectItem>
@@ -612,12 +612,12 @@ export default function ProjectDetailPage() {
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs text-slate-500">Usos máx.</Label>
+                  <Label className="text-xs text-slate-500 dark:text-slate-400">Usos máx.</Label>
                   <Input
                     placeholder="∞"
                     value={inviteMaxUses}
                     onChange={(e) => setInviteMaxUses(e.target.value)}
-                    className="bg-white border-slate-300 text-slate-900 h-9 text-sm"
+                    className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 h-9 text-sm"
                     type="number"
                     min="1"
                   />
@@ -632,13 +632,13 @@ export default function ProjectDetailPage() {
 
             {/* Generated link */}
             {inviteLink && (
-              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 space-y-2">
+              <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-3 space-y-2">
                 <p className="text-xs font-medium text-indigo-700">✅ Link generado — compártelo:</p>
                 <div className="flex gap-2">
                   <Input
                     value={inviteLink}
                     readOnly
-                    className="bg-white border-indigo-200 text-slate-900 text-sm font-mono"
+                    className="bg-white dark:bg-slate-800 border-indigo-200 dark:border-indigo-700 text-slate-900 dark:text-slate-100 text-sm font-mono"
                   />
                   <Button variant="outline" size="icon" onClick={() => copyToClipboard(inviteLink)} className="shrink-0 border-indigo-200">
                     {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
@@ -650,10 +650,10 @@ export default function ProjectDetailPage() {
             {/* Existing links */}
             {inviteLinks.length > 0 && (
               <div className="space-y-2">
-                <p className="text-sm font-medium text-slate-700">Links activos</p>
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Links activos</p>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {inviteLinks.map((link, idx) => (
-                    <div key={link.token} className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 bg-slate-50">
+                    <div key={link.token} className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-slate-500 truncate font-mono">{link.url}</p>
                         <div className="flex gap-2 mt-1">
@@ -683,9 +683,9 @@ export default function ProjectDetailPage() {
 
       {/* Members Dialog */}
       <Dialog open={memberOpen} onOpenChange={setMemberOpen}>
-        <DialogContent className="bg-white border-slate-200 max-w-lg">
+        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-slate-900">Miembros del Proyecto</DialogTitle>
+            <DialogTitle className="text-slate-900 dark:text-slate-100">Miembros del Proyecto</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             {/* Add member */}
@@ -694,13 +694,13 @@ export default function ProjectDetailPage() {
                 placeholder="Email del usuario"
                 value={newMemberEmail}
                 onChange={(e) => setNewMemberEmail(e.target.value)}
-                className="bg-white border-slate-300 text-slate-900"
+                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
               />
               <Select value={newMemberRole} onValueChange={setNewMemberRole}>
-                <SelectTrigger className="w-[120px] bg-white border-slate-300 text-slate-900">
+                <SelectTrigger className="w-[120px] bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-white border-slate-200">
+                <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
                   <SelectItem value="MEMBER">Miembro</SelectItem>
                   <SelectItem value="ADMIN">Admin</SelectItem>
                 </SelectContent>
@@ -711,7 +711,7 @@ export default function ProjectDetailPage() {
             {/* Members list */}
             <div className="space-y-2">
               {members.length === 0 ? (
-                <p className="text-center text-slate-500 py-4">No hay miembros</p>
+                <p className="text-center text-slate-500 dark:text-slate-400 py-4">No hay miembros</p>
               ) : (
                 members.map((m) => (
                   <div key={m.id} className="flex items-center justify-between p-2 rounded-lg border border-slate-200">
@@ -720,8 +720,8 @@ export default function ProjectDetailPage() {
                         {m.user.name?.[0]?.toUpperCase() || m.user.email[0].toUpperCase()}
                       </div>
                       <div>
-                        <p className="font-medium text-slate-900">{m.user.name || m.user.email}</p>
-                        <p className="text-xs text-slate-500">{m.user.email}</p>
+                        <p className="font-medium text-slate-900 dark:text-slate-100">{m.user.name || m.user.email}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{m.user.email}</p>
                       </div>
                       <Badge variant="secondary" className={cn("text-xs border", roleColors[m.role])}>
                         {roleLabels[m.role]}

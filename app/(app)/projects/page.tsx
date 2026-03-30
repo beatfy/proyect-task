@@ -78,7 +78,7 @@ export default function ProjectsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+        <Loader2 className="h-8 w-8 animate-spin text-slate-400 dark:text-slate-500" />
       </div>
     );
   }
@@ -87,8 +87,8 @@ export default function ProjectsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Proyectos</h1>
-          <p className="text-slate-500 mt-1">
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Proyectos</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">
             Gestiona tus proyectos y tareas
           </p>
         </div>
@@ -100,36 +100,36 @@ export default function ProjectsPage() {
 
       {/* Create Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="bg-white border-slate-200">
+        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
           <DialogHeader>
-            <DialogTitle className="text-slate-900">Crear Proyecto</DialogTitle>
+            <DialogTitle className="text-slate-900 dark:text-slate-100">Crear Proyecto</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             <div className="space-y-2">
-              <Label className="text-slate-700">Nombre</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Nombre</Label>
               <Input
                 placeholder="Nombre del proyecto"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="bg-white border-slate-300 text-slate-900"
+                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-slate-700">Descripción</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Descripción</Label>
               <Input
                 placeholder="Descripción opcional"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="bg-white border-slate-300 text-slate-900"
+                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-slate-700">Color</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Color</Label>
               <Input
                 type="color"
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
-                className="bg-white border-slate-300 h-10"
+                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 h-10"
               />
             </div>
             <Button onClick={handleCreate} className="w-full">
@@ -140,13 +140,13 @@ export default function ProjectsPage() {
       </Dialog>
 
       {projects.length === 0 ? (
-        <Card className="bg-white border-slate-200">
+        <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <FolderOpen className="h-12 w-12 text-slate-400 mb-4" />
-            <h3 className="text-lg font-medium text-slate-900 mb-1">
+            <FolderOpen className="h-12 w-12 text-slate-400 dark:text-slate-500 mb-4" />
+            <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-1">
               No hay proyectos
             </h3>
-            <p className="text-slate-500 text-sm">
+            <p className="text-slate-500 dark:text-slate-400 text-sm">
               Crea tu primer proyecto para comenzar
             </p>
           </CardContent>
@@ -155,18 +155,18 @@ export default function ProjectsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {projects.map((project) => (
             <Link key={project.id} href={`/projects/${project.id}`}>
-              <Card className="hover:shadow-md transition-shadow cursor-pointer bg-white border-slate-200 hover:border-slate-300">
+              <Card className="hover:shadow-md transition-shadow cursor-pointer bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600">
                 <CardHeader>
                   <div className="flex items-center gap-3">
                     <div
                       className="w-3 h-3 rounded-full"
                       style={{ backgroundColor: project.color }}
                     />
-                    <CardTitle className="text-lg text-slate-900">{project.name}</CardTitle>
+                    <CardTitle className="text-lg text-slate-900 dark:text-slate-100">{project.name}</CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-slate-500 text-sm">
+                  <p className="text-slate-500 dark:text-slate-400 text-sm">
                     {project.description || "Sin descripción"}
                   </p>
                 </CardContent>

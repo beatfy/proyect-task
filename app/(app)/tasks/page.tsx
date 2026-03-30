@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Plus, MoreHorizontal, User, Pencil, Trash2, FolderOpen, LayoutGrid, List, Table, Calendar, MessageSquare, Paperclip, ChevronDown, ChevronUp, X, Upload, File, Image, FileText } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Plus, MoreHorizontal, User, Pencil, Trash2, FolderOpen, LayoutGrid, List, Table, Calendar, MessageSquare, Paperclip, ChevronDown, ChevronUp, X, Upload, File, Image, FileText, Timer, Play, Square, LayoutTemplate } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -67,6 +67,26 @@ interface Project {
   color: string;
 }
 
+interface TaskTemplate {
+  id: string;
+  name: string;
+  title: string;
+  description: string | null;
+  status: string;
+  priority: string;
+  tags: string[] | null;
+  isDefault: boolean;
+}
+
+interface TimeEntry {
+  id: string;
+  taskId: string;
+  startTime: string;
+  endTime: string | null;
+  duration: number | null;
+  description: string | null;
+}
+
 const columns = [
   { id: "TODO", title: "Por hacer", color: "bg-slate-500" },
   { id: "INPROGRESS", title: "En progreso", color: "bg-blue-500" },
@@ -75,11 +95,11 @@ const columns = [
 ];
 
 const priorityColors: Record<string, string> = {
-  NONE: "bg-gray-100 text-gray-600 border-gray-200",
-  LOW: "bg-slate-100 text-slate-600 border-slate-200",
-  MEDIUM: "bg-orange-100 text-orange-600 border-orange-200",
-  HIGH: "bg-red-100 text-red-600 border-red-200",
-  URGENT: "bg-purple-100 text-purple-600 border-purple-200",
+  NONE: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700",
+  LOW: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700",
+  MEDIUM: "bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800",
+  HIGH: "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800",
+  URGENT: "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800",
 };
 
 const priorityLabels: Record<string, string> = {
@@ -98,13 +118,20 @@ const statusLabels: Record<string, string> = {
 };
 
 const statusColors: Record<string, string> = {
-  TODO: "bg-gray-100 text-gray-600 border-gray-200",
-  INPROGRESS: "bg-blue-100 text-blue-600 border-blue-200",
-  INREVIEW: "bg-yellow-100 text-yellow-600 border-yellow-200",
-  DONE: "bg-green-100 text-green-600 border-green-200",
+  TODO: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700",
+  INPROGRESS: "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800",
+  INREVIEW: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800",
+  DONE: "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800",
 };
 
 type ViewType = "kanban" | "list" | "table";
+
+function formatTimer(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -139,10 +166,114 @@ export default function TasksPage() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
 
+  // Templates
+  const [templates, setTemplates] = useState<TaskTemplate[]>([]);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+
+  // Timer
+  const [activeTimer, setActiveTimer] = useState<TimeEntry | null>(null);
+  const [timerSeconds, setTimerSeconds] = useState(0);
+  const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
+  const timerInterval = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     fetchTasks();
     fetchProjects();
+    fetchTemplates();
+    fetchActiveTimer();
   }, []);
+
+  const fetchTemplates = async () => {
+    try {
+      const res = await fetch("/api/templates");
+      if (res.ok) setTemplates(await res.json());
+    } catch {}
+  };
+
+  const fetchActiveTimer = async () => {
+    try {
+      const res = await fetch("/api/time-entries?userId=me");
+      if (res.ok) {
+        const entries: TimeEntry[] = await res.json();
+        const running = entries.find((e) => !e.endTime);
+        if (running) {
+          setActiveTimer(running);
+          const elapsed = Math.floor((Date.now() - new Date(running.startTime).getTime()) / 1000);
+          setTimerSeconds(elapsed);
+        }
+        setTimeEntries(entries.filter((e) => e.endTime));
+      }
+    } catch {}
+  };
+
+  // Timer tick
+  useEffect(() => {
+    if (activeTimer) {
+      timerInterval.current = setInterval(() => {
+        setTimerSeconds((s) => s + 1);
+      }, 1000);
+    } else {
+      if (timerInterval.current) clearInterval(timerInterval.current);
+      setTimerSeconds(0);
+    }
+    return () => {
+      if (timerInterval.current) clearInterval(timerInterval.current);
+    };
+  }, [activeTimer]);
+
+  const handleStartTimer = async (taskId: string) => {
+    try {
+      const res = await fetch("/api/time-entries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskId, action: "start" }),
+      });
+      if (res.ok) {
+        const entry = await res.json();
+        setActiveTimer(entry);
+        setTimerSeconds(0);
+        toast.success("Timer iniciado");
+      } else {
+        const data = await res.json();
+        toast.error(data.error || "Error al iniciar timer");
+      }
+    } catch {
+      toast.error("Error de conexión");
+    }
+  };
+
+  const handleStopTimer = async () => {
+    if (!activeTimer) return;
+    try {
+      const res = await fetch("/api/time-entries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: activeTimer.id, action: "stop" }),
+      });
+      if (res.ok) {
+        const stopped = await res.json();
+        setTimeEntries([stopped, ...timeEntries]);
+        setActiveTimer(null);
+        setTimerSeconds(0);
+        toast.success(`Timer detenido — ${formatTimer(stopped.duration || 0)}`);
+      } else {
+        const data = await res.json();
+        toast.error(data.error || "Error al detener timer");
+      }
+    } catch {
+      toast.error("Error de conexión");
+    }
+  };
+
+  const applyTemplate = (tmpl: TaskTemplate) => {
+    setTitle(tmpl.title);
+    setDescription(tmpl.description || "");
+    setStatus(tmpl.status);
+    setPriority(tmpl.priority);
+    setTemplatesOpen(false);
+    setOpen(true);
+    toast.success(`Template "${tmpl.name}" aplicado`);
+  };
 
   const fetchTasks = async () => {
     try {
@@ -153,7 +284,7 @@ export default function TasksPage() {
       }
       if (response.ok) {
         const data = await response.json();
-        setTasks(data.filter((t: Task) => !t.parentId)); // Only main tasks
+        setTasks(data.filter((t: Task) => !t.parentId));
       }
     } catch {
       console.error("Error loading tasks");
@@ -173,17 +304,29 @@ export default function TasksPage() {
   };
 
   const fetchTaskDetails = async (taskId: string) => {
-    // Fetch subtasks
     const subRes = await fetch(`/api/tasks?parentId=${taskId}`);
     if (subRes.ok) setSubtasks(await subRes.json());
 
-    // Fetch comments
     const comRes = await fetch(`/api/comments?taskId=${taskId}`);
     if (comRes.ok) setComments(await comRes.json());
 
-    // Fetch attachments
     const attRes = await fetch(`/api/attachments?taskId=${taskId}`);
     if (attRes.ok) setAttachments(await attRes.json());
+
+    // Fetch time entries for this task
+    try {
+      const teRes = await fetch(`/api/time-entries?taskId=${taskId}`);
+      if (teRes.ok) {
+        const entries: TimeEntry[] = await teRes.json();
+        setTimeEntries(entries.filter((e) => e.endTime));
+        const running = entries.find((e) => !e.endTime);
+        if (running) {
+          setActiveTimer(running);
+          const elapsed = Math.floor((Date.now() - new Date(running.startTime).getTime()) / 1000);
+          setTimerSeconds(elapsed);
+        }
+      }
+    } catch {}
   };
 
   const resetForm = () => {
@@ -291,7 +434,6 @@ export default function TasksPage() {
     }
   };
 
-  // Subtasks
   const handleCreateSubtask = async () => {
     if (!subtaskTitle.trim() || !detailTask) {
       toast.error("El título es requerido");
@@ -334,7 +476,6 @@ export default function TasksPage() {
     }
   };
 
-  // Comments
   const handleAddComment = async () => {
     if (!newComment.trim() || !detailTask) return;
 
@@ -355,7 +496,6 @@ export default function TasksPage() {
     }
   };
 
-  // Attachments
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !detailTask) return;
@@ -427,6 +567,10 @@ export default function TasksPage() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  const totalTaskTime = timeEntries
+    .filter((e) => detailTask && e.taskId === detailTask.id)
+    .reduce((sum, e) => sum + (e.duration || 0), 0);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -436,14 +580,14 @@ export default function TasksPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-8">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-8">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Tareas</h1>
-          <p className="text-slate-500 text-sm mt-1">Gestiona todas tus tareas</p>
+          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Tareas</h1>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Gestiona todas tus tareas</p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center bg-white rounded-lg p-1 border border-slate-200">
+          <div className="flex items-center bg-white dark:bg-slate-900 rounded-lg p-1 border border-slate-200 dark:border-slate-700">
             <Button variant={view === "kanban" ? "default" : "ghost"} size="sm" onClick={() => setView("kanban")} className="h-8 px-3">
               <LayoutGrid className="h-4 w-4 mr-1" /> Kanban
             </Button>
@@ -454,6 +598,36 @@ export default function TasksPage() {
               <List className="h-4 w-4 mr-1" /> Lista
             </Button>
           </div>
+
+          {/* Templates Dropdown */}
+          <DropdownMenu open={templatesOpen} onOpenChange={setTemplatesOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="border-slate-200 dark:border-slate-700 dark:text-slate-300">
+                <LayoutTemplate className="h-4 w-4 mr-2" /> Templates
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 w-56">
+              {templates.length === 0 ? (
+                <DropdownMenuItem disabled className="text-slate-400 dark:text-slate-500">
+                  No hay templates
+                </DropdownMenuItem>
+              ) : (
+                templates.map((tmpl) => (
+                  <DropdownMenuItem
+                    key={tmpl.id}
+                    onClick={() => applyTemplate(tmpl)}
+                    className="cursor-pointer text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-medium">{tmpl.name}</span>
+                      <span className="text-xs text-slate-400 dark:text-slate-500 truncate max-w-[200px]">{tmpl.title}</span>
+                    </div>
+                  </DropdownMenuItem>
+                ))
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Button onClick={() => { resetForm(); setOpen(true); }}>
             <Plus className="h-4 w-4 mr-2" /> Nueva Tarea
           </Button>
@@ -462,36 +636,36 @@ export default function TasksPage() {
 
       {/* Create Dialog */}
       <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
-        <DialogContent className="bg-white border-slate-200 max-w-md">
+        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-slate-900">Crear Tarea</DialogTitle>
+            <DialogTitle className="text-slate-900 dark:text-slate-100">Crear Tarea</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             <div className="space-y-2">
-              <Label className="text-slate-700">Título</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Título</Label>
               <Input
                 placeholder="Título de la tarea"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="bg-white border-slate-300 text-slate-900"
+                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-slate-700">Descripción</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Descripción</Label>
               <Input
                 placeholder="Descripción opcional"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="bg-white border-slate-300 text-slate-900"
+                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-slate-700">Proyecto</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Proyecto</Label>
               <Select value={projectId} onValueChange={setProjectId}>
-                <SelectTrigger className="bg-white border-slate-300 text-slate-900">
+                <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100">
                   <SelectValue placeholder="Sin proyecto" />
                 </SelectTrigger>
-                <SelectContent className="bg-white border-slate-200">
+                <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
                   <SelectItem value="none">Sin proyecto</SelectItem>
                   {projects.map((p) => (
                     <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
@@ -501,12 +675,12 @@ export default function TasksPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-slate-700">Estado</Label>
+                <Label className="text-slate-700 dark:text-slate-300">Estado</Label>
                 <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger className="bg-white border-slate-300 text-slate-900">
+                  <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-white border-slate-200">
+                  <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
                     {columns.map((col) => (
                       <SelectItem key={col.id} value={col.id}>{col.title}</SelectItem>
                     ))}
@@ -514,12 +688,12 @@ export default function TasksPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label className="text-slate-700">Prioridad</Label>
+                <Label className="text-slate-700 dark:text-slate-300">Prioridad</Label>
                 <Select value={priority} onValueChange={setPriority}>
-                  <SelectTrigger className="bg-white border-slate-300 text-slate-900">
+                  <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-white border-slate-200">
+                  <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
                     {Object.entries(priorityLabels).map(([v, l]) => (
                       <SelectItem key={v} value={v}>{l}</SelectItem>
                     ))}
@@ -528,21 +702,21 @@ export default function TasksPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label className="text-slate-700">Fecha de finalización</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Fecha de finalización</Label>
               <Input
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="bg-white border-slate-300 text-slate-900"
+                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-slate-700">Asignar a (email)</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Asignar a (email)</Label>
               <Input
                 placeholder="email@ejemplo.com"
                 value={assignedTo}
                 onChange={(e) => setAssignedTo(e.target.value)}
-                className="bg-white border-slate-300 text-slate-900"
+                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
               />
             </div>
             <Button onClick={handleCreate} className="w-full">
@@ -554,37 +728,37 @@ export default function TasksPage() {
 
       {/* Edit Dialog */}
       <Dialog open={editOpen} onOpenChange={(v) => { setEditOpen(v); if (!v) { resetForm(); setEditingTask(null); }}}>
-        <DialogContent className="bg-white border-slate-200 max-w-md">
+        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-slate-900">Editar Tarea</DialogTitle>
+            <DialogTitle className="text-slate-900 dark:text-slate-100">Editar Tarea</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             <div className="space-y-2">
-              <Label className="text-slate-700">Título</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Título</Label>
               <Input
                 placeholder="Título"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="bg-white border-slate-300 text-slate-900"
+                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-slate-700">Descripción</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Descripción</Label>
               <Input
                 placeholder="Descripción"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="bg-white border-slate-300 text-slate-900"
+                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-slate-700">Estado</Label>
+                <Label className="text-slate-700 dark:text-slate-300">Estado</Label>
                 <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger className="bg-white border-slate-300 text-slate-900">
+                  <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-white border-slate-200">
+                  <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
                     {columns.map((col) => (
                       <SelectItem key={col.id} value={col.id}>{col.title}</SelectItem>
                     ))}
@@ -592,12 +766,12 @@ export default function TasksPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label className="text-slate-700">Prioridad</Label>
+                <Label className="text-slate-700 dark:text-slate-300">Prioridad</Label>
                 <Select value={priority} onValueChange={setPriority}>
-                  <SelectTrigger className="bg-white border-slate-300 text-slate-900">
+                  <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-white border-slate-200">
+                  <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
                     {Object.entries(priorityLabels).map(([v, l]) => (
                       <SelectItem key={v} value={v}>{l}</SelectItem>
                     ))}
@@ -606,12 +780,12 @@ export default function TasksPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label className="text-slate-700">Fecha de finalización</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Fecha de finalización</Label>
               <Input
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="bg-white border-slate-300 text-slate-900"
+                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
               />
             </div>
             <Button onClick={handleUpdate} className="w-full">
@@ -622,21 +796,63 @@ export default function TasksPage() {
       </Dialog>
 
       {/* Detail Dialog */}
-      <Dialog open={detailOpen} onOpenChange={(v) => { setDetailOpen(v); if (!v) setDetailTask(null); }}>
-        <DialogContent className="bg-white border-slate-200 max-w-2xl max-h-[90vh] overflow-y-auto">
+      <Dialog open={detailOpen} onOpenChange={(v) => { setDetailOpen(v); if (!v) { setDetailTask(null); setActiveTimer(null); setTimerSeconds(0); }}}>
+        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-slate-900">{detailTask?.title}</DialogTitle>
+            <DialogTitle className="text-slate-900 dark:text-slate-100">{detailTask?.title}</DialogTitle>
           </DialogHeader>
           <div className="space-y-6 pt-4">
             {/* Description */}
             {detailTask?.description && (
-              <div className="text-slate-600">{detailTask.description}</div>
+              <div className="text-slate-600 dark:text-slate-400">{detailTask.description}</div>
             )}
+
+            {/* Timer Section */}
+            <div className="space-y-3">
+              <h3 className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                <Timer className="h-4 w-4" />
+                Timer
+              </h3>
+              <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                <div className="font-mono text-2xl font-bold text-slate-900 dark:text-slate-100 tabular-nums">
+                  {activeTimer && activeTimer.taskId === detailTask?.id ? formatTimer(timerSeconds) : "00:00:00"}
+                </div>
+                {activeTimer && activeTimer.taskId === detailTask?.id ? (
+                  <Button variant="destructive" size="sm" onClick={handleStopTimer}>
+                    <Square className="h-4 w-4 mr-1" /> Detener
+                  </Button>
+                ) : (
+                  <Button size="sm" onClick={() => detailTask && handleStartTimer(detailTask.id)} disabled={!!activeTimer}>
+                    <Play className="h-4 w-4 mr-1" /> Iniciar
+                  </Button>
+                )}
+                {activeTimer && activeTimer.taskId !== detailTask?.id && (
+                  <p className="text-xs text-orange-500 ml-2">Timer activo en otra tarea</p>
+                )}
+              </div>
+              {totalTaskTime > 0 && (
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Tiempo total registrado: {formatTimer(totalTaskTime)}
+                </p>
+              )}
+              {timeEntries.filter((e) => detailTask && e.taskId === detailTask.id).length > 0 && (
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {timeEntries.filter((e) => detailTask && e.taskId === detailTask.id).map((entry) => (
+                    <div key={entry.id} className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                      <span>{new Date(entry.startTime).toLocaleString()}</span>
+                      <span>→</span>
+                      <span>{entry.endTime ? new Date(entry.endTime).toLocaleTimeString() : "..."}</span>
+                      <Badge variant="secondary" className="text-[10px] border dark:border-slate-600">{formatTimer(entry.duration || 0)}</Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Subtasks */}
             <div className="space-y-3">
               <div className="flex items-center justify-between cursor-pointer" onClick={() => setShowSubtasks(!showSubtasks)}>
-                <h3 className="font-medium text-slate-700 flex items-center gap-2">
+                <h3 className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
                   <ChevronDown className={`h-4 w-4 transition-transform ${showSubtasks ? "" : "-rotate-90"}`} />
                   Subtareas ({subtasks.length})
                 </h3>
@@ -644,24 +860,25 @@ export default function TasksPage() {
                   placeholder="Añadir subtarea..."
                   value={subtaskTitle}
                   onChange={(e) => setSubtaskTitle(e.target.value)}
-                  className="w-64 bg-white border-slate-300 text-slate-900"
+                  className="w-64 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
                   onKeyDown={(e) => { if (e.key === "Enter") handleCreateSubtask(); }}
+                  onClick={(e) => e.stopPropagation()}
                 />
               </div>
               {showSubtasks && (
                 <div className="space-y-2 ml-4">
                   {subtasks.length === 0 ? (
-                    <p className="text-slate-500 text-sm">No hay subtareas</p>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">No hay subtareas</p>
                   ) : (
                     subtasks.map((st) => (
-                      <div key={st.id} className="flex items-center gap-2 p-2 bg-slate-50 rounded border border-slate-200">
+                      <div key={st.id} className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">
                         <input
                           type="checkbox"
                           checked={st.status === "DONE"}
                           onChange={() => handleToggleSubtask(st)}
-                          className="rounded border-slate-300"
+                          className="rounded border-slate-300 dark:border-slate-600"
                         />
-                        <span className={cn("text-sm", st.status === "DONE" && "text-slate-400 line-through")}>
+                        <span className={cn("text-sm", st.status === "DONE" && "text-slate-400 line-through dark:text-slate-500")}>
                           {st.title}
                         </span>
                         <Button variant="ghost" size="sm" className="h-6 w-6 p-0 ml-auto" onClick={async () => {
@@ -682,21 +899,21 @@ export default function TasksPage() {
 
             {/* Comments */}
             <div className="space-y-3">
-              <h3 className="font-medium text-slate-700 flex items-center gap-2">
+              <h3 className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
                 <MessageSquare className="h-4 w-4" />
                 Comentarios ({comments.length})
               </h3>
               <div className="space-y-2">
                 {comments.map((c) => (
-                  <div key={c.id} className="p-3 bg-slate-50 rounded border border-slate-200">
+                  <div key={c.id} className="p-3 bg-slate-50 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">
                     <div className="flex items-center gap-2 mb-1">
                       <div className="w-6 h-6 rounded-full bg-indigo-500 text-white flex items-center justify-center text-xs">
                         {c.author.name?.[0]?.toUpperCase() || c.author.email[0].toUpperCase()}
                       </div>
-                      <span className="text-sm font-medium text-slate-700">{c.author.name || c.author.email}</span>
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{c.author.name || c.author.email}</span>
                       <span className="text-xs text-slate-400">{new Date(c.createdAt).toLocaleDateString()}</span>
                     </div>
-                    <p className="text-sm text-slate-600">{c.content}</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">{c.content}</p>
                   </div>
                 ))}
                 <div className="flex gap-2">
@@ -704,7 +921,7 @@ export default function TasksPage() {
                     placeholder="Añadir comentario..."
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
-                    className="bg-white border-slate-300 text-slate-900"
+                    className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
                   />
                   <Button size="sm" onClick={handleAddComment}>Enviar</Button>
                 </div>
@@ -713,21 +930,21 @@ export default function TasksPage() {
 
             {/* Attachments */}
             <div className="space-y-3">
-              <h3 className="font-medium text-slate-700 flex items-center gap-2">
+              <h3 className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
                 <Paperclip className="h-4 w-4" />
                 Archivos ({attachments.length})
               </h3>
               <div className="space-y-2">
                 {attachments.map((a) => (
-                  <div key={a.id} className="flex items-center gap-3 p-2 bg-slate-50 rounded border border-slate-200">
+                  <div key={a.id} className="flex items-center gap-3 p-2 bg-slate-50 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">
                     {a.type === "image" ? (
                       <Image className="h-5 w-5 text-blue-500" />
                     ) : a.type === "pdf" ? (
                       <FileText className="h-5 w-5 text-red-500" />
                     ) : (
-                      <File className="h-5 w-5 text-slate-500" />
+                      <File className="h-5 w-5 text-slate-500 dark:text-slate-400" />
                     )}
-                    <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-sm text-slate-700 hover:underline">
+                    <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-sm text-slate-700 dark:text-slate-300 hover:underline">
                       {a.name}
                     </a>
                     <span className="text-xs text-slate-400">{formatBytes(a.size)}</span>
@@ -760,12 +977,12 @@ export default function TasksPage() {
             <div key={column.id} className="flex-1 min-w-[280px] max-w-[350px] flex flex-col" onDragOver={handleDragOver} onDrop={() => handleDrop(column.id)}>
               <div className="flex items-center gap-2 mb-3 px-1">
                 <div className={cn("w-3 h-3 rounded-full", column.color)} />
-                <h3 className="font-medium text-sm text-slate-700">{column.title}</h3>
+                <h3 className="font-medium text-sm text-slate-700 dark:text-slate-300">{column.title}</h3>
                 <span className="text-xs text-slate-400 ml-auto">{getTasksByStatus(column.id).length}</span>
               </div>
-              <div className="flex-1 bg-white rounded-lg p-2 space-y-2 overflow-y-auto border border-slate-200">
+              <div className="flex-1 bg-white dark:bg-slate-900 rounded-lg p-2 space-y-2 overflow-y-auto border border-slate-200 dark:border-slate-700">
                 {getTasksByStatus(column.id).length === 0 ? (
-                  <div className="text-center py-8 text-slate-400 text-sm">Sin tareas</div>
+                  <div className="text-center py-8 text-slate-400 dark:text-slate-500 text-sm">Sin tareas</div>
                 ) : (
                   getTasksByStatus(column.id).map((task) => (
                     <Card
@@ -773,28 +990,28 @@ export default function TasksPage() {
                       draggable
                       onDragStart={() => handleDragStart(task)}
                       onClick={() => handleOpenDetail(task)}
-                      className="cursor-pointer hover:shadow-md transition-shadow bg-slate-50 border-slate-200"
+                      className="cursor-pointer hover:shadow-md transition-shadow bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
                     >
                       <CardContent className="p-3">
                         <div className="flex items-start justify-between gap-2 mb-2">
-                          <h4 className="font-medium text-sm leading-tight text-slate-900">{task.title}</h4>
+                          <h4 className="font-medium text-sm leading-tight text-slate-900 dark:text-slate-100">{task.title}</h4>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-slate-200">
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-slate-200 dark:hover:bg-slate-700">
                                 <MoreHorizontal className="h-4 w-4 text-slate-400" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-white border-slate-200">
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEdit(task); }} className="text-slate-700 hover:bg-slate-100 cursor-pointer">
+                            <DropdownMenuContent align="end" className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEdit(task); }} className="text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
                                 <Pencil className="h-4 w-4 mr-2" /> Editar
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDelete(task.id); }} className="text-red-500 hover:bg-slate-100 cursor-pointer">
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDelete(task.id); }} className="text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
                                 <Trash2 className="h-4 w-4 mr-2" /> Eliminar
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
-                        {task.description && <p className="text-xs text-slate-500 mb-3 line-clamp-2">{task.description}</p>}
+                        {task.description && <p className="text-xs text-slate-500 dark:text-slate-400 mb-3 line-clamp-2">{task.description}</p>}
                         <div className="flex items-center gap-2 flex-wrap mb-2">
                           {task.priority !== "NONE" && (
                             <Badge variant="secondary" className={cn("text-[10px] px-1.5 py-0 h-5 border", priorityColors[task.priority])}>
@@ -802,7 +1019,7 @@ export default function TasksPage() {
                             </Badge>
                           )}
                           {task.dueDate && (
-                            <div className="flex items-center gap-1 text-xs text-slate-500">
+                            <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
                               <Calendar className="h-3 w-3" />
                               <span>{new Date(task.dueDate).toLocaleDateString()}</span>
                             </div>
@@ -811,15 +1028,15 @@ export default function TasksPage() {
                         {(task.project?.name || getProjectName(task.projectId)) && (
                           <div className="flex items-center gap-1.5 mb-2">
                             <FolderOpen className="h-3 w-3 text-slate-400" />
-                            <span className="text-xs text-slate-500">{task.project?.name || getProjectName(task.projectId)}</span>
+                            <span className="text-xs text-slate-500 dark:text-slate-400">{task.project?.name || getProjectName(task.projectId)}</span>
                           </div>
                         )}
                         {task.assignedTo && (
-                          <div className="flex items-center gap-1.5 pt-2 border-t border-slate-200">
-                            <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">
+                          <div className="flex items-center gap-1.5 pt-2 border-t border-slate-200 dark:border-slate-700">
+                            <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
                               <User className="h-3 w-3 text-blue-500" />
                             </div>
-                            <span className="text-xs text-slate-500 truncate">{task.assignedTo}</span>
+                            <span className="text-xs text-slate-500 dark:text-slate-400 truncate">{task.assignedTo}</span>
                           </div>
                         )}
                       </CardContent>
@@ -834,29 +1051,29 @@ export default function TasksPage() {
 
       {/* TABLE VIEW */}
       {view === "table" && (
-        <div className="rounded-lg border border-slate-200 overflow-hidden bg-white">
+        <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-900">
           <table className="w-full">
-            <thead className="bg-slate-50">
+            <thead className="bg-slate-50 dark:bg-slate-800">
               <tr>
-                <th className="text-left p-3 text-sm font-medium text-slate-600">Tarea</th>
-                <th className="text-left p-3 text-sm font-medium text-slate-600">Estado</th>
-                <th className="text-left p-3 text-sm font-medium text-slate-600">Prioridad</th>
-                <th className="text-left p-3 text-sm font-medium text-slate-600">Fecha límite</th>
-                <th className="text-left p-3 text-sm font-medium text-slate-600">Proyecto</th>
-                <th className="text-left p-3 text-sm font-medium text-slate-600">Asignado</th>
-                <th className="text-right p-3 text-sm font-medium text-slate-600">Acciones</th>
+                <th className="text-left p-3 text-sm font-medium text-slate-600 dark:text-slate-400">Tarea</th>
+                <th className="text-left p-3 text-sm font-medium text-slate-600 dark:text-slate-400">Estado</th>
+                <th className="text-left p-3 text-sm font-medium text-slate-600 dark:text-slate-400">Prioridad</th>
+                <th className="text-left p-3 text-sm font-medium text-slate-600 dark:text-slate-400">Fecha límite</th>
+                <th className="text-left p-3 text-sm font-medium text-slate-600 dark:text-slate-400">Proyecto</th>
+                <th className="text-left p-3 text-sm font-medium text-slate-600 dark:text-slate-400">Asignado</th>
+                <th className="text-right p-3 text-sm font-medium text-slate-600 dark:text-slate-400">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200">
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
               {tasks.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-12 text-slate-500">No hay tareas</td></tr>
+                <tr><td colSpan={7} className="text-center py-12 text-slate-500 dark:text-slate-400">No hay tareas</td></tr>
               ) : (
                 tasks.map((task) => (
-                  <tr key={task.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => handleOpenDetail(task)}>
+                  <tr key={task.id} className="hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer" onClick={() => handleOpenDetail(task)}>
                     <td className="p-3">
                       <div>
-                        <p className="font-medium text-slate-900">{task.title}</p>
-                        {task.description && <p className="text-xs text-slate-500 mt-0.5 truncate max-w-[300px]">{task.description}</p>}
+                        <p className="font-medium text-slate-900 dark:text-slate-100">{task.title}</p>
+                        {task.description && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate max-w-[300px]">{task.description}</p>}
                       </div>
                     </td>
                     <td className="p-3">
@@ -869,20 +1086,20 @@ export default function TasksPage() {
                     </td>
                     <td className="p-3">
                       {task.dueDate && (
-                        <div className="flex items-center gap-1 text-sm text-slate-600">
+                        <div className="flex items-center gap-1 text-sm text-slate-600 dark:text-slate-400">
                           <Calendar className="h-4 w-4" />
                           <span>{new Date(task.dueDate).toLocaleDateString()}</span>
                         </div>
                       )}
                     </td>
-                    <td className="p-3 text-sm text-slate-600">{task.project?.name || getProjectName(task.projectId) || "-"}</td>
-                    <td className="p-3 text-sm text-slate-600">{task.assignedTo || "-"}</td>
+                    <td className="p-3 text-sm text-slate-600 dark:text-slate-400">{task.project?.name || getProjectName(task.projectId) || "-"}</td>
+                    <td className="p-3 text-sm text-slate-600 dark:text-slate-400">{task.assignedTo || "-"}</td>
                     <td className="p-3 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleEdit(task); }} className="h-8 w-8 p-0 hover:bg-slate-100">
-                          <Pencil className="h-4 w-4 text-slate-500" />
+                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleEdit(task); }} className="h-8 w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700">
+                          <Pencil className="h-4 w-4 text-slate-500 dark:text-slate-400" />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleDelete(task.id); }} className="h-8 w-8 p-0 hover:bg-slate-100">
+                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleDelete(task.id); }} className="h-8 w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700">
                           <Trash2 className="h-4 w-4 text-red-500" />
                         </Button>
                       </div>
@@ -899,43 +1116,43 @@ export default function TasksPage() {
       {view === "list" && (
         <div className="space-y-2">
           {tasks.length === 0 ? (
-            <Card className="bg-white border-slate-200">
-              <CardContent className="py-12 text-center text-slate-500">No hay tareas</CardContent>
+            <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+              <CardContent className="py-12 text-center text-slate-500 dark:text-slate-400">No hay tareas</CardContent>
             </Card>
           ) : (
             tasks.map((task) => (
-              <Card key={task.id} className="bg-white border-slate-200 hover:border-slate-300 transition-colors cursor-pointer" onClick={() => handleOpenDetail(task)}>
+              <Card key={task.id} className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 transition-colors cursor-pointer" onClick={() => handleOpenDetail(task)}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4 flex-1 min-w-0">
                       <div className={cn("w-2 h-2 rounded-full flex-shrink-0", columns.find(c => c.id === task.status)?.color)} />
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-medium text-slate-900 truncate">{task.title}</h3>
+                        <h3 className="font-medium text-slate-900 dark:text-slate-100 truncate">{task.title}</h3>
                         <div className="flex items-center gap-3 mt-1">
                           <Badge variant="secondary" className={cn("text-[10px] border", statusColors[task.status])}>{statusLabels[task.status]}</Badge>
                           {task.priority !== "NONE" && (
                             <Badge variant="secondary" className={cn("text-[10px] border", priorityColors[task.priority])}>{priorityLabels[task.priority]}</Badge>
                           )}
                           {task.dueDate && (
-                            <span className="text-xs text-slate-500 flex items-center gap-1">
+                            <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
                               {new Date(task.dueDate).toLocaleDateString()}
                             </span>
                           )}
                           {(task.project?.name || getProjectName(task.projectId)) && (
-                            <span className="text-xs text-slate-500">{task.project?.name || getProjectName(task.projectId)}</span>
+                            <span className="text-xs text-slate-500 dark:text-slate-400">{task.project?.name || getProjectName(task.projectId)}</span>
                           )}
                           {task.assignedTo && (
-                            <span className="text-xs text-slate-500 flex items-center gap-1"><User className="h-3 w-3" />{task.assignedTo}</span>
+                            <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1"><User className="h-3 w-3" />{task.assignedTo}</span>
                           )}
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost" size="sm" onClick={() => handleEdit(task)} className="h-8 w-8 p-0 hover:bg-slate-100">
-                        <Pencil className="h-4 w-4 text-slate-500" />
+                      <Button variant="ghost" size="sm" onClick={() => handleEdit(task)} className="h-8 w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700">
+                        <Pencil className="h-4 w-4 text-slate-500 dark:text-slate-400" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(task.id)} className="h-8 w-8 p-0 hover:bg-slate-100">
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete(task.id)} className="h-8 w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700">
                         <Trash2 className="h-4 w-4 text-red-500" />
                       </Button>
                     </div>

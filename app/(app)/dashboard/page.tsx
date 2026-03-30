@@ -3,54 +3,74 @@
 import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckSquare, Clock, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { CheckSquare, Clock, CheckCircle, AlertCircle, Loader2, FolderOpen, TrendingUp, Timer, BarChart3 } from "lucide-react";
 
-interface TaskStats {
-  pending: number;
-  inProgress: number;
-  completed: number;
-  overdue: number;
+interface ReportStats {
+  completedThisWeek: number;
+  completedThisMonth: number;
+  completedLastMonth: number;
+  totalTimeThisWeek: number;
+  totalTimeThisMonth: number;
+  tasksByStatus: Record<string, number>;
+  tasksByPriority: Record<string, number>;
+  activeProjects: number;
+  totalTasks: number;
+  overdueTasks: number;
 }
 
-interface Task {
-  id: string;
-  title: string;
-  status: string;
-  priority: string;
-  dueDate: string | null;
+const statusLabels: Record<string, string> = {
+  TODO: "Por hacer",
+  INPROGRESS: "En progreso",
+  INREVIEW: "En revisión",
+  DONE: "Hecho",
+};
+
+const statusColors: Record<string, string> = {
+  TODO: "bg-slate-500",
+  INPROGRESS: "bg-blue-500",
+  INREVIEW: "bg-yellow-500",
+  DONE: "bg-green-500",
+};
+
+const priorityLabels: Record<string, string> = {
+  NONE: "Sin prioridad",
+  LOW: "Baja",
+  MEDIUM: "Media",
+  HIGH: "Alta",
+  URGENT: "Urgente",
+};
+
+const priorityColors: Record<string, string> = {
+  NONE: "bg-gray-400",
+  LOW: "bg-slate-500",
+  MEDIUM: "bg-orange-500",
+  HIGH: "bg-red-500",
+  URGENT: "bg-purple-600",
+};
+
+function formatDuration(seconds: number): string {
+  if (!seconds) return "0h 0m";
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
 }
 
 export default function DashboardPage() {
   const { data: session } = useSession();
-  const [stats, setStats] = useState<TaskStats>({
-    pending: 0,
-    inProgress: 0,
-    completed: 0,
-    overdue: 0,
-  });
-  const [recentTasks, setRecentTasks] = useState<Task[]>([]);
+  const [stats, setStats] = useState<ReportStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchDashboardData();
+    fetchStats();
   }, []);
 
-  const fetchDashboardData = async () => {
+  const fetchStats = async () => {
     try {
-      const response = await fetch("/api/tasks");
+      const response = await fetch("/api/reports/stats");
       if (response.ok) {
-        const tasks: Task[] = await response.json();
-        
-        const now = new Date();
-        const pending = tasks.filter(t => t.status === "TODO").length;
-        const inProgress = tasks.filter(t => t.status === "INPROGRESS").length;
-        const completed = tasks.filter(t => t.status === "DONE").length;
-        const overdue = tasks.filter(t => 
-          t.dueDate && new Date(t.dueDate) < now && t.status !== "DONE"
-        ).length;
-
-        setStats({ pending, inProgress, completed, overdue });
-        setRecentTasks(tasks.slice(0, 5));
+        const data = await response.json();
+        setStats(data);
       }
     } catch (error) {
       console.error("Error loading dashboard:", error);
@@ -62,83 +82,140 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+        <Loader2 className="h-8 w-8 animate-spin text-slate-400 dark:text-slate-500" />
       </div>
     );
   }
 
+  if (!stats) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <p className="text-slate-500 dark:text-slate-400 dark:text-slate-500">Error al cargar estadísticas</p>
+      </div>
+    );
+  }
+
+  const totalByStatus = Object.values(stats.tasksByStatus).reduce((a, b) => a + b, 0) || 1;
+
+  const monthChange = stats.completedLastMonth > 0
+    ? Math.round(((stats.completedThisMonth - stats.completedLastMonth) / stats.completedLastMonth) * 100)
+    : stats.completedThisMonth > 0 ? 100 : 0;
+
   const statCards = [
-    { name: "Tareas Pendientes", value: stats.pending, icon: CheckSquare, color: "text-blue-500", bg: "bg-blue-50" },
-    { name: "En Progreso", value: stats.inProgress, icon: Clock, color: "text-yellow-500", bg: "bg-yellow-50" },
-    { name: "Completadas", value: stats.completed, icon: CheckCircle, color: "text-green-500", bg: "bg-green-50" },
-    { name: "Vencidas", value: stats.overdue, icon: AlertCircle, color: "text-red-500", bg: "bg-red-50" },
+    { name: "Completadas esta semana", value: stats.completedThisWeek, icon: CheckCircle, color: "text-green-500", bg: "bg-green-50 dark:bg-green-900/20" },
+    { name: "Completadas este mes", value: stats.completedThisMonth, icon: TrendingUp, color: "text-indigo-500", bg: "bg-indigo-50 dark:bg-indigo-900/20", change: monthChange },
+    { name: "Tiempo trabajado (mes)", value: formatDuration(stats.totalTimeThisMonth), icon: Timer, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-900/20" },
+    { name: "Tiempo trabajado (semana)", value: formatDuration(stats.totalTimeThisWeek), icon: Clock, color: "text-cyan-500", bg: "bg-cyan-50" },
+    { name: "Proyectos activos", value: stats.activeProjects, icon: FolderOpen, color: "text-violet-500", bg: "bg-violet-50" },
+    { name: "Tareas vencidas", value: stats.overdueTasks, icon: AlertCircle, color: "text-red-500", bg: "bg-red-50" },
+    { name: "Total tareas", value: stats.totalTasks, icon: CheckSquare, color: "text-slate-500 dark:text-slate-400 dark:text-slate-500", bg: "bg-slate-50 dark:bg-slate-950" },
   ];
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">
           ¡Hola, {session?.user?.name || "Usuario"}!
         </h1>
         <p className="text-slate-500 mt-1">
-          Aquí tienes un resumen de tus tareas
+          Aquí tienes un resumen de tu actividad
         </p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((stat) => (
-          <Card key={stat.name} className={`bg-white border-slate-200 ${stat.bg}`}>
+          <Card key={stat.name} className={`bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 ${stat.bg}`}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600">
+              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400 dark:text-slate-500">
                 {stat.name}
               </CardTitle>
               <stat.icon className={`h-5 w-5 ${stat.color}`} />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-slate-900">{stat.value}</div>
+              <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stat.value}</div>
+              {stat.change !== undefined && (
+                <p className={`text-xs mt-1 ${stat.change >= 0 ? "text-green-600" : "text-red-600"}`}>
+                  {stat.change >= 0 ? "↑" : "↓"} {Math.abs(stat.change)}% vs mes anterior
+                </p>
+              )}
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Recent tasks */}
-      <Card className="bg-white border-slate-200">
-        <CardHeader>
-          <CardTitle className="text-slate-900">Tareas Recientes</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {recentTasks.length === 0 ? (
-            <p className="text-slate-500 text-center py-8">
-              No hay tareas recientes. ¡Crea tu primera tarea!
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {recentTasks.map((task) => (
-                <div 
-                  key={task.id} 
-                  className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-slate-50"
-                >
-                  <span className="font-medium text-slate-900">{task.title}</span>
-                  <span className={`text-xs px-2 py-1 rounded-full border ${
-                    task.status === "DONE" 
-                      ? "bg-green-100 text-green-600 border-green-200"
-                      : task.status === "INPROGRESS"
-                      ? "bg-blue-100 text-blue-600 border-blue-200"
-                      : task.status === "INREVIEW"
-                      ? "bg-yellow-100 text-yellow-600 border-yellow-200"
-                      : "bg-gray-100 text-gray-600 border-gray-200"
-                  }`}>
-                    {task.status === "DONE" ? "Hecho" : 
-                     task.status === "INPROGRESS" ? "En progreso" :
-                     task.status === "INREVIEW" ? "En revisión" : "Por hacer"}
-                  </span>
-                </div>
-              ))}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Tasks by Status Chart */}
+        <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+          <CardHeader>
+            <CardTitle className="text-slate-900 flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-indigo-500" />
+              Tareas por Estado
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {Object.entries(statusLabels).map(([key, label]) => {
+                const count = stats.tasksByStatus[key] || 0;
+                const percentage = Math.round((count / totalByStatus) * 100);
+                return (
+                  <div key={key}>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full ${statusColors[key]}`} />
+                        <span className="text-sm text-slate-700 dark:text-slate-300">{label}</span>
+                      </div>
+                      <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{count} ({percentage}%)</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2.5">
+                      <div
+                        className={`h-2.5 rounded-full ${statusColors[key]} transition-all duration-500`}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        {/* Tasks by Priority Chart */}
+        <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+          <CardHeader>
+            <CardTitle className="text-slate-900 flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-indigo-500" />
+              Tareas por Prioridad
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {Object.entries(priorityLabels).map(([key, label]) => {
+                const count = stats.tasksByPriority[key] || 0;
+                const total = Object.values(stats.tasksByPriority).reduce((a, b) => a + b, 0) || 1;
+                const percentage = Math.round((count / total) * 100);
+                return (
+                  <div key={key}>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full ${priorityColors[key]}`} />
+                        <span className="text-sm text-slate-700 dark:text-slate-300">{label}</span>
+                      </div>
+                      <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{count} ({percentage}%)</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2.5">
+                      <div
+                        className={`h-2.5 rounded-full ${priorityColors[key]} transition-all duration-500`}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

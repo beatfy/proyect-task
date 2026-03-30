@@ -28,7 +28,7 @@ export default function CalendarPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-slate-900">
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">
           Calendario
         </h1>
         <div className="flex items-center gap-2">
@@ -36,27 +36,27 @@ export default function CalendarPage() {
             variant="outline"
             size="icon"
             onClick={() => setCurrentDate(subMonths(currentDate, 1))}
-            className="border-slate-200"
+            className="border-slate-200 dark:border-slate-700"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-lg font-medium min-w-[150px] text-center text-slate-900">
+          <span className="text-lg font-medium min-w-[150px] text-center text-slate-900 dark:text-slate-100 capitalize">
             {format(currentDate, "MMMM yyyy", { locale: es })}
           </span>
           <Button
             variant="outline"
             size="icon"
             onClick={() => setCurrentDate(addMonths(currentDate, 1))}
-            className="border-slate-200"
+            className="border-slate-200 dark:border-slate-700"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      <Card className="bg-white border-slate-200">
+      <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
         <CardHeader>
-          <CardTitle className="text-slate-900">Vista Mensual</CardTitle>
+          <CardTitle className="text-slate-900 dark:text-slate-100">Vista Mensual</CardTitle>
         </CardHeader>
         <CardContent>
           {/* Week days header */}
@@ -64,7 +64,7 @@ export default function CalendarPage() {
             {weekDays.map((day) => (
               <div
                 key={day}
-                className="text-center text-sm font-medium text-slate-500 py-2"
+                className="text-center text-sm font-medium text-slate-500 dark:text-slate-400 py-2"
               >
                 {day}
               </div>
@@ -82,7 +82,7 @@ export default function CalendarPage() {
                 className={`aspect-square p-2 text-sm rounded-lg transition-colors ${
                   isToday(day)
                     ? "bg-indigo-500 text-white hover:bg-indigo-600"
-                    : "text-slate-700 hover:bg-slate-100"
+                    : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                 }`}
               >
                 {format(day, "d")}
