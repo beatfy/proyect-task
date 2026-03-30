@@ -5,6 +5,26 @@ import { writeFile, unlink } from "fs/promises";
 import { join } from "path";
 import { cuid } from "@/lib/utils";
 
+const ALLOWED_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "application/pdf",
+];
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+function sanitizeFilename(filename: string): string {
+  // Remove path components and dangerous characters
+  return filename
+    .replace(/^.*[\\/]/, "")           // Remove path
+    .replace(/[^\w.\- ]/g, "")         // Keep only alphanumeric, dots, dashes, spaces
+    .replace(/\.{2,}/g, ".")           // No double dots
+    .replace(/^\./, "")                // No leading dot
+    .substring(0, 100);                // Limit length
+}
+
 // GET attachments for a task
 export async function GET(request: NextRequest) {
   const session = await auth();
@@ -47,9 +67,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "file y taskId requeridos" }, { status: 400 });
     }
 
-    // Generate filename
+    // Validate MIME type
+    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+      return NextResponse.json(
+        { error: `Tipo de archivo no permitido: ${file.type}. Solo se permiten imágenes (JPEG, PNG, GIF, WebP) y PDF.` },
+        { status: 400 }
+      );
+    }
+
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: `El archivo supera el límite de 5MB (${(file.size / 1024 / 1024).toFixed(1)}MB)` },
+        { status: 400 }
+      );
+    }
+
+    // Sanitize filename
+    const safeName = sanitizeFilename(file.name);
     const timestamp = Date.now();
-    const ext = file.name.split(".").pop() || "bin";
+    const ext = safeName.split(".").pop() || "bin";
     const filename = `${timestamp}-${Math.random().toString(36).slice(2)}.${ext}`;
 
     // Save to public/uploads
@@ -64,13 +101,12 @@ export async function POST(request: NextRequest) {
     let type = "document";
     if (file.type.startsWith("image/")) type = "image";
     else if (file.type.includes("pdf")) type = "pdf";
-    else if (file.type.includes("sheet") || file.type.includes("excel")) type = "spreadsheet";
 
     // Save to database
     const attachment = await prisma.attachment.create({
       data: {
         id: cuid(),
-        name: file.name,
+        name: safeName,
         url: `/uploads/${filename}`,
         type,
         size: file.size,
@@ -85,7 +121,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE attachment
+// DELETE attachment - only the uploader (via task ownership) can delete
 export async function DELETE(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -101,23 +137,33 @@ export async function DELETE(request: NextRequest) {
 
   try {
     const attachment = await prisma.attachment.findUnique({
-      where: { id }
+      where: { id },
+      include: { task: { select: { creatorId: true, assigneeId: true } } },
     });
 
-    if (attachment) {
-      // Delete file
-      const filepath = join(process.cwd(), "public", attachment.url);
-      try {
-        await unlink(filepath);
-      } catch {
-        // File might not exist
-      }
-
-      // Delete from database
-      await prisma.attachment.delete({
-        where: { id }
-      });
+    if (!attachment) {
+      return NextResponse.json({ error: "Archivo no encontrado" }, { status: 404 });
     }
+
+    // Verify ownership: only task creator or assignee can delete attachments
+    const isCreator = attachment.task.creatorId === session.user.id;
+    const isAssignee = attachment.task.assigneeId === session.user.id;
+    if (!isCreator && !isAssignee) {
+      return NextResponse.json({ error: "No tienes permisos para eliminar este archivo" }, { status: 403 });
+    }
+
+    // Delete file
+    const filepath = join(process.cwd(), "public", attachment.url);
+    try {
+      await unlink(filepath);
+    } catch {
+      // File might not exist
+    }
+
+    // Delete from database
+    await prisma.attachment.delete({
+      where: { id }
+    });
 
     return NextResponse.json({ success: true });
   } catch {

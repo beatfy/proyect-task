@@ -2,14 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { cuid } from "@/lib/utils";
+import { registerSchema } from "@/lib/validations/auth";
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, email, password } = await request.json();
+    const body = await request.json();
 
-    if (!email || !password) {
-      return NextResponse.json({ error: "Email y contraseña requeridos" }, { status: 400 });
+    // Validate input with Zod
+    const parsed = registerSchema.safeParse(body);
+    if (!parsed.success) {
+      const errors = parsed.error.issues.map(i => i.message).join(", ");
+      return NextResponse.json({ error: errors }, { status: 400 });
     }
+
+    const { name, email, password } = parsed.data;
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {

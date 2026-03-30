@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { isProjectAdmin } from "@/lib/authz";
 
 export async function GET(
   request: NextRequest,
@@ -77,6 +78,12 @@ export async function DELETE(
 
   if (!session?.user?.id) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  // Authorization: only project admins (OWNER/ADMIN) can delete
+  const authorized = await isProjectAdmin(session.user.id, id);
+  if (!authorized) {
+    return NextResponse.json({ error: "Solo los administradores del proyecto pueden eliminarlo" }, { status: 403 });
   }
 
   try {

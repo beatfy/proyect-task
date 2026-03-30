@@ -69,6 +69,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
     async session({ session, token }) {
       if (session.user) {
+        // Verify user still exists in database (handles DB switches)
+        const user = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { id: true },
+        });
+        if (!user) {
+          // User doesn't exist in current DB — return empty session to force re-login
+          return { ...session, user: { ...session.user, id: "" } } as typeof session;
+        }
         session.user.id = token.id as string;
       }
       return session;

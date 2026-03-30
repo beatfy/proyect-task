@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { cuid } from "@/lib/utils";
+import { commentCreateSchema } from "@/lib/validations/comment";
 
 // GET comments for a task
 export async function GET(request: NextRequest) {
@@ -40,11 +41,16 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { taskId, content } = await request.json();
+    const body = await request.json();
 
-    if (!taskId || !content?.trim()) {
-      return NextResponse.json({ error: "taskId y content requeridos" }, { status: 400 });
+    // Validate input with Zod
+    const parsed = commentCreateSchema.safeParse(body);
+    if (!parsed.success) {
+      const errors = parsed.error.issues.map(i => i.message).join(", ");
+      return NextResponse.json({ error: errors }, { status: 400 });
     }
+
+    const { taskId, content } = parsed.data;
 
     const comment = await prisma.comment.create({
       data: {
@@ -64,7 +70,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE comment
+// DELETE comment - only the author can delete their own comments
 export async function DELETE(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -79,6 +85,20 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
+    // Verify ownership: only the comment author can delete
+    const comment = await prisma.comment.findUnique({
+      where: { id },
+      select: { authorId: true },
+    });
+
+    if (!comment) {
+      return NextResponse.json({ error: "Comentario no encontrado" }, { status: 404 });
+    }
+
+    if (comment.authorId !== session.user.id) {
+      return NextResponse.json({ error: "Solo puedes eliminar tus propios comentarios" }, { status: 403 });
+    }
+
     await prisma.comment.delete({
       where: { id }
     });

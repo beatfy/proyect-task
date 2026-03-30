@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
+import { projectCreateSchema } from "@/lib/validations/project";
 
 export async function GET() {
   try {
@@ -37,7 +38,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const { name, description, color } = await request.json();
+    // Verify user exists in database
+    const userExists = await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true } });
+    if (!userExists) {
+      return NextResponse.json({ error: "Sesión inválida. Por favor, cierra sesión y vuelve a iniciar." }, { status: 401 });
+    }
+
+    const body = await request.json();
+
+    // Validate input with Zod
+    const parsed = projectCreateSchema.safeParse(body);
+    if (!parsed.success) {
+      const errors = parsed.error.issues.map(i => i.message).join(", ");
+      return NextResponse.json({ error: errors }, { status: 400 });
+    }
+
+    const { name, description, color } = parsed.data;
 
     const projectId = cuid();
 

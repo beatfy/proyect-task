@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
+import { canAccessTask, canModifyTask } from "@/lib/authz";
+import { taskCreateSchema, taskUpdateSchema } from "@/lib/validations/task";
 
 export async function GET(request: NextRequest) {
   try {
@@ -68,7 +70,21 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, description, status, priority, dueDate, projectId, assignedTo, assigneeId, parentId } = body;
+
+    // Validate input with Zod
+    const parsed = taskCreateSchema.safeParse(body);
+    if (!parsed.success) {
+      const errors = parsed.error.issues.map(i => i.message).join(", ");
+      return NextResponse.json({ error: errors }, { status: 400 });
+    }
+
+    const { title, description, status, priority, dueDate, projectId, assignedTo, assigneeId, parentId } = parsed.data;
+
+    // Verify user exists in database
+    const userExists = await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true } });
+    if (!userExists) {
+      return NextResponse.json({ error: "Sesión inválida. Por favor, cierra sesión y vuelve a iniciar." }, { status: 401 });
+    }
 
     // Resolve assigneeId - can come directly or via email
     let finalAssigneeId: string | null = null;
@@ -122,10 +138,20 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, status, priority, title, description, projectId, assignedTo, assigneeId, dueDate } = body;
 
-    if (!id) {
-      return NextResponse.json({ error: "ID requerido" }, { status: 400 });
+    // Validate input with Zod
+    const parsed = taskUpdateSchema.safeParse(body);
+    if (!parsed.success) {
+      const errors = parsed.error.issues.map(i => i.message).join(", ");
+      return NextResponse.json({ error: errors }, { status: 400 });
+    }
+
+    const { id, status, priority, title, description, projectId, assignedTo, assigneeId, dueDate } = parsed.data;
+
+    // Authorization: user must be able to modify this task
+    const authorized = await canModifyTask(session.user.id, id);
+    if (!authorized) {
+      return NextResponse.json({ error: "No tienes permisos para modificar esta tarea" }, { status: 403 });
     }
 
     const updateData: Record<string, unknown> = {};
@@ -185,6 +211,12 @@ export async function DELETE(request: NextRequest) {
 
     if (!id) {
       return NextResponse.json({ error: "ID requerido" }, { status: 400 });
+    }
+
+    // Authorization: user must be able to modify (delete) this task
+    const authorized = await canModifyTask(session.user.id, id);
+    if (!authorized) {
+      return NextResponse.json({ error: "No tienes permisos para eliminar esta tarea" }, { status: 403 });
     }
 
     await prisma.task.delete({

@@ -246,10 +246,10 @@ export default function NotificationCenter({ compact = false }: Props) {
 
   // Full page view
   return (
-    <div className="max-w-2xl mx-auto p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-        <div className="p-4 border-b border-slate-200 dark:border-gray-700 flex items-center justify-between">
-          <h1 className="text-xl font-semibold">Notificaciones</h1>
+    <div className="max-w-2xl mx-auto">
+      <div className="bg-white rounded-lg shadow">
+        <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+          <h1 className="text-xl font-semibold text-slate-900">Notificaciones</h1>
           {unreadCount > 0 && (
             <Button onClick={markAllAsRead} disabled={loading}>
               <Check className="h-4 w-4 mr-2" />
@@ -264,7 +264,7 @@ export default function NotificationCenter({ compact = false }: Props) {
             <p>No hay notificaciones</p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-100 dark:divide-gray-700">
+          <div className="divide-y divide-slate-100">
             {notifications.map((notification) => {
               const Icon = typeIcons[notification.type] || Bell;
               const link = getLink(notification);
@@ -274,7 +274,7 @@ export default function NotificationCenter({ compact = false }: Props) {
                   key={notification.id}
                   className={cn(
                     "p-4 flex items-start gap-3",
-                    !notification.read && "bg-indigo-50 dark:bg-indigo-900/20"
+                    !notification.read && "bg-indigo-50"
                   )}
                 >
                   <Icon className="h-5 w-5 text-indigo-500" />
@@ -283,12 +283,12 @@ export default function NotificationCenter({ compact = false }: Props) {
                       <Link
                         href={link}
                         onClick={() => markAsRead(notification.id)}
-                        className="font-medium hover:text-indigo-600"
+                        className="font-medium text-slate-900 hover:text-indigo-600"
                       >
                         {notification.title}
                       </Link>
                     ) : (
-                      <p className="font-medium">{notification.title}</p>
+                      <p className="font-medium text-slate-900">{notification.title}</p>
                     )}
                     {notification.content && (
                       <p className="text-sm text-gray-500 mt-1">
