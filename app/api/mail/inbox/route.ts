@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { decrypt } from "@/lib/email-crypto";
-import { fetchInbox } from "@/lib/imap";
 
 // GET /api/mail/inbox - List emails
 export async function GET(request: NextRequest) {
@@ -21,11 +19,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "No hay configuración de email" }, { status: 404 });
     }
 
-    const password = decrypt(config.encryptedPassword);
+    let password: string;
+    try {
+      const { decrypt } = await import("@/lib/email-crypto");
+      password = decrypt(config.encryptedPassword);
+    } catch (cryptoErr) {
+      console.error("[mail/inbox] Decryption error:", cryptoErr);
+      return NextResponse.json(
+        { error: "Error de configuración del servidor. Contacta al administrador." },
+        { status: 500 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const folder = searchParams.get("folder") || "INBOX";
     const limit = parseInt(searchParams.get("limit") || "50");
 
+    const { fetchInbox } = await import("@/lib/imap");
     const emails = await fetchInbox(
       {
         host: config.host,
@@ -39,9 +49,10 @@ export async function GET(request: NextRequest) {
     );
 
     return NextResponse.json(emails);
-  } catch (err: any) {
+  } catch (err) {
+    console.error("[mail/inbox] Error:", err);
     return NextResponse.json(
-      { error: err.message || "Error al obtener emails" },
+      { error: "Error al obtener emails. Inténtalo de nuevo." },
       { status: 500 }
     );
   }

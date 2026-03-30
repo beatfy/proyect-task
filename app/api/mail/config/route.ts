@@ -24,7 +24,8 @@ export async function GET() {
     });
 
     return NextResponse.json({ configured: !!config, config });
-  } catch {
+  } catch (err) {
+    console.error("[mail/config] GET error:", err);
     return NextResponse.json({ error: "Error al obtener configuración" }, { status: 500 });
   }
 }
@@ -49,22 +50,39 @@ export async function POST(request: NextRequest) {
     }
 
     // Encrypt password
-    const { encrypt } = await import("@/lib/email-crypto");
-    const encryptedPassword = encrypt(password);
+    let encryptedPassword: string;
+    try {
+      const { encrypt } = await import("@/lib/email-crypto");
+      encryptedPassword = encrypt(password);
+    } catch (cryptoErr) {
+      console.error("[mail/config] Encryption error:", cryptoErr);
+      return NextResponse.json(
+        { error: "Error de configuración del servidor. Contacta al administrador." },
+        { status: 500 }
+      );
+    }
 
     // Test connection before saving
-    const { testConnection } = await import("@/lib/imap");
-    const testResult = await testConnection({
-      host,
-      port: port || 993,
-      email,
-      password,
-      ssl: ssl !== false,
-    });
+    try {
+      const { testConnection } = await import("@/lib/imap");
+      const testResult = await testConnection({
+        host,
+        port: port || 993,
+        email,
+        password,
+        ssl: ssl !== false,
+      });
 
-    if (!testResult.success) {
+      if (!testResult.success) {
+        return NextResponse.json(
+          { error: "No se pudo conectar al servidor IMAP. Verifica los datos." },
+          { status: 400 }
+        );
+      }
+    } catch (imapErr) {
+      console.error("[mail/config] IMAP test error:", imapErr);
       return NextResponse.json(
-        { error: `No se pudo conectar: ${testResult.error}` },
+        { error: "No se pudo conectar al servidor IMAP. Verifica los datos." },
         { status: 400 }
       );
     }
@@ -102,9 +120,10 @@ export async function POST(request: NextRequest) {
         ssl: config.ssl,
       },
     });
-  } catch (err: any) {
+  } catch (err) {
+    console.error("[mail/config] POST error:", err);
     return NextResponse.json(
-      { error: err.message || "Error al guardar configuración" },
+      { error: "Error al guardar configuración. Inténtalo de nuevo." },
       { status: 500 }
     );
   }

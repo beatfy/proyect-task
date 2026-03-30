@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { testConnection } from "@/lib/imap";
 
 // POST /api/mail/test - Test IMAP connection
 export async function POST(request: NextRequest) {
@@ -21,6 +20,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const { testConnection } = await import("@/lib/imap");
     const result = await testConnection({
       host,
       port: port || 993,
@@ -30,9 +30,10 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(result);
-  } catch (err: any) {
+  } catch (err) {
+    console.error("[mail/test] Error:", err);
     return NextResponse.json(
-      { success: false, error: err.message || "Error al probar conexión" },
+      { success: false, error: "No se pudo conectar al servidor IMAP. Verifica los datos." },
       { status: 500 }
     );
   }

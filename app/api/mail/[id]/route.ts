@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { decrypt } from "@/lib/email-crypto";
-import { fetchEmail } from "@/lib/imap";
 
 // GET /api/mail/[id] - Get single email detail
 export async function GET(
@@ -25,10 +23,22 @@ export async function GET(
       return NextResponse.json({ error: "No hay configuración de email" }, { status: 404 });
     }
 
-    const password = decrypt(config.encryptedPassword);
+    let password: string;
+    try {
+      const { decrypt } = await import("@/lib/email-crypto");
+      password = decrypt(config.encryptedPassword);
+    } catch (cryptoErr) {
+      console.error("[mail/[id]] Decryption error:", cryptoErr);
+      return NextResponse.json(
+        { error: "Error de configuración del servidor. Contacta al administrador." },
+        { status: 500 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const folder = searchParams.get("folder") || "INBOX";
 
+    const { fetchEmail } = await import("@/lib/imap");
     const email = await fetchEmail(
       {
         host: config.host,
@@ -46,9 +56,10 @@ export async function GET(
     }
 
     return NextResponse.json(email);
-  } catch (err: any) {
+  } catch (err) {
+    console.error("[mail/[id]] Error:", err);
     return NextResponse.json(
-      { error: err.message || "Error al obtener email" },
+      { error: "Error al obtener email. Inténtalo de nuevo." },
       { status: 500 }
     );
   }

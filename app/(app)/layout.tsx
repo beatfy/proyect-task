@@ -2,10 +2,11 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, FolderOpen, CheckSquare, Calendar, Settings, LogOut, ChevronLeft, ChevronRight, Mail, Bell } from "lucide-react";
+import { Home, FolderOpen, CheckSquare, Calendar, Settings, LogOut, ChevronLeft, ChevronRight, Mail, Bell, Sun, Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
+import { useTheme } from "next-themes";
 import Link from "next/link";
 import NotificationCenter from "@/components/notifications/NotificationCenter";
 import {
@@ -30,6 +31,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -137,6 +139,37 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               return <div key={item.name}>{linkContent}</div>;
             })}
           </nav>
+
+          {/* Theme toggle */}
+          <div className="px-2 pb-2 flex-shrink-0">
+            {collapsed ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-full text-muted-foreground hover:text-accent-foreground"
+                    onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  >
+                    {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  {theme === "dark" ? "Tema claro" : "Tema oscuro"}
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start text-muted-foreground hover:text-accent-foreground"
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              >
+                {theme === "dark" ? <Sun className="h-4 w-4 mr-2" /> : <Moon className="h-4 w-4 mr-2" />}
+                {theme === "dark" ? "Tema claro" : "Tema oscuro"}
+              </Button>
+            )}
+          </div>
 
           {/* User section */}
           <div className="border-t border-border p-2 flex-shrink-0">

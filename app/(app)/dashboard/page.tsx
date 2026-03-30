@@ -82,7 +82,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-slate-400 dark:text-slate-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -90,7 +90,7 @@ export default function DashboardPage() {
   if (!stats) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-slate-500 dark:text-slate-400 dark:text-slate-500">Error al cargar estadísticas</p>
+        <p className="text-muted-foreground">Error al cargar estadísticas</p>
       </div>
     );
   }
@@ -105,19 +105,19 @@ export default function DashboardPage() {
     { name: "Completadas esta semana", value: stats.completedThisWeek, icon: CheckCircle, color: "text-green-500", bg: "bg-green-50 dark:bg-green-900/20" },
     { name: "Completadas este mes", value: stats.completedThisMonth, icon: TrendingUp, color: "text-indigo-500", bg: "bg-indigo-50 dark:bg-indigo-900/20", change: monthChange },
     { name: "Tiempo trabajado (mes)", value: formatDuration(stats.totalTimeThisMonth), icon: Timer, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-900/20" },
-    { name: "Tiempo trabajado (semana)", value: formatDuration(stats.totalTimeThisWeek), icon: Clock, color: "text-cyan-500", bg: "bg-cyan-50" },
-    { name: "Proyectos activos", value: stats.activeProjects, icon: FolderOpen, color: "text-violet-500", bg: "bg-violet-50" },
-    { name: "Tareas vencidas", value: stats.overdueTasks, icon: AlertCircle, color: "text-red-500", bg: "bg-red-50" },
-    { name: "Total tareas", value: stats.totalTasks, icon: CheckSquare, color: "text-slate-500 dark:text-slate-400 dark:text-slate-500", bg: "bg-slate-50 dark:bg-slate-950" },
+    { name: "Tiempo trabajado (semana)", value: formatDuration(stats.totalTimeThisWeek), icon: Clock, color: "text-cyan-500", bg: "bg-cyan-50 dark:bg-cyan-900/20" },
+    { name: "Proyectos activos", value: stats.activeProjects, icon: FolderOpen, color: "text-violet-500", bg: "bg-violet-50 dark:bg-violet-900/20" },
+    { name: "Tareas vencidas", value: stats.overdueTasks, icon: AlertCircle, color: "text-red-500", bg: "bg-red-50 dark:bg-red-900/20" },
+    { name: "Total tareas", value: stats.totalTasks, icon: CheckSquare, color: "text-muted-foreground", bg: "bg-muted" },
   ];
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">
+        <h1 className="text-3xl font-bold text-foreground">
           ¡Hola, {session?.user?.name || "Usuario"}!
         </h1>
-        <p className="text-slate-500 mt-1">
+        <p className="text-muted-foreground mt-1">
           Aquí tienes un resumen de tu actividad
         </p>
       </div>
@@ -125,15 +125,15 @@ export default function DashboardPage() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((stat) => (
-          <Card key={stat.name} className={`bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 ${stat.bg}`}>
+          <Card key={stat.name} className={`bg-card border-border ${stat.bg}`}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400 dark:text-slate-500">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
                 {stat.name}
               </CardTitle>
               <stat.icon className={`h-5 w-5 ${stat.color}`} />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stat.value}</div>
+              <div className="text-2xl font-bold text-foreground">{stat.value}</div>
               {stat.change !== undefined && (
                 <p className={`text-xs mt-1 ${stat.change >= 0 ? "text-green-600" : "text-red-600"}`}>
                   {stat.change >= 0 ? "↑" : "↓"} {Math.abs(stat.change)}% vs mes anterior
@@ -146,9 +146,9 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Tasks by Status Chart */}
-        <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+        <Card className="bg-card border-border">
           <CardHeader>
-            <CardTitle className="text-slate-900 flex items-center gap-2">
+            <CardTitle className="text-foreground flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-indigo-500" />
               Tareas por Estado
             </CardTitle>
@@ -163,11 +163,11 @@ export default function DashboardPage() {
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
                         <div className={`w-3 h-3 rounded-full ${statusColors[key]}`} />
-                        <span className="text-sm text-slate-700 dark:text-slate-300">{label}</span>
+                        <span className="text-sm text-foreground">{label}</span>
                       </div>
-                      <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{count} ({percentage}%)</span>
+                      <span className="text-sm font-medium text-foreground">{count} ({percentage}%)</span>
                     </div>
-                    <div className="w-full bg-slate-100 rounded-full h-2.5">
+                    <div className="w-full bg-muted rounded-full h-2.5">
                       <div
                         className={`h-2.5 rounded-full ${statusColors[key]} transition-all duration-500`}
                         style={{ width: `${percentage}%` }}
@@ -181,9 +181,9 @@ export default function DashboardPage() {
         </Card>
 
         {/* Tasks by Priority Chart */}
-        <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+        <Card className="bg-card border-border">
           <CardHeader>
-            <CardTitle className="text-slate-900 flex items-center gap-2">
+            <CardTitle className="text-foreground flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-indigo-500" />
               Tareas por Prioridad
             </CardTitle>
@@ -199,11 +199,11 @@ export default function DashboardPage() {
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
                         <div className={`w-3 h-3 rounded-full ${priorityColors[key]}`} />
-                        <span className="text-sm text-slate-700 dark:text-slate-300">{label}</span>
+                        <span className="text-sm text-foreground">{label}</span>
                       </div>
-                      <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{count} ({percentage}%)</span>
+                      <span className="text-sm font-medium text-foreground">{count} ({percentage}%)</span>
                     </div>
-                    <div className="w-full bg-slate-100 rounded-full h-2.5">
+                    <div className="w-full bg-muted rounded-full h-2.5">
                       <div
                         className={`h-2.5 rounded-full ${priorityColors[key]} transition-all duration-500`}
                         style={{ width: `${percentage}%` }}

@@ -2,11 +2,24 @@ import crypto from "crypto";
 
 const ALGORITHM = "aes-256-cbc";
 
-function getKey(): Buffer {
-  const key = process.env.EMAIL_ENCRYPTION_KEY;
-  if (!key) {
-    throw new Error("EMAIL_ENCRYPTION_KEY is not set in environment variables");
+// In-memory fallback key for when EMAIL_ENCRYPTION_KEY is not set.
+// This is generated once per process lifetime and works for single-instance deployments.
+// For production multi-instance setups, always set EMAIL_ENCRYPTION_KEY.
+let _fallbackKey: string | null = null;
+
+function getFallbackKey(): string {
+  if (!_fallbackKey) {
+    _fallbackKey = crypto.randomBytes(32).toString("hex").slice(0, 32);
+    console.warn(
+      "[email-crypto] EMAIL_ENCRYPTION_KEY not set. Using generated fallback key. " +
+      "Set EMAIL_ENCRYPTION_KEY in your environment for persistent encryption across restarts."
+    );
   }
+  return _fallbackKey;
+}
+
+function getKey(): Buffer {
+  const key = process.env.EMAIL_ENCRYPTION_KEY || getFallbackKey();
   // Ensure the key is exactly 32 bytes for AES-256
   return Buffer.from(key.padEnd(32).slice(0, 32), "utf-8");
 }
