@@ -25,6 +25,7 @@ model User {
   sentInvitations Invitation[]   @relation("Inviter")
   createdInviteTokens ProjectInviteToken[] @relation("TokenCreator")
   notifications Notification[]
+  timeEntries  TimeEntry[]
 }
 
 model Project {
@@ -73,6 +74,7 @@ model Task {
   tags        TaskTag[]
   comments    Comment[]
   attachments Attachment[]
+  timeEntries TimeEntry[]
 }
 
 model Comment {
@@ -177,4 +179,33 @@ model Notification {
   data      Json?
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
+}
+
+// ========== TIME TRACKING ==========
+
+model TimeEntry {
+  id          String    @id
+  taskId      String
+  task        Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startTime   DateTime
+  endTime     DateTime?
+  duration    Int?      // in seconds
+  description String?
+  createdAt   DateTime  @default(now())
+}
+
+// ========== TASK TEMPLATES ==========
+
+model TaskTemplate {
+  id          String   @id
+  name        String
+  title       String
+  description String?
+  status      String   @default("TODO")
+  priority    String   @default("NONE")
+  tags        Json?
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
 }

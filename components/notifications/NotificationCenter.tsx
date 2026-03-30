@@ -23,7 +23,9 @@ interface Props {
 const typeIcons: Record<string, typeof Bell> = {
   PROJECT_INVITATION: UserPlus,
   TASK_ASSIGNED: ClipboardList,
+  TASK_COMPLETED: CheckCircle2,
   TASK_STATUS_CHANGED: CheckCircle2,
+  COMMENT_ADDED: MessageCircle,
   COMMENT_MENTION: MessageCircle,
   PROJECT_JOINED: UserPlus,
 };
@@ -31,7 +33,9 @@ const typeIcons: Record<string, typeof Bell> = {
 const typeLabels: Record<string, string> = {
   PROJECT_INVITATION: "Invitación",
   TASK_ASSIGNED: "Tarea asignada",
+  TASK_COMPLETED: "Tarea completada",
   TASK_STATUS_CHANGED: "Estado cambiado",
+  COMMENT_ADDED: "Nuevo comentario",
   COMMENT_MENTION: "Mención",
   PROJECT_JOINED: "Nuevo miembro",
 };
@@ -131,7 +135,7 @@ export default function NotificationCenter({ compact = false }: Props) {
           variant="ghost"
           size="icon"
           onClick={() => setOpen(!open)}
-          className="relative"
+          className="relative text-foreground hover:text-foreground"
         >
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
@@ -142,9 +146,9 @@ export default function NotificationCenter({ compact = false }: Props) {
         </Button>
 
         {open && (
-          <div className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-slate-200 dark:border-gray-700 z-50">
-            <div className="p-3 border-b border-slate-200 dark:border-gray-700 flex items-center justify-between">
-              <h3 className="font-semibold text-sm">Notificaciones</h3>
+          <div className="absolute right-0 top-full mt-2 w-80 bg-popover rounded-lg shadow-lg border border-border z-50">
+            <div className="p-3 border-b border-border flex items-center justify-between">
+              <h3 className="font-semibold text-sm text-popover-foreground">Notificaciones</h3>
               {unreadCount > 0 && (
                 <Button
                   variant="ghost"
@@ -160,7 +164,7 @@ export default function NotificationCenter({ compact = false }: Props) {
 
             <div className="max-h-64 overflow-y-auto">
               {notifications.length === 0 ? (
-                <div className="p-4 text-center text-sm text-gray-500">
+                <div className="p-4 text-center text-sm text-muted-foreground">
                   No hay notificaciones
                 </div>
               ) : (
@@ -172,7 +176,7 @@ export default function NotificationCenter({ compact = false }: Props) {
                     <div
                       key={notification.id}
                       className={cn(
-                        "p-3 border-b border-slate-100 dark:border-gray-700 last:border-0",
+                        "p-3 border-b border-border last:border-0",
                         !notification.read && "bg-indigo-50 dark:bg-indigo-900/20"
                       )}
                     >
@@ -186,21 +190,21 @@ export default function NotificationCenter({ compact = false }: Props) {
                                 markAsRead(notification.id);
                                 setOpen(false);
                               }}
-                              className="text-sm font-medium text-gray-900 dark:text-white hover:text-indigo-600"
+                              className="text-sm font-medium text-popover-foreground hover:text-indigo-600 dark:hover:text-indigo-400"
                             >
                               {notification.title}
                             </Link>
                           ) : (
-                            <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            <p className="text-sm font-medium text-popover-foreground">
                               {notification.title}
                             </p>
                           )}
                           {notification.content && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                            <p className="text-xs text-muted-foreground truncate">
                               {notification.content}
                             </p>
                           )}
-                          <p className="text-xs text-gray-400 mt-1">
+                          <p className="text-xs text-muted-foreground mt-1">
                             {formatDate(notification.createdAt)}
                           </p>
                         </div>
@@ -234,7 +238,7 @@ export default function NotificationCenter({ compact = false }: Props) {
             <Link
               href="/notifications"
               onClick={() => setOpen(false)}
-              className="block p-2 text-center text-sm text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+              className="block p-2 text-center text-sm text-indigo-600 dark:text-indigo-400 hover:bg-accent"
             >
               Ver todas
             </Link>

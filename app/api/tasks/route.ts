@@ -120,6 +120,20 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Notify assignee if different from creator
+    if (finalAssigneeId && finalAssigneeId !== session.user.id) {
+      await prisma.notification.create({
+        data: {
+          id: cuid(),
+          userId: finalAssigneeId,
+          type: "TASK_ASSIGNED",
+          title: `Tarea asignada: ${title}`,
+          content: `Te han asignado la tarea "${title}"`,
+          data: { taskId: task.id, projectId: projectId || null },
+        },
+      });
+    }
+
     return NextResponse.json({
       ...task,
       assignedTo: task.assignee?.email || null,
@@ -176,6 +190,12 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
+    // Fetch current task to check changes
+    const currentTask = await prisma.task.findUnique({
+      where: { id },
+      select: { status: true, assigneeId: true, creatorId: true, title: true },
+    });
+
     const task = await prisma.task.update({
       where: { id },
       data: updateData,
@@ -188,6 +208,39 @@ export async function PATCH(request: NextRequest) {
         },
       },
     });
+
+    // Notify on task completed
+    if (status === "DONE" && currentTask?.status !== "DONE") {
+      const notifyUserId = currentTask?.creatorId;
+      if (notifyUserId && notifyUserId !== session.user.id) {
+        await prisma.notification.create({
+          data: {
+            id: cuid(),
+            userId: notifyUserId,
+            type: "TASK_COMPLETED",
+            title: `Tarea completada: ${task.title}`,
+            content: `"${task.title}" ha sido marcada como completada`,
+            data: { taskId: task.id, projectId: task.project?.id || null },
+          },
+        });
+      }
+    }
+
+    // Notify newly assigned user
+    if (assigneeId !== undefined && assigneeId && assigneeId !== currentTask?.assigneeId) {
+      if (assigneeId !== session.user.id) {
+        await prisma.notification.create({
+          data: {
+            id: cuid(),
+            userId: assigneeId,
+            type: "TASK_ASSIGNED",
+            title: `Tarea asignada: ${task.title}`,
+            content: `Te han asignado la tarea "${task.title}"`,
+            data: { taskId: task.id, projectId: task.project?.id || null },
+          },
+        });
+      }
+    }
 
     return NextResponse.json({
       ...task,

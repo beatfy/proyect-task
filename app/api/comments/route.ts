@@ -52,6 +52,12 @@ export async function POST(request: NextRequest) {
 
     const { taskId, content } = parsed.data;
 
+    // Get task info for notification
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { id: true, title: true, creatorId: true, assigneeId: true },
+    });
+
     const comment = await prisma.comment.create({
       data: {
         id: cuid(),
@@ -63,6 +69,24 @@ export async function POST(request: NextRequest) {
         author: { select: { id: true, name: true, email: true, image: true } }
       }
     });
+
+    // Notify task creator and assignee (if different from commenter)
+    const notifyUsers = new Set<string>();
+    if (task?.creatorId && task.creatorId !== session.user.id) notifyUsers.add(task.creatorId);
+    if (task?.assigneeId && task.assigneeId !== session.user.id) notifyUsers.add(task.assigneeId);
+
+    for (const userId of notifyUsers) {
+      await prisma.notification.create({
+        data: {
+          id: cuid(),
+          userId,
+          type: "COMMENT_ADDED",
+          title: `Nuevo comentario en: ${task?.title || "Tarea"}`,
+          content: `${session.user.name || session.user.email}: ${content.trim().substring(0, 100)}`,
+          data: { taskId, commentId: comment.id },
+        },
+      });
+    }
 
     return NextResponse.json(comment);
   } catch {
