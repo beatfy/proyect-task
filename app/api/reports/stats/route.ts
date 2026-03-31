@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+// Safe helper — returns fallback instead of throwing
+async function safeQuery<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await fn();
+  } catch {
+    return fallback;
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
@@ -33,105 +42,89 @@ export async function GET(request: NextRequest) {
       OR: [{ creatorId: userId }, { assigneeId: userId }],
     };
 
-    // Tasks completed this week
-    const completedThisWeek = await prisma.task.count({
-      where: {
-        ...userTasksWhere,
-        status: "DONE",
-        updatedAt: { gte: startOfWeek },
-      },
-    });
+    // Run all queries with individual fallbacks
+    const completedThisWeek = await safeQuery(
+      () => prisma.task.count({
+        where: { ...userTasksWhere, status: "DONE", updatedAt: { gte: startOfWeek } },
+      }),
+      0
+    );
 
-    // Tasks completed this month
-    const completedThisMonth = await prisma.task.count({
-      where: {
-        ...userTasksWhere,
-        status: "DONE",
-        updatedAt: { gte: startOfMonth },
-      },
-    });
+    const completedThisMonth = await safeQuery(
+      () => prisma.task.count({
+        where: { ...userTasksWhere, status: "DONE", updatedAt: { gte: startOfMonth } },
+      }),
+      0
+    );
 
-    // Tasks completed last month (for comparison)
-    const completedLastMonth = await prisma.task.count({
-      where: {
-        ...userTasksWhere,
-        status: "DONE",
-        updatedAt: { gte: startOfLastMonth, lte: endOfLastMonth },
-      },
-    });
+    const completedLastMonth = await safeQuery(
+      () => prisma.task.count({
+        where: { ...userTasksWhere, status: "DONE", updatedAt: { gte: startOfLastMonth, lte: endOfLastMonth } },
+      }),
+      0
+    );
 
-    // Total time tracked this week
-    const timeEntriesThisWeek = await prisma.timeEntry.aggregate({
-      where: {
-        userId,
-        startTime: { gte: startOfWeek },
-        duration: { not: null },
-      },
-      _sum: { duration: true },
-    });
+    const timeEntriesThisWeek = await safeQuery(
+      () => prisma.timeEntry.aggregate({
+        where: { userId, startTime: { gte: startOfWeek }, duration: { not: null } },
+        _sum: { duration: true },
+      }),
+      { _sum: { duration: 0 } }
+    );
 
-    // Total time tracked this month
-    const timeEntriesThisMonth = await prisma.timeEntry.aggregate({
-      where: {
-        userId,
-        startTime: { gte: startOfMonth },
-        duration: { not: null },
-      },
-      _sum: { duration: true },
-    });
+    const timeEntriesThisMonth = await safeQuery(
+      () => prisma.timeEntry.aggregate({
+        where: { userId, startTime: { gte: startOfMonth }, duration: { not: null } },
+        _sum: { duration: true },
+      }),
+      { _sum: { duration: 0 } }
+    );
 
-    // Tasks by status
-    const tasksByStatus = await prisma.task.groupBy({
-      by: ["status"],
-      where: userTasksWhere,
-      _count: { status: true },
-    });
+    const tasksByStatusRaw = await safeQuery(
+      () => prisma.task.groupBy({ by: ["status"], where: userTasksWhere, _count: { status: true } }),
+      [] as { status: string; _count: { status: number } }[]
+    );
 
     const statusMap: Record<string, number> = {};
-    tasksByStatus.forEach((item) => {
+    tasksByStatusRaw.forEach((item) => {
       statusMap[item.status] = item._count.status;
     });
 
-    // Active projects
-    const activeProjects = await prisma.project.count({
-      where: {
-        status: "ACTIVE",
-        members: { some: { userId } },
-      },
-    });
+    const activeProjects = await safeQuery(
+      () => prisma.project.count({
+        where: { status: "ACTIVE", members: { some: { userId } } },
+      }),
+      0
+    );
 
-    // Total tasks
-    const totalTasks = await prisma.task.count({
-      where: userTasksWhere,
-    });
+    const totalTasks = await safeQuery(
+      () => prisma.task.count({ where: userTasksWhere }),
+      0
+    );
 
-    // Tasks by priority
-    const tasksByPriority = await prisma.task.groupBy({
-      by: ["priority"],
-      where: userTasksWhere,
-      _count: { priority: true },
-    });
+    const tasksByPriorityRaw = await safeQuery(
+      () => prisma.task.groupBy({ by: ["priority"], where: userTasksWhere, _count: { priority: true } }),
+      [] as { priority: string; _count: { priority: number } }[]
+    );
 
     const priorityMap: Record<string, number> = {};
-    tasksByPriority.forEach((item) => {
+    tasksByPriorityRaw.forEach((item) => {
       priorityMap[item.priority] = item._count.priority;
     });
 
-    // Overdue tasks
-    const overdueTasks = await prisma.task.count({
-      where: {
-        ...userTasksWhere,
-        dueDate: { lt: now },
-        status: { not: "DONE" },
-      },
-    });
+    const overdueTasks = await safeQuery(
+      () => prisma.task.count({
+        where: { ...userTasksWhere, dueDate: { lt: now }, status: { not: "DONE" } },
+      }),
+      0
+    );
 
     return NextResponse.json({
       completedThisWeek,
       completedThisMonth,
       completedLastMonth,
-      totalTimeThisWeek: timeEntriesThisWeek._sum.duration || 0,
-      totalTimeThisMonth: timeEntriesThisMonth._sum.duration || 0,
+      totalTimeThisWeek: timeEntriesThisWeek._sum?.duration || 0,
+      totalTimeThisMonth: timeEntriesThisMonth._sum?.duration || 0,
       tasksByStatus: statusMap,
       tasksByPriority: priorityMap,
       activeProjects,

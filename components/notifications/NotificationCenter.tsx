@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Bell, Check, Trash2, X, UserPlus, ClipboardList, MessageCircle, CheckCircle2 } from "lucide-react";
+import { Bell, Check, Trash2, UserPlus, ClipboardList, MessageCircle, CheckCircle2, Plus, LayoutTemplate } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -93,7 +93,6 @@ export default function NotificationCenter({ compact = false }: Props) {
     try {
       await fetch(`/api/notifications/${id}`, { method: "DELETE" });
       setNotifications((prev) => prev.filter((n) => n.id !== id));
-      // Update unread count if needed
       const deleted = notifications.find((n) => n.id === id);
       if (deleted && !deleted.read) {
         setUnreadCount((prev) => Math.max(0, prev - 1));
@@ -146,16 +145,16 @@ export default function NotificationCenter({ compact = false }: Props) {
         </Button>
 
         {open && (
-          <div className="absolute right-0 top-full mt-2 w-80 bg-popover rounded-lg shadow-lg border border-border z-50">
+          <div className="absolute right-0 top-full mt-2 w-80 bg-popover text-popover-foreground rounded-lg shadow-lg border border-border z-50">
             <div className="p-3 border-b border-border flex items-center justify-between">
-              <h3 className="font-semibold text-sm text-popover-foreground">Notificaciones</h3>
+              <h3 className="font-semibold text-sm">Notificaciones</h3>
               {unreadCount > 0 && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={markAllAsRead}
                   disabled={loading}
-                  className="text-xs text-indigo-600 hover:text-indigo-700"
+                  className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
                 >
                   Marcar todas leídas
                 </Button>
@@ -190,12 +189,12 @@ export default function NotificationCenter({ compact = false }: Props) {
                                 markAsRead(notification.id);
                                 setOpen(false);
                               }}
-                              className="text-sm font-medium text-popover-foreground hover:text-indigo-600 dark:hover:text-indigo-400"
+                              className="text-sm font-medium hover:text-indigo-600 dark:hover:text-indigo-400"
                             >
                               {notification.title}
                             </Link>
                           ) : (
-                            <p className="text-sm font-medium text-popover-foreground">
+                            <p className="text-sm font-medium">
                               {notification.title}
                             </p>
                           )}
@@ -248,27 +247,27 @@ export default function NotificationCenter({ compact = false }: Props) {
     );
   }
 
-  // Full page view
+  // Full page view — dark mode compatible
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-4 border-b border-slate-200 flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-slate-900">Notificaciones</h1>
-          {unreadCount > 0 && (
-            <Button onClick={markAllAsRead} disabled={loading}>
-              <Check className="h-4 w-4 mr-2" />
-              Marcar todas como leídas
-            </Button>
-          )}
-        </div>
+    <div className="max-w-2xl mx-auto space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold text-foreground">Notificaciones</h1>
+        {unreadCount > 0 && (
+          <Button onClick={markAllAsRead} disabled={loading}>
+            <Check className="h-4 w-4 mr-2" />
+            Marcar todas como leídas
+          </Button>
+        )}
+      </div>
 
+      <div className="bg-card border border-border rounded-lg shadow">
         {notifications.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
+          <div className="p-8 text-center text-muted-foreground">
             <Bell className="h-12 w-12 mx-auto mb-3 opacity-50" />
             <p>No hay notificaciones</p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-border">
             {notifications.map((notification) => {
               const Icon = typeIcons[notification.type] || Bell;
               const link = getLink(notification);
@@ -278,28 +277,28 @@ export default function NotificationCenter({ compact = false }: Props) {
                   key={notification.id}
                   className={cn(
                     "p-4 flex items-start gap-3",
-                    !notification.read && "bg-indigo-50"
+                    !notification.read && "bg-indigo-50 dark:bg-indigo-900/20"
                   )}
                 >
-                  <Icon className="h-5 w-5 text-indigo-500" />
+                  <Icon className="h-5 w-5 text-indigo-500 mt-0.5" />
                   <div className="flex-1">
                     {link ? (
                       <Link
                         href={link}
                         onClick={() => markAsRead(notification.id)}
-                        className="font-medium text-slate-900 hover:text-indigo-600"
+                        className="font-medium text-foreground hover:text-indigo-600 dark:hover:text-indigo-400"
                       >
                         {notification.title}
                       </Link>
                     ) : (
-                      <p className="font-medium text-slate-900">{notification.title}</p>
+                      <p className="font-medium text-foreground">{notification.title}</p>
                     )}
                     {notification.content && (
-                      <p className="text-sm text-gray-500 mt-1">
+                      <p className="text-sm text-muted-foreground mt-1">
                         {notification.content}
                       </p>
                     )}
-                    <p className="text-xs text-gray-400 mt-2">
+                    <p className="text-xs text-muted-foreground mt-2">
                       {typeLabels[notification.type]} • {formatDate(notification.createdAt)}
                     </p>
                   </div>

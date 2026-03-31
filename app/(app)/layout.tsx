@@ -2,7 +2,7 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, FolderOpen, CheckSquare, Calendar, Settings, LogOut, ChevronLeft, ChevronRight, Mail, Bell, Sun, Moon } from "lucide-react";
+import { Home, FolderOpen, CheckSquare, Calendar, Settings, LogOut, ChevronLeft, ChevronRight, Mail, Bell, Sun, Moon, LayoutTemplate } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -21,6 +21,7 @@ const navigation = [
   { name: "Proyectos", href: "/projects", icon: FolderOpen },
   { name: "Tareas", href: "/tasks", icon: CheckSquare },
   { name: "Calendario", href: "/calendar", icon: Calendar },
+  { name: "Plantillas", href: "/templates", icon: LayoutTemplate },
   { name: "Mail", href: "/mail", icon: Mail },
   { name: "Notificaciones", href: "/notifications", icon: Bell },
   { name: "Configuración", href: "/settings", icon: Settings },
