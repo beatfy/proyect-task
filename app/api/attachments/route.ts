@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { writeFile, unlink } from "fs/promises";
+import { writeFile, unlink, mkdir } from "fs/promises";
 import { join } from "path";
 import { cuid } from "@/lib/utils";
 
@@ -95,7 +95,16 @@ export async function POST(request: NextRequest) {
     const uploadDir = join(process.cwd(), "public", "uploads");
     const filepath = join(uploadDir, filename);
 
-    await writeFile(filepath, buffer);
+    try {
+      await mkdir(uploadDir, { recursive: true });
+      await writeFile(filepath, buffer);
+    } catch (writeError) {
+      console.error("Filesystem write failed (likely serverless):", writeError);
+      return NextResponse.json(
+        { error: "No se pudo guardar el archivo. El almacenamiento en disco no está disponible en este entorno." },
+        { status: 501 }
+      );
+    }
 
     // Determine type
     let type = "document";

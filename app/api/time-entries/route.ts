@@ -12,19 +12,17 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const taskId = searchParams.get("taskId");
-    const userId = searchParams.get("userId");
+    const userIdParam = searchParams.get("userId");
 
     const whereClause: Record<string, unknown> = {};
 
     if (taskId) {
       whereClause.taskId = taskId;
     }
-    if (userId) {
-      whereClause.userId = userId;
-    }
-
-    // Only show user's own time entries unless taskId is specified
-    if (!taskId && !userId) {
+    // "me" or omitting userId → use current session user
+    if (userIdParam && userIdParam !== "me") {
+      whereClause.userId = userIdParam;
+    } else {
       whereClause.userId = session.user.id;
     }
 
