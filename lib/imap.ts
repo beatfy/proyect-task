@@ -61,7 +61,7 @@ export async function fetchInbox(
 
     try {
       const messages = client.fetch(
-        { seq: "*" },
+        { seq: "1:*" },
         { envelope: true, flags: true },
         { uid: true }
       );
