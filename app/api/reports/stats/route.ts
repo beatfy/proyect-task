@@ -21,6 +21,9 @@ export async function GET(request: NextRequest) {
     const userId = session.user.id;
     const now = new Date();
 
+    const { searchParams } = new URL(request.url);
+    const organizationId = searchParams.get("organizationId");
+
     // Start of this week (Monday)
     const startOfWeek = new Date(now);
     const day = startOfWeek.getDay();
@@ -38,9 +41,14 @@ export async function GET(request: NextRequest) {
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
 
     // Tasks where user is creator or assignee
-    const userTasksWhere = {
+    const userTasksWhere: Record<string, unknown> = {
       OR: [{ creatorId: userId }, { assigneeId: userId }],
     };
+
+    // Filter by organization if provided
+    if (organizationId) {
+      userTasksWhere.project = { organizationId };
+    }
 
     // Run all queries with individual fallbacks
     const completedThisWeek = await safeQuery(
@@ -90,9 +98,17 @@ export async function GET(request: NextRequest) {
       statusMap[item.status] = item._count.status;
     });
 
+    const activeProjectsWhere: Record<string, unknown> = {
+      status: "ACTIVE",
+      members: { some: { userId } },
+    };
+    if (organizationId) {
+      activeProjectsWhere.organizationId = organizationId;
+    }
+
     const activeProjects = await safeQuery(
       () => prisma.project.count({
-        where: { status: "ACTIVE", members: { some: { userId } } },
+        where: activeProjectsWhere,
       }),
       0
     );

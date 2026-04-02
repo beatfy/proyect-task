@@ -3,7 +3,14 @@
 import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckSquare, Clock, CheckCircle, AlertCircle, Loader2, FolderOpen, TrendingUp, Timer, BarChart3 } from "lucide-react";
+import { CheckSquare, Clock, CheckCircle, AlertCircle, Loader2, FolderOpen, TrendingUp, Timer, BarChart3, Building2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface ReportStats {
   completedThisWeek: number;
@@ -56,18 +63,53 @@ function formatDuration(seconds: number): string {
   return `${minutes}m`;
 }
 
+interface OrgOption {
+  id: string;
+  name: string;
+  slug: string;
+  role: string;
+}
+
 export default function DashboardPage() {
   const { data: session } = useSession();
   const [stats, setStats] = useState<ReportStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [organizations, setOrganizations] = useState<OrgOption[]>([]);
+  const [selectedOrg, setSelectedOrg] = useState<string>("all");
+
+  useEffect(() => {
+    fetchOrganizations();
+  }, []);
+
+  useEffect(() => {
+    // Load saved org from localStorage
+    const saved = localStorage.getItem("selectedOrg");
+    if (saved) setSelectedOrg(saved);
+  }, []);
 
   useEffect(() => {
     fetchStats();
-  }, []);
+  }, [selectedOrg]);
+
+  const fetchOrganizations = async () => {
+    try {
+      const res = await fetch("/api/organizations");
+      if (res.ok) {
+        const data = await res.json();
+        setOrganizations(data);
+      }
+    } catch (err) {
+      console.error("Error fetching organizations:", err);
+    }
+  };
 
   const fetchStats = async () => {
     try {
-      const response = await fetch("/api/reports/stats");
+      const params = new URLSearchParams();
+      if (selectedOrg && selectedOrg !== "all") {
+        params.set("organizationId", selectedOrg);
+      }
+      const response = await fetch(`/api/reports/stats?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
         setStats(data);
@@ -77,6 +119,11 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOrgChange = (value: string) => {
+    setSelectedOrg(value);
+    localStorage.setItem("selectedOrg", value);
   };
 
   if (loading) {
@@ -114,12 +161,34 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">
-          ¡Hola, {session?.user?.name || "Usuario"}!
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Aquí tienes un resumen de tu actividad
-        </p>
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">
+              ¡Hola, {session?.user?.name || "Usuario"}!
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Aquí tienes un resumen de tu actividad
+            </p>
+          </div>
+          {organizations.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-muted-foreground" />
+              <Select value={selectedOrg} onValueChange={handleOrgChange}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Filtrar por organización" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  {organizations.map((org) => (
+                    <SelectItem key={org.id} value={org.id}>
+                      {org.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Stats Cards */}

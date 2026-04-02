@@ -4,22 +4,34 @@ import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
 import { projectCreateSchema } from "@/lib/validations/project";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const projects = await prisma.project.findMany({
-      where: {
-        members: {
-          some: { userId: session.user.id },
-        },
+    const { searchParams } = new URL(request.url);
+    const organizationId = searchParams.get("organizationId");
+
+    const whereClause: Record<string, unknown> = {
+      members: {
+        some: { userId: session.user.id },
       },
+    };
+
+    if (organizationId) {
+      whereClause.organizationId = organizationId;
+    }
+
+    const projects = await prisma.project.findMany({
+      where: whereClause,
       include: {
         members: true,
         tasks: true,
+        organization: {
+          select: { id: true, name: true, slug: true },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -54,8 +66,39 @@ export async function POST(request: NextRequest) {
     }
 
     const { name, description, color } = parsed.data;
+    const organizationId = body.organizationId as string | undefined;
 
     const projectId = cuid();
+
+    // If creating within an org, auto-add all org members
+    let membersCreate: Array<{ id: string; userId: string; role: string }> = [
+      {
+        id: cuid(),
+        userId: session.user.id,
+        role: "OWNER",
+      },
+    ];
+
+    if (organizationId) {
+      const orgMembers = await prisma.organizationMember.findMany({
+        where: { organizationId },
+        select: { userId: true },
+      });
+      membersCreate = [
+        {
+          id: cuid(),
+          userId: session.user.id,
+          role: "OWNER",
+        },
+        ...orgMembers
+          .filter((m) => m.userId !== session.user.id)
+          .map((m) => ({
+            id: cuid(),
+            userId: m.userId,
+            role: "MEMBER",
+          })),
+      ];
+    }
 
     const project = await prisma.project.create({
       data: {
@@ -63,12 +106,9 @@ export async function POST(request: NextRequest) {
         name,
         description,
         color: color || "#6366f1",
+        organizationId: organizationId || null,
         members: {
-          create: {
-            id: cuid(),
-            userId: session.user.id,
-            role: "OWNER",
-          },
+          create: membersCreate,
         },
       },
     });

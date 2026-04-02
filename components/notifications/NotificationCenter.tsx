@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Bell, Check, Trash2, UserPlus, ClipboardList, MessageCircle, CheckCircle2, Plus, LayoutTemplate, Clock, AlertTriangle } from "lucide-react";
+import { Bell, Check, Trash2, UserPlus, ClipboardList, MessageCircle, CheckCircle2, Plus, LayoutTemplate, Clock, AlertTriangle, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -30,6 +30,7 @@ const typeIcons: Record<string, typeof Bell> = {
   PROJECT_JOINED: UserPlus,
   TASK_DUE_TODAY: Clock,
   TASK_OVERDUE: AlertTriangle,
+  ORGANIZATION_INVITATION: Building2,
 };
 
 const typeLabels: Record<string, string> = {
@@ -42,6 +43,7 @@ const typeLabels: Record<string, string> = {
   PROJECT_JOINED: "Nuevo miembro",
   TASK_DUE_TODAY: "Vence hoy",
   TASK_OVERDUE: "Vencida",
+  ORGANIZATION_INVITATION: "Organización",
 };
 
 export default function NotificationCenter({ compact = false }: Props) {
@@ -124,6 +126,9 @@ export default function NotificationCenter({ compact = false }: Props) {
   const getLink = (notification: Notification) => {
     if (notification.type === "PROJECT_INVITATION") {
       return "/invitations";
+    }
+    if (notification.type === "ORGANIZATION_INVITATION" && notification.data?.organizationId) {
+      return `/organizations/${notification.data.organizationId}`;
     }
     if (notification.data?.projectId) {
       return `/projects/${notification.data.projectId}`;

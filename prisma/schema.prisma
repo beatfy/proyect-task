@@ -27,20 +27,23 @@ model User {
   notifications Notification[]
   timeEntries  TimeEntry[]
   emailConfig  EmailConfig?
+  organizations OrganizationMember[]
 }
 
 model Project {
-  id          String          @id
-  name        String
-  description String?
-  color       String          @default("#6366f1")
-  status      String          @default("ACTIVE")
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  members     ProjectMember[]
-  tasks       Task[]
-  invitations Invitation[]
-  inviteTokens ProjectInviteToken[]
+  id             String          @id
+  name           String
+  description    String?
+  color          String          @default("#6366f1")
+  status         String          @default("ACTIVE")
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  organizationId String?
+  organization   Organization?   @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  members        ProjectMember[]
+  tasks          Task[]
+  invitations    Invitation[]
+  inviteTokens   ProjectInviteToken[]
 }
 
 model ProjectMember {
@@ -209,6 +212,32 @@ model TaskTemplate {
   tags        Json?
   isDefault   Boolean  @default(false)
   createdAt   DateTime @default(now())
+}
+
+// ========== ORGANIZACIONES ==========
+
+model Organization {
+  id          String              @id @default(cuid())
+  name        String
+  slug        String              @unique
+  description String?
+  logo        String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  members     OrganizationMember[]
+  projects    Project[]
+}
+
+model OrganizationMember {
+  id             String       @id @default(cuid())
+  role           String       @default("MEMBER")
+  userId         String
+  organizationId String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  joinedAt       DateTime     @default(now())
+
+  @@unique([userId, organizationId])
 }
 
 // ========== EMAIL / IMAP ==========

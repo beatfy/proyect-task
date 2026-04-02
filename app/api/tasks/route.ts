@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
+    const organizationId = searchParams.get("organizationId");
 
     const whereClause: Record<string, unknown> = {
       OR: [
@@ -25,6 +26,17 @@ export async function GET(request: NextRequest) {
     // Filter by project if provided
     if (projectId) {
       whereClause.projectId = projectId;
+    }
+
+    // Filter by organization
+    if (organizationId) {
+      whereClause.project = {
+        organizationId: organizationId,
+      };
+      // Remove projectId filter if both are set (org takes precedence for project filter)
+      if (!projectId) {
+        delete whereClause.projectId;
+      }
     }
 
     // Filter by parentId for subtasks
