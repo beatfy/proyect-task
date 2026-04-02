@@ -17,6 +17,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -89,6 +90,7 @@ export default function OrganizationDetailPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("MEMBER");
   const [inviting, setInviting] = useState(false);
+  const [inviteMemberOpen, setInviteMemberOpen] = useState(false);
 
   useEffect(() => {
     fetchOrg();
@@ -212,6 +214,33 @@ export default function OrganizationDetailPage() {
       }
     } catch {
       toast.error("Error de conexión");
+    }
+  };
+
+  const handleInviteMember = async () => {
+    if (!inviteEmail.trim()) { toast.error("El email es requerido"); return; }
+    setInviting(true);
+    try {
+      const res = await fetch(`/api/organizations/${orgId}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
+      });
+      if (res.ok) {
+        const newMember = await res.json();
+        setMembers([...members, newMember]);
+        setInviteEmail("");
+        setInviteRole("MEMBER");
+        setInviteMemberOpen(false);
+        toast.success("Miembro añadido");
+      } else {
+        const data = await res.json();
+        toast.error(data.error || "Error al añadir miembro");
+      }
+    } catch {
+      toast.error("Error de conexión");
+    } finally {
+      setInviting(false);
     }
   };
 
@@ -353,7 +382,12 @@ export default function OrganizationDetailPage() {
       {/* Members Tab */}
       {activeTab === "members" && (
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-foreground">Miembros</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-foreground">Miembros</h2>
+            <Button onClick={() => setInviteMemberOpen(true)} size="sm">
+              <Plus className="h-4 w-4 mr-2" /> Añadir miembro
+            </Button>
+          </div>
           <Card className="bg-card border-border">
             <CardContent className="p-0">
               {members.length === 0 ? (
@@ -404,6 +438,7 @@ export default function OrganizationDetailPage() {
         <DialogContent className="bg-card border-border">
           <DialogHeader>
             <DialogTitle className="text-foreground">Editar organización</DialogTitle>
+            <DialogDescription>Modifica el nombre o descripción</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             <div className="space-y-2">
@@ -436,6 +471,7 @@ export default function OrganizationDetailPage() {
         <DialogContent className="bg-card border-border">
           <DialogHeader>
             <DialogTitle className="text-foreground">Nuevo proyecto</DialogTitle>
+            <DialogDescription>Crea un proyecto dentro de esta organización</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             <div className="space-y-2">
@@ -476,6 +512,43 @@ export default function OrganizationDetailPage() {
             <Button onClick={handleCreateProject} disabled={creatingProject} className="w-full">
               {creatingProject ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
               Crear proyecto
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Invite Member Dialog */}
+      <Dialog open={inviteMemberOpen} onOpenChange={setInviteMemberOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Añadir miembro</DialogTitle>
+            <DialogDescription>Invita por email a un usuario registrado</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label className="text-foreground">Email</Label>
+              <Input
+                placeholder="email@ejemplo.com"
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                className="bg-card border-border text-foreground"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Rol</Label>
+              <select
+                value={inviteRole}
+                onChange={(e) => setInviteRole(e.target.value)}
+                className="w-full rounded-md border border-border bg-card text-foreground px-3 py-2 text-sm"
+              >
+                <option value="MEMBER">Miembro</option>
+                <option value="ADMIN">Administrador</option>
+              </select>
+            </div>
+            <Button onClick={handleInviteMember} disabled={inviting} className="w-full">
+              {inviting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+              Añadir miembro
             </Button>
           </div>
         </DialogContent>
