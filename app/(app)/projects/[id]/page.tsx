@@ -550,12 +550,12 @@ export default function ProjectDetailPage() {
             </div>
             <div className="space-y-2">
               <Label className="text-foreground">Asignar a</Label>
-              <Select value={assigneeId} onValueChange={setAssigneeId}>
+              <Select value={assigneeId || "__none__"} onValueChange={(v) => setAssigneeId(v === "__none__" ? "" : v)}>
                 <SelectTrigger className="bg-card border-border text-foreground">
                   <SelectValue placeholder="Sin asignar" />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-border">
-                  <SelectItem value="">Sin asignar</SelectItem>
+                  <SelectItem value="__none__">Sin asignar</SelectItem>
                   {members.map((m) => (
                     <SelectItem key={m.user.id} value={m.user.id}>
                       {m.user.name || m.user.email}
