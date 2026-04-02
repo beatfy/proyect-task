@@ -13,7 +13,7 @@ interface Notification {
   content: string | null;
   read: boolean;
   createdAt: string;
-  data: { projectId?: string; taskId?: string; invitationId?: string } | null;
+  data: { projectId?: string; taskId?: string; invitationId?: string; organizationId?: string } | null;
 }
 
 interface Props {
