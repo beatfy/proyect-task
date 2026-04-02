@@ -77,12 +77,68 @@ export async function POST(
       return NextResponse.json({ error: "Email requerido" }, { status: 400 });
     }
 
+    // Get org info for email
+    const org = await prisma.organization.findUnique({
+      where: { id },
+      select: { name: true },
+    });
+
     const user = await prisma.user.findUnique({
       where: { email },
     });
 
     if (!user) {
-      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+      // User doesn't exist — create an invitation and send email
+      const existingInvitation = await prisma.invitation.findFirst({
+        where: {
+          email,
+          organizationId: id,
+          status: "PENDING",
+          expiresAt: { gt: new Date() },
+        },
+      });
+
+      if (existingInvitation) {
+        return NextResponse.json(
+          { error: "Ya existe una invitación pendiente para este email" },
+          { status: 400 }
+        );
+      }
+
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+
+      const invitation = await prisma.invitation.create({
+        data: {
+          id: cuid(),
+          email,
+          organizationId: id,
+          invitedBy: session.user.id,
+          role,
+          expiresAt,
+        },
+      });
+
+      // Send invitation email
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_APP_URL || "https://task-x-2.vercel.app"}/api/invitations/send-email`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            invitationId: invitation.id,
+            orgName: org?.name,
+            inviterName: session.user.name || session.user.email,
+          }),
+        });
+      } catch (e) {
+        console.error("Failed to send invite email:", e);
+      }
+
+      return NextResponse.json({
+        ...invitation,
+        pendingInvite: true,
+        message: `Invitación enviada a ${email}`,
+      });
     }
 
     const existing = await prisma.organizationMember.findUnique({
@@ -97,11 +153,6 @@ export async function POST(
     if (existing) {
       return NextResponse.json({ error: "El usuario ya es miembro de la organización" }, { status: 400 });
     }
-
-    const org = await prisma.organization.findUnique({
-      where: { id },
-      select: { name: true },
-    });
 
     const newMember = await prisma.organizationMember.create({
       data: {

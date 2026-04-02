@@ -19,7 +19,7 @@ export async function POST(
 
     const invitation = await prisma.invitation.findUnique({
       where: { id },
-      include: { project: true },
+      include: { project: true, organization: true },
     });
 
     if (!invitation) {
@@ -59,37 +59,48 @@ export async function POST(
 
     if (action === "accept") {
       // Crear membresía
-      await prisma.projectMember.create({
-        data: {
-          id: cuid(),
-          userId: session.user.id,
-          projectId: invitation.projectId,
-          role: invitation.role,
-        },
-      });
+      if (invitation.projectId) {
+        await prisma.projectMember.create({
+          data: {
+            id: cuid(),
+            userId: session.user.id,
+            projectId: invitation.projectId,
+            role: invitation.role,
+          },
+        });
+      } else if (invitation.organizationId) {
+        await prisma.organizationMember.create({
+          data: {
+            id: cuid(),
+            userId: session.user.id,
+            organizationId: invitation.organizationId,
+            role: invitation.role,
+          },
+        });
+      }
 
-      // Actualizar invitación
       await prisma.invitation.update({
         where: { id },
         data: { status: "ACCEPTED" },
       });
 
-      // Notificar al invitador
+      const targetName = invitation.project?.name || invitation.organization?.name || "TaskX";
       await prisma.notification.create({
         data: {
           id: cuid(),
           userId: invitation.invitedBy,
           type: "PROJECT_JOINED",
           title: `${session.user.name || session.user.email} se unió`,
-          content: `Aceptó la invitación a "${invitation.project.name}"`,
-          data: { projectId: invitation.projectId },
+          content: `Aceptó la invitación a "${targetName}"`,
+          data: { projectId: invitation.projectId || undefined, organizationId: invitation.organizationId || undefined },
         },
       });
 
       return NextResponse.json({
         success: true,
-        message: `Te has unido a ${invitation.project.name}`,
-        projectId: invitation.projectId,
+        message: `Te has unido a ${targetName}`,
+        projectId: invitation.projectId || undefined,
+        organizationId: invitation.organizationId || undefined,
       });
     } else if (action === "reject") {
       await prisma.invitation.update({

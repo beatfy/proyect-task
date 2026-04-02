@@ -227,12 +227,25 @@ export default function OrganizationDetailPage() {
         body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
       });
       if (res.ok) {
-        const newMember = await res.json();
-        setMembers([...members, newMember]);
+        const data = await res.json();
+        if (data.pendingInvite) {
+          toast.success(data.message);
+          if (data.inviteUrl) {
+            // No email service — show link to copy
+            try {
+              await navigator.clipboard.writeText(data.inviteUrl);
+              toast.success("Enlace de invitación copiado al portapapeles");
+            } catch {
+              prompt("Comparte este enlace:", data.inviteUrl);
+            }
+          }
+        } else {
+          setMembers([...members, data]);
+          toast.success("Miembro añadido");
+        }
         setInviteEmail("");
         setInviteRole("MEMBER");
         setInviteMemberOpen(false);
-        toast.success("Miembro añadido");
       } else {
         const data = await res.json();
         toast.error(data.error || "Error al añadir miembro");

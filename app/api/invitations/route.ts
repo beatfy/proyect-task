@@ -127,9 +127,9 @@ export async function POST(request: NextRequest) {
           id: cuid(),
           userId: invitedUser.id,
           type: "PROJECT_INVITATION",
-          title: `Invitación a ${invitation.project.name}`,
-          content: `Has sido invitado al proyecto "${invitation.project.name}"`,
-          data: { invitationId: invitation.id, projectId },
+          title: `Invitación a ${invitation.project?.name || "una organización"}`,
+          content: `Has sido invitado al proyecto "${invitation.project?.name || ""}"`,
+          data: { invitationId: invitation.id, projectId: projectId || undefined },
         },
       });
     }
