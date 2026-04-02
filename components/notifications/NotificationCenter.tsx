@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Bell, Check, Trash2, UserPlus, ClipboardList, MessageCircle, CheckCircle2, Plus, LayoutTemplate } from "lucide-react";
+import { Bell, Check, Trash2, UserPlus, ClipboardList, MessageCircle, CheckCircle2, Plus, LayoutTemplate, Clock, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -28,6 +28,8 @@ const typeIcons: Record<string, typeof Bell> = {
   COMMENT_ADDED: MessageCircle,
   COMMENT_MENTION: MessageCircle,
   PROJECT_JOINED: UserPlus,
+  TASK_DUE_TODAY: Clock,
+  TASK_OVERDUE: AlertTriangle,
 };
 
 const typeLabels: Record<string, string> = {
@@ -38,6 +40,8 @@ const typeLabels: Record<string, string> = {
   COMMENT_ADDED: "Nuevo comentario",
   COMMENT_MENTION: "Mención",
   PROJECT_JOINED: "Nuevo miembro",
+  TASK_DUE_TODAY: "Vence hoy",
+  TASK_OVERDUE: "Vencida",
 };
 
 export default function NotificationCenter({ compact = false }: Props) {
