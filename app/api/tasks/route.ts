@@ -43,6 +43,8 @@ export async function GET(request: NextRequest) {
     // Filter by parentId for subtasks
     const parentId = searchParams.get("parentId");
     if (parentId) {
+      // When fetching subtasks, don't filter by user - if you can see the parent, you can see children
+      delete whereClause.OR;
       whereClause.parentId = parentId;
     } else {
       // Only main tasks by default (no parentId)
