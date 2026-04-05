@@ -28,6 +28,7 @@ model User {
   timeEntries  TimeEntry[]
   emailConfig  EmailConfig?
   organizations OrganizationMember[]
+  apiKeys      ApiKey[]
 }
 
 model Project {
@@ -242,6 +243,20 @@ model OrganizationMember {
 }
 
 // ========== EMAIL / IMAP ==========
+
+// ========== API KEYS (OpenClaw) ==========
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  key         String    @unique
+  name        String
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permissions String    @default("full")  // read, write, admin, full
+  lastUsedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  active      Boolean   @default(true)
+}
 
 model EmailConfig {
   id               String   @id

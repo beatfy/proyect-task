@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 
 // POST - Marcar todas como leídas
 export async function POST() {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
     await prisma.notification.updateMany({
       where: {
-        userId: session.user.id,
+        userId: authResult.userId,
         read: false,
       },
       data: { read: true },

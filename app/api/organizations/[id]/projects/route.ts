@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
 
@@ -8,8 +8,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
@@ -18,7 +18,7 @@ export async function GET(
     const membership = await prisma.organizationMember.findUnique({
       where: {
         userId_organizationId: {
-          userId: session.user.id,
+          userId: authResult.userId,
           organizationId: id,
         },
       },
@@ -51,8 +51,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
@@ -61,7 +61,7 @@ export async function POST(
     const membership = await prisma.organizationMember.findUnique({
       where: {
         userId_organizationId: {
-          userId: session.user.id,
+          userId: authResult.userId,
           organizationId: id,
         },
       },
@@ -98,7 +98,7 @@ export async function POST(
             // Creator as OWNER
             {
               id: cuid(),
-              userId: session.user.id,
+              userId: authResult.userId,
               role: "OWNER",
             },
             // All other org members as MEMBER

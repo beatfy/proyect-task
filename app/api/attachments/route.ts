@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { authenticateRequest } from "@/lib/api-auth";
 import { writeFile, unlink, mkdir } from "fs/promises";
 import { join } from "path";
 import { cuid } from "@/lib/utils";
@@ -27,9 +27,10 @@ function sanitizeFilename(filename: string): string {
 
 // GET attachments for a task
 export async function GET(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const authResult = await authenticateRequest(request);
+    if (!authResult) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -53,9 +54,10 @@ export async function GET(request: NextRequest) {
 
 // POST upload attachment
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const authResult = await authenticateRequest(request);
+    if (!authResult) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }, { status: 401 });
   }
 
   try {
@@ -132,9 +134,10 @@ export async function POST(request: NextRequest) {
 
 // DELETE attachment - only the uploader (via task ownership) can delete
 export async function DELETE(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const authResult = await authenticateRequest(request);
+    if (!authResult) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -155,8 +158,8 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Verify ownership: only task creator or assignee can delete attachments
-    const isCreator = attachment.task.creatorId === session.user.id;
-    const isAssignee = attachment.task.assigneeId === session.user.id;
+    const isCreator = attachment.task.creatorId === authResult.userId;
+    const isAssignee = attachment.task.assigneeId === authResult.userId;
     if (!isCreator && !isAssignee) {
       return NextResponse.json({ error: "No tienes permisos para eliminar este archivo" }, { status: 403 });
     }

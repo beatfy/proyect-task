@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     if (userIdParam && userIdParam !== "me") {
       whereClause.userId = userIdParam;
     } else {
-      whereClause.userId = session.user.id;
+      whereClause.userId = authResult.userId;
     }
 
     const timeEntries = await prisma.timeEntry.findMany({
@@ -48,8 +48,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       // Check if there's already a running timer for this user
       const running = await prisma.timeEntry.findFirst({
         where: {
-          userId: session.user.id,
+          userId: authResult.userId,
           endTime: null,
         },
       });
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
         data: {
           id: cuid(),
           taskId,
-          userId: session.user.id,
+          userId: authResult.userId,
           startTime: startTime ? new Date(startTime) : new Date(),
           description: description || null,
         },
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
         where: { id: entryId },
       });
 
-      if (!entry || entry.userId !== session.user.id) {
+      if (!entry || entry.userId !== authResult.userId) {
         return NextResponse.json({ error: "Entrada no encontrada" }, { status: 404 });
       }
 
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
       data: {
         id: cuid(),
         taskId,
-        userId: session.user.id,
+        userId: authResult.userId,
         startTime: new Date(startTime),
         endTime: endTime ? new Date(endTime) : null,
         duration: durationValue,
@@ -170,8 +170,8 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
@@ -186,7 +186,7 @@ export async function DELETE(request: NextRequest) {
       where: { id },
     });
 
-    if (!entry || entry.userId !== session.user.id) {
+    if (!entry || entry.userId !== authResult.userId) {
       return NextResponse.json({ error: "No encontrado" }, { status: 404 });
     }
 

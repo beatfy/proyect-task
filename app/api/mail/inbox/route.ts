@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { authenticateRequest } from "@/lib/api-auth";
 
 // GET /api/mail/inbox - List emails
 export async function GET(request: NextRequest) {
-  const session = await auth();
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const authResult = await authenticateRequest(request);
+    if (!authResult) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }, { status: 401 });
   }
 
   try {
     const config = await prisma.emailConfig.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: authResult.userId },
     });
 
     if (!config) {

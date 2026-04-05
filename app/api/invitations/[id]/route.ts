@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
 
@@ -63,7 +63,7 @@ export async function POST(
         await prisma.projectMember.create({
           data: {
             id: cuid(),
-            userId: session.user.id,
+            userId: authResult.userId,
             projectId: invitation.projectId,
             role: invitation.role,
           },
@@ -72,7 +72,7 @@ export async function POST(
         await prisma.organizationMember.create({
           data: {
             id: cuid(),
-            userId: session.user.id,
+            userId: authResult.userId,
             organizationId: invitation.organizationId,
             role: invitation.role,
           },
@@ -127,8 +127,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
@@ -145,7 +145,7 @@ export async function DELETE(
       );
     }
 
-    if (invitation.invitedBy !== session.user.id) {
+    if (invitation.invitedBy !== authResult.userId) {
       return NextResponse.json(
         { error: "Solo el creador puede cancelar la invitación" },
         { status: 403 }

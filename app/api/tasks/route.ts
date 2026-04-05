@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
 import { canAccessTask, canModifyTask } from "@/lib/authz";
@@ -7,8 +7,8 @@ import { taskCreateSchema, taskUpdateSchema } from "@/lib/validations/task";
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
@@ -18,8 +18,8 @@ export async function GET(request: NextRequest) {
 
     const whereClause: Record<string, unknown> = {
       OR: [
-        { creatorId: session.user.id },
-        { assigneeId: session.user.id },
+        { creatorId: authResult.userId },
+        { assigneeId: authResult.userId },
       ],
     };
 
@@ -76,8 +76,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
     const { title, description, status, priority, dueDate, projectId, assignedTo, assigneeId, parentId } = parsed.data;
 
     // Verify user exists in database
-    const userExists = await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true } });
+    const userExists = await prisma.user.findUnique({ where: { id: authResult.userId }, select: { id: true } });
     if (!userExists) {
       return NextResponse.json({ error: "Sesión inválida. Por favor, cierra sesión y vuelve a iniciar." }, { status: 401 });
     }
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
         priority: priority || "NONE",
         dueDate: dueDate ? new Date(dueDate) : null,
         projectId: projectId || null,
-        creatorId: session.user.id,
+        creatorId: authResult.userId,
         assigneeId: finalAssigneeId,
         parentId: parentId || null,
       },
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Notify assignee if different from creator
-    if (finalAssigneeId && finalAssigneeId !== session.user.id) {
+    if (finalAssigneeId && finalAssigneeId !== authResult.userId) {
       await prisma.notification.create({
         data: {
           id: cuid(),
@@ -158,8 +158,8 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
@@ -175,7 +175,7 @@ export async function PATCH(request: NextRequest) {
     const { id, status, priority, title, description, projectId, assignedTo, assigneeId, dueDate } = parsed.data;
 
     // Authorization: user must be able to modify this task
-    const authorized = await canModifyTask(session.user.id, id);
+    const authorized = await canModifyTask(authResult.userId, id);
     if (!authorized) {
       return NextResponse.json({ error: "No tienes permisos para modificar esta tarea" }, { status: 403 });
     }
@@ -224,7 +224,7 @@ export async function PATCH(request: NextRequest) {
     // Notify on task completed
     if (status === "DONE" && currentTask?.status !== "DONE") {
       const notifyUserId = currentTask?.creatorId;
-      if (notifyUserId && notifyUserId !== session.user.id) {
+      if (notifyUserId && notifyUserId !== authResult.userId) {
         await prisma.notification.create({
           data: {
             id: cuid(),
@@ -240,7 +240,7 @@ export async function PATCH(request: NextRequest) {
 
     // Notify newly assigned user
     if (assigneeId !== undefined && assigneeId && assigneeId !== currentTask?.assigneeId) {
-      if (assigneeId !== session.user.id) {
+      if (assigneeId !== authResult.userId) {
         await prisma.notification.create({
           data: {
             id: cuid(),
@@ -266,8 +266,8 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
@@ -279,7 +279,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Authorization: user must be able to modify (delete) this task
-    const authorized = await canModifyTask(session.user.id, id);
+    const authorized = await canModifyTask(authResult.userId, id);
     if (!authorized) {
       return NextResponse.json({ error: "No tienes permisos para eliminar esta tarea" }, { status: 403 });
     }

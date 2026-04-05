@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { randomBytes } from "crypto";
 import { cuid } from "@/lib/utils";
@@ -7,8 +7,8 @@ import { cuid } from "@/lib/utils";
 // POST - Generar link de invitación
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     const membership = await prisma.projectMember.findFirst({
       where: {
         projectId,
-        userId: session.user.id,
+        userId: authResult.userId,
         role: { in: ["OWNER", "ADMIN"] },
       },
     });
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
         id: cuid(),
         token,
         projectId,
-        createdBy: session.user.id,
+        createdBy: authResult.userId,
         role: role || "MEMBER",
         maxUses: maxUses || null,
         expiresAt,
@@ -78,8 +78,8 @@ export async function POST(request: NextRequest) {
 // GET - Listar links de invitación de un proyecto
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
 
     // Verificar que el usuario es miembro del proyecto
     const membership = await prisma.projectMember.findFirst({
-      where: { projectId, userId: session.user.id },
+      where: { projectId, userId: authResult.userId },
     });
 
     if (!membership) {

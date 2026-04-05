@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { authenticateRequest } from "@/lib/api-auth";
 
 // GET /api/mail/config - Check if user has IMAP config
 export async function GET() {
-  const session = await auth();
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const authResult = await authenticateRequest(request);
+    if (!authResult) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }, { status: 401 });
   }
 
   try {
     const config = await prisma.emailConfig.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: authResult.userId },
       select: {
         id: true,
         host: true,
@@ -32,10 +32,10 @@ export async function GET() {
 
 // POST /api/mail/config - Save IMAP config
 export async function POST(request: NextRequest) {
-  const session = await auth();
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const authResult = await authenticateRequest(request);
+    if (!authResult) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }, { status: 401 });
   }
 
   try {
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
 
     // Upsert config
     const config = await prisma.emailConfig.upsert({
-      where: { userId: session.user.id },
+      where: { userId: authResult.userId },
       update: {
         host,
         port: port || 993,
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
         email,
         encryptedPassword,
         ssl: ssl !== false,
-        userId: session.user.id,
+        userId: authResult.userId,
       },
     });
 

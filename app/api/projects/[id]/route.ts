@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { authenticateRequest } from "@/lib/api-auth";
 import { isProjectAdmin } from "@/lib/authz";
 
 export async function GET(
@@ -8,10 +8,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const session = await auth();
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const authResult = await authenticateRequest(request);
+    if (!authResult) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }, { status: 401 });
   }
 
   try {
@@ -43,10 +43,10 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const session = await auth();
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const authResult = await authenticateRequest(request);
+    if (!authResult) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }, { status: 401 });
   }
 
   try {
@@ -74,14 +74,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const session = await auth();
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const authResult = await authenticateRequest(request);
+    if (!authResult) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }, { status: 401 });
   }
 
   // Authorization: only project admins (OWNER/ADMIN) can delete
-  const authorized = await isProjectAdmin(session.user.id, id);
+  const authorized = await isProjectAdmin(authResult.userId, id);
   if (!authorized) {
     return NextResponse.json({ error: "Solo los administradores del proyecto pueden eliminarlo" }, { status: 403 });
   }
@@ -103,10 +103,10 @@ export async function POST(
 ) {
   // POST on /api/projects/[id] = Duplicate project
   const { id } = await params;
-  const session = await auth();
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const authResult = await authenticateRequest(request);
+    if (!authResult) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }, { status: 401 });
   }
 
   try {
@@ -125,7 +125,7 @@ export async function POST(
     // Generate a new ID for the duplicated project
     const { randomUUID } = await import("crypto");
     const newProjectId = randomUUID();
-    const userId = session.user.id;
+    const userId = authResult.userId;
 
     // Create the duplicated project
     const duplicated = await prisma.project.create({

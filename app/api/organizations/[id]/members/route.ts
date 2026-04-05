@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
 
@@ -8,8 +8,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
@@ -18,7 +18,7 @@ export async function GET(
     const membership = await prisma.organizationMember.findUnique({
       where: {
         userId_organizationId: {
-          userId: session.user.id,
+          userId: authResult.userId,
           organizationId: id,
         },
       },
@@ -50,8 +50,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
@@ -60,7 +60,7 @@ export async function POST(
     const membership = await prisma.organizationMember.findUnique({
       where: {
         userId_organizationId: {
-          userId: session.user.id,
+          userId: authResult.userId,
           organizationId: id,
         },
       },
@@ -113,7 +113,7 @@ export async function POST(
           id: cuid(),
           email,
           organizationId: id,
-          invitedBy: session.user.id,
+          invitedBy: authResult.userId,
           role,
           expiresAt,
         },
@@ -169,7 +169,7 @@ export async function POST(
     });
 
     // Send notification
-    if (user.id !== session.user.id) {
+    if (user.id !== authResult.userId) {
       await prisma.notification.create({
         data: {
           id: cuid(),
@@ -194,8 +194,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
@@ -219,7 +219,7 @@ export async function DELETE(
     const callerMembership = await prisma.organizationMember.findUnique({
       where: {
         userId_organizationId: {
-          userId: session.user.id,
+          userId: authResult.userId,
           organizationId: id,
         },
       },
@@ -229,7 +229,7 @@ export async function DELETE(
       return NextResponse.json({ error: "No tienes acceso" }, { status: 403 });
     }
 
-    const isSelf = targetMember.userId === session.user.id;
+    const isSelf = targetMember.userId === authResult.userId;
 
     if (!isSelf && !["OWNER", "ADMIN"].includes(callerMembership.role)) {
       return NextResponse.json({ error: "No tienes permisos para eliminar miembros" }, { status: 403 });

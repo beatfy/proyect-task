@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { authenticateRequest } from "@/lib/api-auth";
 import { cuid } from "@/lib/utils";
 import { commentCreateSchema } from "@/lib/validations/comment";
 
 // GET comments for a task
 export async function GET(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const authResult = await authenticateRequest(request);
+    if (!authResult) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -35,9 +36,10 @@ export async function GET(request: NextRequest) {
 
 // POST create comment
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const authResult = await authenticateRequest(request);
+    if (!authResult) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }, { status: 401 });
   }
 
   try {
@@ -63,7 +65,7 @@ export async function POST(request: NextRequest) {
         id: cuid(),
         taskId,
         content: content.trim(),
-        authorId: session.user.id
+        authorId: authResult.userId
       },
       include: {
         author: { select: { id: true, name: true, email: true, image: true } }
@@ -72,8 +74,8 @@ export async function POST(request: NextRequest) {
 
     // Notify task creator and assignee (if different from commenter)
     const notifyUsers = new Set<string>();
-    if (task?.creatorId && task.creatorId !== session.user.id) notifyUsers.add(task.creatorId);
-    if (task?.assigneeId && task.assigneeId !== session.user.id) notifyUsers.add(task.assigneeId);
+    if (task?.creatorId && task.creatorId !== authResult.userId) notifyUsers.add(task.creatorId);
+    if (task?.assigneeId && task.assigneeId !== authResult.userId) notifyUsers.add(task.assigneeId);
 
     for (const userId of notifyUsers) {
       await prisma.notification.create({
@@ -96,9 +98,10 @@ export async function POST(request: NextRequest) {
 
 // DELETE comment - only the author can delete their own comments
 export async function DELETE(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const authResult = await authenticateRequest(request);
+    if (!authResult) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -119,7 +122,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Comentario no encontrado" }, { status: 404 });
     }
 
-    if (comment.authorId !== session.user.id) {
+    if (comment.authorId !== authResult.userId) {
       return NextResponse.json({ error: "Solo puedes eliminar tus propios comentarios" }, { status: 403 });
     }
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
 
@@ -39,8 +39,8 @@ export async function GET() {
 // POST - Crear invitación por email
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     const membership = await prisma.projectMember.findFirst({
       where: {
         projectId,
-        userId: session.user.id,
+        userId: authResult.userId,
         role: { in: ["OWNER", "ADMIN"] },
       },
     });
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
         id: cuid(),
         email,
         projectId,
-        invitedBy: session.user.id,
+        invitedBy: authResult.userId,
         role: role || "MEMBER",
         expiresAt,
       },

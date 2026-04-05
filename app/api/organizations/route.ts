@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
 
@@ -14,15 +14,15 @@ function slugify(text: string): string {
 
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
     const organizations = await prisma.organization.findMany({
       where: {
         members: {
-          some: { userId: session.user.id },
+          some: { userId: authResult.userId },
         },
       },
       include: {
@@ -30,7 +30,7 @@ export async function GET() {
           select: { members: true, projects: true },
         },
         members: {
-          where: { userId: session.user.id },
+          where: { userId: authResult.userId },
           select: { role: true },
         },
       },
@@ -58,13 +58,13 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
     const userExists = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: authResult.userId },
       select: { id: true },
     });
     if (!userExists) {
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
         members: {
           create: {
             id: cuid(),
-            userId: session.user.id,
+            userId: authResult.userId,
             role: "OWNER",
           },
         },

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 
 // PATCH - Marcar como leída
@@ -8,8 +8,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
@@ -26,7 +26,7 @@ export async function PATCH(
       );
     }
 
-    if (notification.userId !== session.user.id) {
+    if (notification.userId !== authResult.userId) {
       return NextResponse.json(
         { error: "No tienes acceso a esta notificación" },
         { status: 403 }
@@ -51,8 +51,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
@@ -69,7 +69,7 @@ export async function DELETE(
       );
     }
 
-    if (notification.userId !== session.user.id) {
+    if (notification.userId !== authResult.userId) {
       return NextResponse.json(
         { error: "No tienes acceso a esta notificación" },
         { status: 403 }

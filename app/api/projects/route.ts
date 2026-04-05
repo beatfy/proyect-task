@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
 import { projectCreateSchema } from "@/lib/validations/project";
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
     const whereClause: Record<string, unknown> = {
       members: {
-        some: { userId: session.user.id },
+        some: { userId: authResult.userId },
       },
     };
 
@@ -45,8 +45,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     let membersCreate: Array<{ id: string; userId: string; role: string }> = [
       {
         id: cuid(),
-        userId: session.user.id,
+        userId: authResult.userId,
         role: "OWNER",
       },
     ];
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       membersCreate = [
         {
           id: cuid(),
-          userId: session.user.id,
+          userId: authResult.userId,
           role: "OWNER",
         },
         ...orgMembers
