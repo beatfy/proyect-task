@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
 import { canAccessTask, canModifyTask } from "@/lib/authz";
 import { taskCreateSchema, taskUpdateSchema } from "@/lib/validations/task";
+import { notifyTaskWebhook } from "@/lib/webhook";
 
 export async function GET(request: NextRequest) {
   try {
@@ -146,6 +147,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Webhook for OpenClaw
+    await notifyTaskWebhook({ id: task.id, title, description, priority, dueDate: dueDate ? new Date(dueDate).toISOString() : null, assigneeId: finalAssigneeId, creatorId: authResult.userId });
+
     return NextResponse.json({
       ...task,
       assignedTo: task.assignee?.email || null,
@@ -254,6 +258,11 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
+    // Webhook for OpenClaw on reassign
+    if (assigneeId !== undefined && assigneeId) {
+      await notifyTaskWebhook({ id, title: task.title, description: task.description, priority: priority || null, dueDate: dueDate ? new Date(dueDate).toISOString() : null, assigneeId, creatorId: authResult.userId });
+    }
+
     return NextResponse.json({
       ...task,
       assignedTo: task.assignee?.email || null,
@@ -270,6 +279,7 @@ export async function DELETE(request: NextRequest) {
     if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
