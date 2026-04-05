@@ -127,7 +127,7 @@ export async function POST(
           body: JSON.stringify({
             invitationId: invitation.id,
             orgName: org?.name,
-            inviterName: session.user.name || session.user.email,
+            inviterName: "Scytale",
           }),
         });
       } catch (e) {

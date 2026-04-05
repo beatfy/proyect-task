@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify user exists in database
-    const userExists = await prisma.user.findUnique({ where: { id: session.user!.id }, select: { id: true } });
+    const userExists = await prisma.user.findUnique({ where: { id: authResult.userId }, select: { id: true } });
     if (!userExists) {
       return NextResponse.json({ error: "Sesión inválida. Por favor, cierra sesión y vuelve a iniciar." }, { status: 401 });
     }
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
           role: "OWNER",
         },
         ...orgMembers
-          .filter((m) => m.userId !== session.user!.id)
+          .filter((m) => m.userId !== authResult.userId)
           .map((m) => ({
             id: cuid(),
             userId: m.userId,

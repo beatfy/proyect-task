@@ -103,7 +103,7 @@ export async function POST(
             },
             // All other org members as MEMBER
             ...orgMembers
-              .filter((m) => m.userId !== session.user!.id)
+              .filter((m) => m.userId !== authResult.userId)
               .map((m) => ({
                 id: cuid(),
                 userId: m.userId,

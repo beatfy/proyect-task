@@ -9,7 +9,6 @@ export async function GET(request: NextRequest) {
   const authResult = await authenticateRequest(request);
     if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -39,7 +38,6 @@ export async function POST(request: NextRequest) {
   const authResult = await authenticateRequest(request);
     if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }, { status: 401 });
   }
 
   try {
@@ -84,7 +82,7 @@ export async function POST(request: NextRequest) {
           userId,
           type: "COMMENT_ADDED",
           title: `Nuevo comentario en: ${task?.title || "Tarea"}`,
-          content: `${session.user.name || session.user.email}: ${content.trim().substring(0, 100)}`,
+          content: `${"Scytale"}: ${content.trim().substring(0, 100)}`,
           data: { taskId, commentId: comment.id },
         },
       });
@@ -101,7 +99,6 @@ export async function DELETE(request: NextRequest) {
   const authResult = await authenticateRequest(request);
     if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);

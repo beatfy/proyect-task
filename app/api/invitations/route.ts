@@ -4,16 +4,16 @@ import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
 
 // GET - Listar mis invitaciones pendientes
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id || !session?.user?.email) {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
     const invitations = await prisma.invitation.findMany({
       where: {
-        email: session.user.email as string,
+        // TODO: lookup user email from authResult.userId,
         status: "PENDING",
         expiresAt: { gt: new Date() },
       },

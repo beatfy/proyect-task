@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     const existingMember = await prisma.projectMember.findFirst({
       where: {
         projectId: inviteToken.projectId,
-        userId: session.user.id,
+        userId: authResult.userId,
       },
     });
 
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
       prisma.projectMember.create({
         data: {
           id: cuid(),
-          userId: session.user.id,
+          userId: authResult.userId,
           projectId: inviteToken.projectId,
           role: inviteToken.role,
         },
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
         id: cuid(),
         userId: inviteToken.createdBy,
         type: "PROJECT_JOINED",
-        title: `${session.user.name || session.user.email} se unió`,
+        title: `Un usuario se unió`,
         content: `Se unió a "${inviteToken.project.name}" via link de invitación`,
         data: { projectId: inviteToken.projectId },
       },

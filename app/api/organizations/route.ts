@@ -12,7 +12,7 @@ function slugify(text: string): string {
     .replace(/(^-|-$)+/g, "");
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const authResult = await authenticateRequest(request);
     if (!authResult) {

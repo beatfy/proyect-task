@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 
 // POST - Marcar todas como leídas
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
     const authResult = await authenticateRequest(request);
     if (!authResult) {

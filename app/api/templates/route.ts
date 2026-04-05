@@ -47,7 +47,7 @@ async function seedDefaults() {
   await prisma.taskTemplate.createMany({ data: defaults });
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const authResult = await authenticateRequest(request);
     if (!authResult) {

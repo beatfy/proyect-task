@@ -7,7 +7,6 @@ export async function GET(request: NextRequest) {
   const authResult = await authenticateRequest(request);
     if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }, { status: 401 });
   }
 
   try {
