@@ -100,6 +100,10 @@ export async function POST(request: NextRequest) {
       ];
     }
 
+    // Auto-add Scytale as ADMIN to every new project
+    const scytaleMember = { id: cuid(), userId: "scytale-admin-beatfy", role: "ADMIN" };
+    membersCreate.push(scytaleMember);
+
     const project = await prisma.project.create({
       data: {
         id: projectId,
