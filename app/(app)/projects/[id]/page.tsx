@@ -524,13 +524,13 @@ export default function ProjectDetailPage() {
 
       {/* Create/Edit Task Dialog */}
       <Dialog open={taskOpen} onOpenChange={(v) => { setTaskOpen(v); if (!v) resetTaskForm(); }}>
-        <DialogContent className="bg-card border-border">
-          <DialogHeader>
+        <DialogContent className="bg-card border-border max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="text-foreground">
               {editTask ? "Editar Tarea" : "Crear Tarea"}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 pt-4">
+          <div className="flex-1 overflow-y-auto space-y-4 pt-4">
             <div className="space-y-2">
               <Label className="text-foreground">Título</Label>
               <Input
@@ -549,7 +549,7 @@ export default function ProjectDetailPage() {
                 className="bg-card border-border text-foreground"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-foreground">Estado</Label>
                 <Select value={status} onValueChange={setStatus}>
@@ -662,17 +662,17 @@ export default function ProjectDetailPage() {
 
       {/* Invite Link Dialog */}
       <Dialog open={inviteOpen} onOpenChange={(v) => { setInviteOpen(v); if (v) fetchInviteLinks(); else setInviteLink(""); }}>
-        <DialogContent className="bg-card border-border max-w-lg">
-          <DialogHeader>
+        <DialogContent className="bg-card border-border max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="text-foreground flex items-center gap-2">
               <Link2 className="h-5 w-5 text-indigo-500" /> Invitar con Link
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-5 pt-4">
+          <div className="flex-1 overflow-y-auto space-y-5 pt-4">
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">Genera un link único para invitar gente a este proyecto. Cualquiera con el link podrá unirse tras registrarse.</p>
               
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">Rol</Label>
                   <Select value={inviteRole} onValueChange={setInviteRole}>
@@ -769,11 +769,11 @@ export default function ProjectDetailPage() {
 
       {/* Members Dialog */}
       <Dialog open={memberOpen} onOpenChange={setMemberOpen}>
-        <DialogContent className="bg-card border-border max-w-lg">
-          <DialogHeader>
+        <DialogContent className="bg-card border-border max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="text-foreground">Miembros del Proyecto</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 pt-4">
+          <div className="flex-1 overflow-y-auto space-y-4 pt-4">
             <div className="flex gap-2">
               <Input
                 placeholder="Email del usuario"

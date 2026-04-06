@@ -304,7 +304,7 @@ export default function OrganizationDetailPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card className="bg-card border-border">
           <CardContent className="flex items-center gap-3 pt-6">
             <Users className="h-8 w-8 text-indigo-500" />
@@ -448,12 +448,12 @@ export default function OrganizationDetailPage() {
 
       {/* Edit Org Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="bg-card border-border">
-          <DialogHeader>
+        <DialogContent className="bg-card border-border max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="text-foreground">Editar organización</DialogTitle>
             <DialogDescription>Modifica el nombre o descripción</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 pt-4">
+          <div className="flex-1 overflow-y-auto space-y-4 pt-4">
             <div className="space-y-2">
               <Label className="text-foreground">Nombre</Label>
               <Input
@@ -481,12 +481,12 @@ export default function OrganizationDetailPage() {
 
       {/* Create Project Dialog */}
       <Dialog open={projectOpen} onOpenChange={setProjectOpen}>
-        <DialogContent className="bg-card border-border">
-          <DialogHeader>
+        <DialogContent className="bg-card border-border max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="text-foreground">Nuevo proyecto</DialogTitle>
             <DialogDescription>Crea un proyecto dentro de esta organización</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 pt-4">
+          <div className="flex-1 overflow-y-auto space-y-4 pt-4">
             <div className="space-y-2">
               <Label className="text-foreground">Nombre</Label>
               <Input
@@ -532,12 +532,12 @@ export default function OrganizationDetailPage() {
 
       {/* Invite Member Dialog */}
       <Dialog open={inviteMemberOpen} onOpenChange={setInviteMemberOpen}>
-        <DialogContent className="bg-card border-border">
-          <DialogHeader>
+        <DialogContent className="bg-card border-border max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="text-foreground">Añadir miembro</DialogTitle>
             <DialogDescription>Invita por email a un usuario registrado</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 pt-4">
+          <div className="flex-1 overflow-y-auto space-y-4 pt-4">
             <div className="space-y-2">
               <Label className="text-foreground">Email</Label>
               <Input

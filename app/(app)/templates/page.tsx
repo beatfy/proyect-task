@@ -348,13 +348,13 @@ export default function TemplatesPage() {
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(v) => { setDialogOpen(v); if (!v) resetForm(); }}>
-        <DialogContent className="bg-card border-border max-w-lg">
-          <DialogHeader>
+        <DialogContent className="bg-card border-border max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="text-foreground">
               {editId ? "Editar Plantilla" : "Nueva Plantilla"}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="flex-1 overflow-y-auto space-y-4">
             <div>
               <Label className="text-foreground">Nombre *</Label>
               <Input
@@ -383,7 +383,7 @@ export default function TemplatesPage() {
                 className="bg-background border-border text-foreground"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label className="text-foreground">Estado inicial</Label>
                 <select

@@ -723,11 +723,11 @@ export default function TasksPage() {
 
       {/* Create Dialog */}
       <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
-        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 max-w-md">
-          <DialogHeader>
+        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="text-slate-900 dark:text-slate-100">Crear Tarea</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 pt-4">
+          <div className="flex-1 overflow-y-auto space-y-4 pt-4">
             <div className="space-y-2">
               <Label className="text-slate-700 dark:text-slate-300">Título</Label>
               <Input
@@ -760,7 +760,7 @@ export default function TasksPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-slate-700 dark:text-slate-300">Estado</Label>
                 <Select value={status} onValueChange={setStatus}>
@@ -864,11 +864,11 @@ export default function TasksPage() {
 
       {/* Edit Dialog */}
       <Dialog open={editOpen} onOpenChange={(v) => { setEditOpen(v); if (!v) { resetForm(); setEditingTask(null); }}}>
-        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 max-w-md">
-          <DialogHeader>
+        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="text-slate-900 dark:text-slate-100">Editar Tarea</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 pt-4">
+          <div className="flex-1 overflow-y-auto space-y-4 pt-4">
             <div className="space-y-2">
               <Label className="text-slate-700 dark:text-slate-300">Título</Label>
               <Input
@@ -887,7 +887,7 @@ export default function TasksPage() {
                 className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-slate-700 dark:text-slate-300">Estado</Label>
                 <Select value={status} onValueChange={setStatus}>
