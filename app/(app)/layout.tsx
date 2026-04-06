@@ -2,7 +2,7 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, FolderOpen, CheckSquare, Calendar, Settings, LogOut, ChevronLeft, ChevronRight, Mail, Bell, Sun, Moon, LayoutTemplate, Building2, FileText, MessageCircle } from "lucide-react";
+import { Home, FolderOpen, CheckSquare, Calendar, Settings, LogOut, ChevronLeft, ChevronRight, Mail, Bell, Sun, Moon, LayoutTemplate, Building2, FileText, MessageCircle, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -36,6 +36,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, setTheme } = useTheme();
 
   useEffect(() => {
@@ -43,6 +44,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       router.push("/login");
     }
   }, [status, router]);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
 
   if (status === "loading") {
     return (
@@ -57,11 +62,29 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <TooltipProvider delayDuration={0}>
       <div className="min-h-screen bg-background">
+        {/* Mobile overlay */}
+        {mobileMenuOpen && (
+          <div
+            className="fixed inset-0 z-30 bg-black/50 md:hidden"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+        )}
+
+        {/* Mobile top bar */}
+        <header className="md:hidden fixed top-0 left-0 right-0 z-20 h-14 bg-card border-b border-border flex items-center justify-between px-4">
+          <button onClick={() => setMobileMenuOpen(true)} className="p-2 -ml-2">
+            <Menu className="h-5 w-5" />
+          </button>
+          <Link href="/dashboard" className="text-lg font-bold text-indigo-600">TaskX</Link>
+          <NotificationCenter compact />
+        </header>
         {/* Sidebar */}
         <aside
           className={cn(
             "fixed left-0 top-0 z-40 h-screen bg-card border-r border-border transition-all duration-300 flex flex-col",
-            collapsed ? "w-[68px]" : "w-64"
+            "md:translate-x-0",
+            mobileMenuOpen ? "translate-x-0 w-64" : "-translate-x-full w-64",
+            collapsed ? "md:w-[68px]" : "md:w-64"
           )}
         >
           {/* Logo / Header */}
@@ -237,10 +260,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <main
           className={cn(
             "transition-all duration-300 min-h-screen",
-            collapsed ? "ml-[68px]" : "ml-64"
+            "ml-0 pt-14 md:pt-0",
+            collapsed ? "md:ml-[68px]" : "md:ml-64"
           )}
         >
-          <div className="p-6 pb-8">{children}</div>
+          <div className="p-4 md:p-6 pb-8">{children}</div>
         </main>
 
         {/* Tasky Chat Button */}
