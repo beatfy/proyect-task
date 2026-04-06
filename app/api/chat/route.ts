@@ -168,6 +168,7 @@ async function executeTool(
     case "task_create": {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const data: any = {
+        id: crypto.randomUUID(),
         title: args.title as string,
         creatorId: userId,
         priority: (args.priority as string) || "NONE",
