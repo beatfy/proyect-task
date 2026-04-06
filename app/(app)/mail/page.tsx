@@ -12,6 +12,8 @@ import {
   Loader2,
   ArrowLeft,
   ChevronRight,
+  Menu,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -73,6 +75,7 @@ export default function MailPage() {
   const [activeFolder, setActiveFolder] = useState("INBOX");
   const [selectedEmail, setSelectedEmail] = useState<EmailDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const checkConfig = useCallback(async () => {
     try {
@@ -118,6 +121,10 @@ export default function MailPage() {
       loadEmails();
     }
   }, [config]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [activeFolder]);
 
   const handleSaveConfig = async () => {
     if (!host || !emailAddr || !password) {
@@ -311,10 +318,39 @@ export default function MailPage() {
         </div>
       </div>
 
+      {/* Mobile overlay */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Mobile header */}
+      <div className="md:hidden flex items-center justify-between px-4 py-3 bg-card border-b border-border">
+        <button onClick={() => setMobileMenuOpen(true)} className="p-2 -ml-2">
+          <Menu className="h-5 w-5" />
+        </button>
+        <span className="font-semibold text-foreground">
+          {folders.find(f => f.name === activeFolder)?.label || "Mail"}
+        </span>
+        <div className="w-8" />
+      </div>
+
       <div className="flex gap-4 h-[calc(100vh-220px)]">
         {/* Folder sidebar */}
-        <div className="w-48 flex-shrink-0">
-          <Card className="bg-card border-border h-full">
+        <div className={cn(
+          "fixed left-0 top-0 z-50 h-screen bg-card border-r border-border transition-transform duration-300 flex flex-col",
+          mobileMenuOpen ? "translate-x-0 w-64" : "-translate-x-full w-64",
+          "md:translate-x-0 md:w-48 md:static"
+        )}>
+          <div className="flex items-center justify-between p-3 border-b border-border md:hidden">
+            <span className="font-semibold text-foreground">Carpetas</span>
+            <button onClick={() => setMobileMenuOpen(false)} className="p-2 -mr-2">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <Card className="bg-card border-0 md:border-border h-full md:rounded-lg shadow-lg md:shadow-none">
             <CardContent className="p-2 space-y-1">
               {folders.map((folder) => (
                 <button
@@ -339,7 +375,8 @@ export default function MailPage() {
         <div
           className={cn(
             "flex-shrink-0 overflow-y-auto",
-            selectedEmail ? "w-80" : "flex-1"
+            selectedEmail ? "hidden md:w-80" : "md:flex-1",
+            !selectedEmail && "flex-1"
           )}
         >
           <Card className="bg-card border-border h-full">
@@ -405,14 +442,14 @@ export default function MailPage() {
 
         {/* Email detail */}
         {selectedEmail && (
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto w-full">
             <Card className="bg-card border-border h-full">
               <CardContent className="p-4">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setSelectedEmail(null)}
-                  className="mb-3 text-muted-foreground"
+                  className="mb-3 text-muted-foreground md:hidden"
                 >
                   <ArrowLeft className="h-4 w-4 mr-1" />
                   Volver
