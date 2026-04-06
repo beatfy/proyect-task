@@ -2,13 +2,14 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, FolderOpen, CheckSquare, Calendar, Settings, LogOut, ChevronLeft, ChevronRight, Mail, Bell, Sun, Moon, LayoutTemplate, Building2, FileText } from "lucide-react";
+import { Home, FolderOpen, CheckSquare, Calendar, Settings, LogOut, ChevronLeft, ChevronRight, Mail, Bell, Sun, Moon, LayoutTemplate, Building2, FileText, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import Link from "next/link";
 import NotificationCenter from "@/components/notifications/NotificationCenter";
+import ChatSidebar from "@/components/chat/ChatSidebar";
 import {
   Tooltip,
   TooltipContent,
@@ -34,6 +35,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const { theme, setTheme } = useTheme();
 
   useEffect(() => {
@@ -240,6 +242,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         >
           <div className="p-6 pb-8">{children}</div>
         </main>
+
+        {/* Tasky Chat Button */}
+        <button
+          onClick={() => setChatOpen(true)}
+          className="fixed bottom-6 right-6 z-30 w-14 h-14 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center"
+          title="Chat con Tasky"
+        >
+          <MessageCircle className="w-6 h-6" />
+        </button>
+
+        {/* Tasky Chat Sidebar */}
+        <ChatSidebar
+          isOpen={chatOpen}
+          onClose={() => setChatOpen(false)}
+        />
       </div>
     </TooltipProvider>
   );
