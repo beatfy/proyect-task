@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
+import crypto from "crypto";
 
 // ---- Tool definitions for function calling ----
 const TOOLS = [
@@ -165,13 +166,13 @@ async function executeTool(
 ): Promise<unknown> {
   switch (name) {
     case "task_create": {
-      const data: Record<string, unknown> = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: any = {
         title: args.title as string,
         creatorId: userId,
+        priority: (args.priority as string) || "NONE",
       };
       if (args.description) data.description = args.description;
-      if (args.priority) data.priority = args.priority;
-      else data.priority = "NONE";
       if (args.dueDate) data.dueDate = new Date(args.dueDate as string);
       if (args.assigneeId) data.assigneeId = args.assigneeId;
       if (args.parentId) data.parentId = args.parentId;
@@ -183,7 +184,8 @@ async function executeTool(
 
     case "task_update": {
       const { id, ...updates } = args;
-      const data: Record<string, unknown> = {};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: any = {};
       if (updates.title) data.title = updates.title;
       if (updates.description) data.description = updates.description;
       if (updates.status) data.status = updates.status;
@@ -204,7 +206,8 @@ async function executeTool(
     }
 
     case "task_list": {
-      const where: Record<string, unknown> = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const where: any = {
         OR: [
           { creatorId: userId },
           { assigneeId: userId },
@@ -244,7 +247,7 @@ async function executeTool(
     case "task_move": {
       const task = await prisma.task.update({
         where: { id: args.id as string },
-        data: { status: args.status },
+        data: { status: args.status as string },
       });
       return { success: true, task: { id: task.id, title: task.title, status: task.status } };
     }
@@ -284,19 +287,24 @@ async function executeTool(
     }
 
     case "time_log": {
+      const hours = args.hours as number;
       const entry = await prisma.timeEntry.create({
         data: {
+          id: crypto.randomUUID(),
           taskId: args.taskId as string,
           userId,
-          hours: args.hours as number,
+          startTime: new Date(Date.now() - hours * 3600000),
+          endTime: new Date(),
+          duration: Math.round(hours * 3600),
           description: (args.description as string) || "",
         },
       });
-      return { success: true, entry: { id: entry.id, hours: entry.hours } };
+      return { success: true, entry: { id: entry.id, hours } };
     }
 
     case "project_create": {
-      const data: Record<string, unknown> = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: any = {
         name: args.name as string,
         createdById: userId,
       };
@@ -307,7 +315,7 @@ async function executeTool(
       const project = await prisma.project.create({ data });
       // Add creator as member
       await prisma.projectMember.create({
-        data: { projectId: project.id, userId, role: "ADMIN" },
+        data: { id: crypto.randomUUID(), projectId: project.id, userId, role: "ADMIN" },
       });
       return { success: true, project: { id: project.id, name: project.name } };
     }
@@ -420,19 +428,20 @@ export async function POST(request: NextRequest) {
 
     messages.push({ role: "user", content: message });
 
-    // Call OpenAI
-    const apiKey = process.env.OPENAI_API_KEY;
+    // Call LLM (GLM via OpenAI-compatible API)
+    const apiKey = process.env.GLM_API_KEY || process.env.OPENAI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { error: "OPENAI_API_KEY no configurada" },
+        { error: "API key no configurada (GLM_API_KEY o OPENAI_API_KEY)" },
         { status: 500 }
       );
     }
 
-    const model = process.env.CHAT_MODEL || "gpt-4o-mini";
+    const baseUrl = process.env.GLM_BASE_URL || process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
+    const model = process.env.CHAT_MODEL || "glm-5";
 
     // First call — may return tool calls
-    const firstResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+    const firstResponse = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -502,7 +511,7 @@ export async function POST(request: NextRequest) {
       ...toolResults,
     ];
 
-    const secondResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+    const secondResponse = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
