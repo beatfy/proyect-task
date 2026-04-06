@@ -154,7 +154,7 @@ export default function NotificationCenter({ compact = false }: Props) {
         </Button>
 
         {open && (
-          <div className="absolute left-0 top-full mt-2 w-80 bg-popover text-popover-foreground rounded-lg shadow-lg border border-border z-50">
+          <div className="absolute right-0 md:right-auto md:left-0 top-full mt-2 w-80 bg-popover text-popover-foreground rounded-lg shadow-lg border border-border z-50">
             <div className="p-3 border-b border-border flex items-center justify-between">
               <h3 className="font-semibold text-sm">Notificaciones</h3>
               {unreadCount > 0 && (
