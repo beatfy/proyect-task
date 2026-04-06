@@ -933,11 +933,11 @@ export default function TasksPage() {
 
       {/* Detail Dialog */}
       <Dialog open={detailOpen} onOpenChange={(v) => { setDetailOpen(v); if (!v) { setDetailTask(null); setActiveTimer(null); setTimerSeconds(0); }}}>
-        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="text-slate-900 dark:text-slate-100">{detailTask?.title}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-6 pt-4">
+          <div className="flex-1 overflow-y-auto space-y-6 pt-4">
             {/* Description */}
             {detailTask?.description && (
               <div className="text-slate-600 dark:text-slate-400">{detailTask.description}</div>
