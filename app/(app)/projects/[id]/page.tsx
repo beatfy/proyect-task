@@ -587,7 +587,7 @@ export default function ProjectDetailPage() {
               />
             </div>
             {/* Multi-assignee dropdown */}
-            <div className="space-y-2" ref={assigneeDropdownRef}>
+            <div className="space-y-2 relative" ref={assigneeDropdownRef}>
               <Label className="text-foreground">Asignar a</Label>
               <button
                 type="button"
@@ -623,7 +623,7 @@ export default function ProjectDetailPage() {
               )}
 
               {assigneeDropdownOpen && (
-                <div className="absolute z-50 mt-1 w-full max-w-[calc(100%-3rem)] rounded-md border border-border bg-popover shadow-lg max-h-60 overflow-y-auto">
+                <div className="relative z-50 mt-1 w-full rounded-md border border-border bg-popover shadow-lg max-h-60 overflow-y-auto">
                   {members.length === 0 ? (
                     <div className="p-3 text-sm text-muted-foreground text-center">No hay miembros en el proyecto</div>
                   ) : (
