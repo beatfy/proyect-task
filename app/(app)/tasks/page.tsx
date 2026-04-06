@@ -190,7 +190,7 @@ export default function TasksPage() {
   // Fetch members when project changes
   useEffect(() => {
     if (projectId && projectId !== "none") {
-      fetch(`//api/projects/${projectId}/members`)
+      fetch(`/api/projects/${projectId}/members`)
         .then(r => r.ok ? r.json() : [])
         .then(setProjectMembers)
         .catch(() => setProjectMembers([]));
