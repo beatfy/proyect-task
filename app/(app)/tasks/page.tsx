@@ -686,9 +686,9 @@ export default function TasksPage() {
             </Button>
           </div>
 
-          {/* Templates Dropdown */}
+          {/* Templates Dropdown - Desktop only */}
           <DropdownMenu open={templatesOpen} onOpenChange={setTemplatesOpen}>
-            <DropdownMenuTrigger asChild>
+            <DropdownMenuTrigger asChild className="hidden md:flex">
               <Button variant="outline" className="border-slate-200 dark:border-slate-700 dark:text-slate-300">
                 <LayoutTemplate className="h-4 w-4 mr-2" /> Templates
               </Button>
