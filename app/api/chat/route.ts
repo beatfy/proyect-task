@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
+import { notifyTaskWebhook } from "@/lib/webhook";
 
 // ---- Tool definitions for function calling ----
 const TOOLS = [
@@ -180,6 +181,10 @@ async function executeTool(
       if (projectId) data.projectId = projectId;
 
       const task = await prisma.task.create({ data });
+      // Notify via webhook if assigned to someone
+      if (data.assigneeId) {
+        await notifyTaskWebhook({ id: task.id, title: task.title, description: task.description, priority: task.priority, dueDate: task.dueDate?.toISOString() || null, assigneeId: data.assigneeId, creatorId: userId });
+      }
       return { success: true, task: { id: task.id, title: task.title, status: task.status } };
     }
 
