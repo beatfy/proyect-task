@@ -56,7 +56,33 @@ export async function POST(
     });
 
     if (!user) {
-      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+      // User doesn't exist yet — create an invite link and return it
+      const crypto = await import("crypto");
+      const token = crypto.randomBytes(24).toString("hex");
+      const expiresDays = 7;
+      const expiresAt = new Date(Date.now() + expiresDays * 24 * 60 * 60 * 1000);
+
+      await prisma.projectInviteToken.create({
+        data: {
+          id: cuid(),
+          token,
+          projectId: id,
+          createdBy: authResult.userId,
+          role,
+          expiresAt,
+          maxUses: 1,
+        },
+      });
+
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || `https://xtask.space`;
+      const inviteUrl = `${appUrl}/join/${token}`;
+
+      return NextResponse.json({
+        invite: true,
+        message: `El usuario no tiene cuenta. Comparte este enlace de invitación:`,
+        inviteUrl,
+        token,
+      }, { status: 200 });
     }
 
     // Check if already member

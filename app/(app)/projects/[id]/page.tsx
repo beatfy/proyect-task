@@ -304,12 +304,25 @@ export default function ProjectDetailPage() {
       });
 
       if (res.ok) {
-        const member = await res.json();
-        setMembers([...members, member]);
-        setNewMemberEmail("");
-        setNewMemberRole("MEMBER");
-        setMemberOpen(false);
-        toast.success("Miembro añadido");
+        const data = await res.json();
+        if (data.invite) {
+          // User doesn't have an account — show invite link
+          setNewMemberEmail("");
+          setNewMemberRole("MEMBER");
+          setMemberOpen(false);
+          try {
+            await navigator.clipboard.writeText(data.inviteUrl);
+            toast.success("Enlace de invitación copiado al portapapeles");
+          } catch {
+            toast.success(data.message + " " + data.inviteUrl);
+          }
+        } else {
+          setMembers([...members, data]);
+          setNewMemberEmail("");
+          setNewMemberRole("MEMBER");
+          setMemberOpen(false);
+          toast.success("Miembro añadido");
+        }
       } else {
         const data = await res.json();
         toast.error(data.error || "Error al añadir");
