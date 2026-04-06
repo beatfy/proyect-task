@@ -537,9 +537,18 @@ export default function TasksPage() {
     }
   };
 
+  const MAX_CLIENT_FILE_SIZE = 4 * 1024 * 1024; // 4MB
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !detailTask) return;
+
+    // Validación client-side de tamaño
+    if (file.size > MAX_CLIENT_FILE_SIZE) {
+      toast.error(`El archivo supera el límite de 4MB (${(file.size / 1024 / 1024).toFixed(1)}MB). Reduce el tamaño o comprime la imagen.`);
+      e.target.value = "";
+      return;
+    }
 
     setUploading(true);
     try {
@@ -557,12 +566,14 @@ export default function TasksPage() {
         setAttachments([...attachments, att]);
         toast.success("Archivo subido");
       } else {
-        toast.error("Error al subir archivo");
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.error || "Error al subir archivo");
       }
     } catch {
       toast.error("Error al subir archivo");
     } finally {
       setUploading(false);
+      e.target.value = "";
     }
   };
 
@@ -1052,7 +1063,7 @@ export default function TasksPage() {
                 ))}
                 <div className="flex items-center gap-2">
                   <label className="cursor-pointer">
-                    <input type="file" className="hidden" onChange={handleUpload} disabled={uploading} />
+                    <input type="file" className="hidden" onChange={handleUpload} disabled={uploading} accept="image/jpeg,image/png,image/gif,image/webp,application/pdf" />
                     <Button variant="outline" size="sm" asChild disabled={uploading}>
                       <span>
                         <Upload className="h-4 w-4 mr-2" />

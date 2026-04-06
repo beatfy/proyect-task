@@ -12,7 +12,7 @@ const ALLOWED_MIME_TYPES = [
   "application/pdf",
 ];
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB (límite seguro bajo Vercel serverless 4.5MB)
 
 function sanitizeFilename(filename: string): string {
   return filename
@@ -71,21 +71,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate MIME type
-    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+    // Validate MIME type — infer from extension if browser doesn't send it
+    let mimeType = file.type;
+    if (!mimeType) {
+      const fileExt = file.name.split('.').pop()?.toLowerCase();
+      const mimeMap: Record<string, string> = {
+        jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+        gif: 'image/gif', webp: 'image/webp', pdf: 'application/pdf',
+      };
+      mimeType = (fileExt && mimeMap[fileExt]) || '';
+    }
+
+    if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
       return NextResponse.json(
         {
-          error: `Tipo de archivo no permitido: ${file.type}. Solo se permiten imágenes (JPEG, PNG, GIF, WebP) y PDF.`,
+          error: `Tipo de archivo no permitido: ${mimeType || 'desconocido'}. Solo se permiten imágenes (JPEG, PNG, GIF, WebP) y PDF.`,
         },
         { status: 400 }
       );
     }
 
-    // Validate file size
+    // Validate file size (4MB límite seguro bajo Vercel serverless)
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
         {
-          error: `El archivo supera el límite de 5MB (${(file.size / 1024 / 1024).toFixed(1)}MB)`,
+          error: `El archivo supera el límite de 4MB (${(file.size / 1024 / 1024).toFixed(1)}MB)`,
         },
         { status: 400 }
       );
@@ -105,8 +115,8 @@ export async function POST(request: NextRequest) {
 
     // Determine type
     let type = "document";
-    if (file.type.startsWith("image/")) type = "image";
-    else if (file.type.includes("pdf")) type = "pdf";
+    if (mimeType.startsWith("image/")) type = "image";
+    else if (mimeType.includes("pdf")) type = "pdf";
 
     // Save to database with Blob URL
     const attachment = await prisma.attachment.create({
