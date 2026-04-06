@@ -326,14 +326,16 @@ async function executeTool(
 }
 
 // ---- Build system prompt ----
-function buildSystemPrompt(
+async function buildSystemPrompt(
   userName: string,
   userId: string,
   projectName?: string,
   projectId?: string,
   orgName?: string,
-  orgId?: string
-): string {
+  orgId?: string,
+  taskList?: string,
+  memberList?: string
+): Promise<string> {
   const currentDate = new Date().toISOString().split("T")[0];
   return `Eres Tasky, el asistente de IA de TaskX-2. Ayudas a gestionar proyectos, tareas y equipos de forma directa y eficiente.
 
@@ -356,7 +358,14 @@ function buildSystemPrompt(
 - Nunca inventes IDs. Usa los datos del contexto.
 - Si el usuario pide algo fuera de tu alcance, dile qué puede hacer y sugiere acción manual.
 - Respuestas concisas. Máximo 3-4 líneas salvo que se pida detalle.
-- Para acciones destructivas (eliminar), confirma brevemente antes.`;
+- Para acciones destructivas (eliminar), confirma brevemente antes.
+- MUY IMPORTANTE: Para actualizar/mover/eliminar tareas, usa SIEMPRE el ID exacto del listado de tareas actual. NUNCA inventes IDs.
+
+## Tareas del proyecto actual
+${taskList || "Sin proyecto activo."}
+
+## Miembros del proyecto
+${memberList || "Sin proyecto activo."}`;
 }
 
 // ---- Main handler ----
@@ -406,13 +415,35 @@ export async function POST(request: NextRequest) {
       select: { name: true },
     });
 
-    const systemPrompt = buildSystemPrompt(
+    // Load project tasks and members for context
+    let taskList = "Sin proyecto activo.";
+    let memberList = "Sin proyecto activo.";
+
+    if (projectId) {
+      const tasks = await prisma.task.findMany({
+        where: { projectId },
+        select: { id: true, title: true, status: true, priority: true, dueDate: true, assigneeId: true },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      });
+      taskList = tasks.map(t => `- [${t.id}] "${t.title}" | ${t.status} | ${t.priority} | vence: ${t.dueDate?.toISOString().split("T")[0] || "sin fecha"}`).join("\n") || "No hay tareas.";
+
+      const members = await prisma.projectMember.findMany({
+        where: { projectId },
+        select: { userId: true, role: true, user: { select: { name: true, email: true } } },
+      });
+      memberList = members.map(m => `- [${m.userId}] ${m.user?.name || m.user?.email} (${m.role})`).join("\n") || "No hay miembros.";
+    }
+
+    const systemPrompt = await buildSystemPrompt(
       user?.name || "Usuario",
       authResult.userId,
       projectName,
       projectId,
       orgName,
-      organizationId
+      organizationId,
+      taskList,
+      memberList
     );
 
     // Build messages for OpenAI
