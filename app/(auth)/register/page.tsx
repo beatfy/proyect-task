@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,8 @@ import { toast } from "sonner";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get("redirect") || "/dashboard";
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,7 +31,8 @@ export default function RegisterPage() {
 
       if (response.ok) {
         toast.success("Cuenta creada. Inicia sesión.");
-        router.push("/login");
+        // Mantener el redirect al ir al login
+        router.push(`/login?redirect=${encodeURIComponent(redirectUrl)}`);
       } else {
         const data = await response.json();
         toast.error(data.error || "Error al crear cuenta");
@@ -40,6 +43,11 @@ export default function RegisterPage() {
       setLoading(false);
     }
   };
+
+  // Mantener redirect en el link de login
+  const loginHref = redirectUrl !== "/dashboard"
+    ? `/login?redirect=${encodeURIComponent(redirectUrl)}`
+    : "/login";
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
@@ -90,7 +98,7 @@ export default function RegisterPage() {
           </form>
           <div className="mt-4 text-center text-sm text-muted-foreground">
             ¿Ya tienes cuenta?{" "}
-            <Link href="/login" className="text-primary hover:underline">
+            <Link href={loginHref} className="text-primary hover:underline">
               Inicia sesión
             </Link>
           </div>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,29 +15,33 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get("redirect") || "/dashboard";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    // Usar signIn sin redirección automática para tener control manual
     const result = await signIn("credentials", {
       email,
       password,
-      redirect: false, // No redirigir automáticamente
+      redirect: false,
     });
 
     if (result?.error) {
       toast.error("Credenciales incorrectas");
       setLoading(false);
     } else if (result?.ok) {
-      // Esperar un momento corto para asegurar que la sesión se establezca
-      // y luego forzar la navegación al dashboard
       setTimeout(() => {
-        router.push('/dashboard');
+        router.push(redirectUrl);
       }, 300);
     }
   };
+
+  // Construir URL de registro manteniendo el redirect
+  const registerHref = redirectUrl !== "/dashboard" 
+    ? `/register?redirect=${encodeURIComponent(redirectUrl)}`
+    : "/register";
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
@@ -76,12 +80,12 @@ export default function LoginPage() {
           </form>
           <div className="mt-2 text-right text-sm">
             <Link href="/forgot-password" className="text-primary hover:underline">
-              Forgot password?
+              ¿Olvidaste tu contraseña?
             </Link>
           </div>
           <div className="mt-4 text-center text-sm text-muted-foreground">
             ¿No tienes cuenta?{" "}
-            <Link href="/register" className="text-primary hover:underline">
+            <Link href={registerHref} className="text-primary hover:underline">
               Regístrate
             </Link>
           </div>
