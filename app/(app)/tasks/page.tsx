@@ -1028,10 +1028,10 @@ export default function TasksPage() {
                 {attachments.map((a) => (
                   <div key={a.id} className="flex items-center gap-3 p-2 bg-slate-50 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">
                     {a.type === "image" ? (
-                      <a href={a.url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                      <a href={`/api/attachments/${a.id}`} target="_blank" rel="noopener noreferrer" className="shrink-0">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={a.url}
+                          src={`/api/attachments/${a.id}`}
                           alt={a.name}
                           className="h-10 w-10 rounded object-cover border border-slate-200 dark:border-slate-700"
                         />
@@ -1041,7 +1041,7 @@ export default function TasksPage() {
                     ) : (
                       <File className="h-5 w-5 text-slate-500 dark:text-slate-400 shrink-0" />
                     )}
-                    <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-sm text-slate-700 dark:text-slate-300 hover:underline truncate min-w-0">
+                    <a href={`/api/attachments/${a.id}`} target="_blank" rel="noopener noreferrer" className="text-sm text-slate-700 dark:text-slate-300 hover:underline truncate min-w-0">
                       {a.name}
                     </a>
                     <span className="text-xs text-slate-400 shrink-0">{formatBytes(a.size)}</span>

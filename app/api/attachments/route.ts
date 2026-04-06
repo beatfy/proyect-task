@@ -97,10 +97,10 @@ export async function POST(request: NextRequest) {
     const ext = safeName.split(".").pop() || "bin";
     const uniqueName = `${timestamp}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-    // Upload to Vercel Blob
+    // Upload to Vercel Blob (private)
     const key = `task-attachments/${taskId}/${uniqueName}`;
     const blob = await put(key, file, {
-      access: "public",
+      access: "private",
     });
 
     // Determine type
