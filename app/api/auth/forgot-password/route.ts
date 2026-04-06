@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?token=${token}`;
 
       await resend.emails.send({
-        from: "TaskX <noreply@taskx.app>",
+        from: "TaskX <noreply@beatfy.app>",
         to: email,
         subject: "Reset your TaskX password",
         html: `
