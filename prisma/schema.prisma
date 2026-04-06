@@ -30,6 +30,7 @@ model User {
   emailConfig  EmailConfig?
   organizations OrganizationMember[]
   apiKeys      ApiKey[]
+  resetTokens  PasswordResetToken[]
 }
 
 model Project {
@@ -268,6 +269,16 @@ model ApiKey {
   lastUsedAt  DateTime?
   createdAt   DateTime  @default(now())
   active      Boolean   @default(true)
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
 }
 
 model EmailConfig {

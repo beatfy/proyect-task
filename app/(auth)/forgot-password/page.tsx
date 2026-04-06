@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,41 +8,61 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 
-export default function LoginPage() {
+export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const [sent, setSent] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    // Usar signIn sin redirección automática para tener control manual
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false, // No redirigir automáticamente
-    });
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
 
-    if (result?.error) {
-      toast.error("Credenciales incorrectas");
+      if (res.ok) {
+        setSent(true);
+      } else {
+        toast.error("Something went wrong");
+      }
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
       setLoading(false);
-    } else if (result?.ok) {
-      // Esperar un momento corto para asegurar que la sesión se establezca
-      // y luego forzar la navegación al dashboard
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 300);
     }
   };
+
+  if (sent) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-3xl font-bold text-primary">TaskX</CardTitle>
+            <CardDescription>Check your email</CardDescription>
+          </CardHeader>
+          <CardContent className="text-center space-y-4">
+            <p className="text-muted-foreground">
+              If an account exists with <strong>{email}</strong>, you&apos;ll receive a password reset link shortly.
+            </p>
+            <Link href="/login" className="text-primary hover:underline text-sm">
+              Back to login
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-bold text-primary">TaskX</CardTitle>
-          <CardDescription>Inicia sesión para continuar</CardDescription>
+          <CardDescription>Reset your password</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -59,30 +77,13 @@ export default function LoginPage() {
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Cargando..." : "Iniciar Sesión"}
+              {loading ? "Sending..." : "Send reset link"}
             </Button>
           </form>
-          <div className="mt-2 text-right text-sm">
-            <Link href="/forgot-password" className="text-primary hover:underline">
-              Forgot password?
-            </Link>
-          </div>
           <div className="mt-4 text-center text-sm text-muted-foreground">
-            ¿No tienes cuenta?{" "}
-            <Link href="/register" className="text-primary hover:underline">
-              Regístrate
+            <Link href="/login" className="text-primary hover:underline">
+              Back to login
             </Link>
           </div>
         </CardContent>
