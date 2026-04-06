@@ -152,6 +152,10 @@ export default function TasksPage() {
   const [dueDate, setDueDate] = useState("");
   const [assignedTo, setAssignedTo] = useState("");
   const [projectId, setProjectId] = useState("none");
+  const [projectMembers, setProjectMembers] = useState<{id:string; role:string; user:{id:string; name:string|null; email:string; image:string|null}}[]>([]);
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
+  const [assigneeDropdownOpen, setAssigneeDropdownOpen] = useState(false);
+  const assigneeDropdownRef = useRef<HTMLDivElement>(null);
 
   // Subtasks
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
@@ -181,6 +185,30 @@ export default function TasksPage() {
     fetchProjects();
     fetchTemplates();
     fetchActiveTimer();
+  }, []);
+
+  // Fetch members when project changes
+  useEffect(() => {
+    if (projectId && projectId !== "none") {
+      fetch(`//api/projects/${projectId}/members`)
+        .then(r => r.ok ? r.json() : [])
+        .then(setProjectMembers)
+        .catch(() => setProjectMembers([]));
+    } else {
+      setProjectMembers([]);
+    }
+    setAssigneeIds([]);
+  }, [projectId]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (assigneeDropdownRef.current && !assigneeDropdownRef.current.contains(e.target as Node)) {
+        setAssigneeDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
   const fetchTemplates = async () => {
@@ -337,6 +365,18 @@ export default function TasksPage() {
     setDueDate("");
     setAssignedTo("");
     setProjectId("none");
+    setAssigneeIds([]);
+  };
+
+  const toggleAssignee = (userId: string) => {
+    setAssigneeIds(prev =>
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    );
+  };
+
+  const getMemberName = (userId: string) => {
+    const m = projectMembers.find(m => m.user.id === userId);
+    return m ? (m.user.name || m.user.email) : userId;
   };
 
   const handleCreate = async () => {
@@ -352,7 +392,8 @@ export default function TasksPage() {
         body: JSON.stringify({
           title, description, status, priority,
           dueDate: dueDate || null,
-          assignedTo: assignedTo || null, projectId: projectId === "none" ? null : projectId || null
+          assignedTo: assignedTo || null, projectId: projectId === "none" ? null : projectId || null,
+          assigneeIds: assigneeIds.length > 0 ? assigneeIds : undefined
         }),
       });
 
@@ -710,14 +751,63 @@ export default function TasksPage() {
                 className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
               />
             </div>
-            <div className="space-y-2">
-              <Label className="text-slate-700 dark:text-slate-300">Asignar a (email)</Label>
-              <Input
-                placeholder="email@ejemplo.com"
-                value={assignedTo}
-                onChange={(e) => setAssignedTo(e.target.value)}
-                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
-              />
+            <div className="space-y-2" ref={assigneeDropdownRef}>
+              <Label className="text-slate-700 dark:text-slate-300">Asignar usuario</Label>
+              {projectMembers.length > 0 ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setAssigneeDropdownOpen(!assigneeDropdownOpen)}
+                    className="flex items-center justify-between w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700"
+                  >
+                    <span className="truncate">
+                      {assigneeIds.length === 0
+                        ? "Seleccionar asignados..."
+                        : assigneeIds.length === 1
+                        ? getMemberName(assigneeIds[0])
+                        : `${assigneeIds.length} asignados`}
+                    </span>
+                    <ChevronDown className={cn("h-4 w-4 opacity-50 transition-transform", assigneeDropdownOpen && "rotate-180")} />
+                  </button>
+                  {assigneeIds.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {assigneeIds.map(uid => (
+                        <Badge key={uid} variant="secondary" className="gap-1 pr-1 border bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-700">
+                          {getMemberName(uid)}
+                          <button type="button" onClick={(e) => { e.stopPropagation(); toggleAssignee(uid); }} className="ml-1 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800 p-0.5">
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  {assigneeDropdownOpen && (
+                    <div className="relative z-50 mt-1 w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg max-h-60 overflow-y-auto">
+                      {projectMembers.map((m) => (
+                        <label key={m.user.id} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={assigneeIds.includes(m.user.id)}
+                            onChange={() => toggleAssignee(m.user.id)}
+                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <div className="w-6 h-6 rounded-full bg-indigo-500 text-white flex items-center justify-center text-xs">
+                            {m.user.name?.[0]?.toUpperCase() || m.user.email[0].toUpperCase()}
+                          </div>
+                          <span className="text-sm text-slate-700 dark:text-slate-300">{m.user.name || m.user.email}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <Input
+                  placeholder="Selecciona un proyecto primero"
+                  value={assignedTo}
+                  onChange={(e) => setAssignedTo(e.target.value)}
+                  className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
+                />
+              )}
             </div>
             <Button onClick={handleCreate} className="w-full">
               Crear Tarea
