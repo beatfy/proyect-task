@@ -661,7 +661,20 @@ export default function TasksPage() {
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Gestiona todas tus tareas</p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center bg-white dark:bg-slate-900 rounded-lg p-1 border border-slate-200 dark:border-slate-700">
+          {/* Mobile view selector - dropdown */}
+          <Select value={view} onValueChange={(v: ViewType) => setView(v)}>
+            <SelectTrigger className="w-[140px] md:hidden">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+              <SelectItem value="kanban">Kanban</SelectItem>
+              <SelectItem value="table">Tabla</SelectItem>
+              <SelectItem value="list">Lista</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Desktop view selector - buttons */}
+          <div className="hidden md:flex items-center bg-white dark:bg-slate-900 rounded-lg p-1 border border-slate-200 dark:border-slate-700">
             <Button variant={view === "kanban" ? "default" : "ghost"} size="sm" onClick={() => setView("kanban")} className="h-8 px-3">
               <LayoutGrid className="h-4 w-4 mr-1" /> Kanban
             </Button>
@@ -1182,7 +1195,8 @@ export default function TasksPage() {
       {/* TABLE VIEW */}
       {view === "table" && (
         <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-900">
-          <table className="w-full">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[800px]">
             <thead className="bg-slate-50 dark:bg-slate-800">
               <tr>
                 <th className="text-left p-3 text-sm font-medium text-slate-600 dark:text-slate-400">Tarea</th>
@@ -1239,6 +1253,7 @@ export default function TasksPage() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -1258,7 +1273,7 @@ export default function TasksPage() {
                       <div className={cn("w-2 h-2 rounded-full flex-shrink-0", columns.find(c => c.id === task.status)?.color)} />
                       <div className="min-w-0 flex-1">
                         <h3 className="font-medium text-slate-900 dark:text-slate-100 truncate">{task.title}</h3>
-                        <div className="flex items-center gap-3 mt-1">
+                        <div className="flex items-center gap-2 md:gap-3 mt-1 flex-wrap">
                           <Badge variant="secondary" className={cn("text-[10px] border", statusColors[task.status])}>{statusLabels[task.status]}</Badge>
                           {task.priority !== "NONE" && (
                             <Badge variant="secondary" className={cn("text-[10px] border", priorityColors[task.priority])}>{priorityLabels[task.priority]}</Badge>
@@ -1270,19 +1285,19 @@ export default function TasksPage() {
                             </span>
                           )}
                           {(task.project?.name || getProjectName(task.projectId)) && (
-                            <span className="text-xs text-slate-500 dark:text-slate-400">{task.project?.name || getProjectName(task.projectId)}</span>
+                            <span className="hidden md:inline text-xs text-slate-500 dark:text-slate-400">{task.project?.name || getProjectName(task.projectId)}</span>
                           )}
                           {task.assignedTo && (
-                            <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1"><User className="h-3 w-3" />{task.assignedTo}</span>
+                            <span className="hidden md:inline text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1"><User className="h-3 w-3" />{task.assignedTo}</span>
                           )}
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost" size="sm" onClick={() => handleEdit(task)} className="h-8 w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700">
+                      <Button variant="ghost" size="sm" onClick={() => handleEdit(task)} className="h-10 w-10 md:h-8 md:w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700">
                         <Pencil className="h-4 w-4 text-slate-500 dark:text-slate-400" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(task.id)} className="h-8 w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700">
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete(task.id)} className="h-10 w-10 md:h-8 md:w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700">
                         <Trash2 className="h-4 w-4 text-red-500" />
                       </Button>
                     </div>
