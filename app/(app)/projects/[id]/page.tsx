@@ -297,35 +297,22 @@ export default function ProjectDetailPage() {
     }
 
     try {
-      const res = await fetch(`/api/projects/${projectId}/members`, {
+      // Usar endpoint de invitaciones que envía email con Resend
+      const res = await fetch(`/api/invitations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: newMemberEmail, role: newMemberRole }),
+        body: JSON.stringify({ email: newMemberEmail, projectId, role: newMemberRole }),
       });
 
       if (res.ok) {
-        const data = await res.json();
-        if (data.invite) {
-          // User doesn't have an account — show invite link
-          setNewMemberEmail("");
-          setNewMemberRole("MEMBER");
-          setMemberOpen(false);
-          try {
-            await navigator.clipboard.writeText(data.inviteUrl);
-            toast.success("Enlace de invitación copiado al portapapeles");
-          } catch {
-            toast.success(data.message + " " + data.inviteUrl);
-          }
-        } else {
-          setMembers([...members, data]);
-          setNewMemberEmail("");
-          setNewMemberRole("MEMBER");
-          setMemberOpen(false);
-          toast.success("Miembro añadido");
-        }
+        const invitation = await res.json();
+        setNewMemberEmail("");
+        setNewMemberRole("MEMBER");
+        setMemberOpen(false);
+        toast.success(`Invitación enviada a ${newMemberEmail}`);
       } else {
         const data = await res.json();
-        toast.error(data.error || "Error al añadir");
+        toast.error(data.error || "Error al enviar invitación");
       }
     } catch {
       toast.error("Error de conexión");

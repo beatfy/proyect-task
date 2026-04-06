@@ -64,7 +64,7 @@ export default async function JoinPage({ params }: Props) {
 
   if (!session?.user) {
     // Guardar el token en una cookie o redirigir con el token en la URL
-    redirect(`/login?redirect=${encodeURIComponent(`/join/${token}`)}`);
+    redirect(`/register?redirect=${encodeURIComponent(`/join/${token}`)}`);
   }
 
   // Verificar si ya es miembro
