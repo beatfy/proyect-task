@@ -1,8 +1,8 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
+import { use, useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
-import { Plus, Users, Trash2, MoreHorizontal, Pencil, Calendar, User, Loader2, Link2, Copy, Check, Mail } from "lucide-react";
+import { Plus, Users, Trash2, MoreHorizontal, Pencil, Calendar, User, Loader2, Link2, Copy, Check, Mail, ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -43,6 +43,13 @@ interface Member {
   user: { id: string; name: string | null; email: string; image: string | null };
 }
 
+interface Assignee {
+  id: string;
+  name: string | null;
+  email: string;
+  image?: string | null;
+}
+
 interface Task {
   id: string;
   title: string;
@@ -51,6 +58,7 @@ interface Task {
   priority: string;
   dueDate: string | null;
   assignee: { id: string; name: string | null; email: string } | null;
+  assignees?: Assignee[];
 }
 
 const columns = [
@@ -81,13 +89,6 @@ const statusLabels: Record<string, string> = {
   INPROGRESS: "En progreso",
   INREVIEW: "En revisión",
   DONE: "Hecho",
-};
-
-const statusColors: Record<string, string> = {
-  TODO: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700",
-  INPROGRESS: "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800",
-  INREVIEW: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800",
-  DONE: "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800",
 };
 
 const roleLabels: Record<string, string> = {
@@ -121,7 +122,9 @@ export default function ProjectDetailPage() {
   const [status, setStatus] = useState("TODO");
   const [priority, setPriority] = useState("NONE");
   const [dueDate, setDueDate] = useState("");
-  const [assigneeId, setAssigneeId] = useState("");
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
+  const [assigneeDropdownOpen, setAssigneeDropdownOpen] = useState(false);
+  const assigneeDropdownRef = useRef<HTMLDivElement>(null);
 
   const [newMemberEmail, setNewMemberEmail] = useState("");
   const [newMemberRole, setNewMemberRole] = useState("MEMBER");
@@ -140,6 +143,17 @@ export default function ProjectDetailPage() {
     fetchTasks();
     fetchMembers();
   }, [projectId]);
+
+  // Close assignee dropdown on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (assigneeDropdownRef.current && !assigneeDropdownRef.current.contains(e.target as Node)) {
+        setAssigneeDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   const fetchProject = async () => {
     try {
@@ -169,8 +183,16 @@ export default function ProjectDetailPage() {
     setStatus("TODO");
     setPriority("NONE");
     setDueDate("");
-    setAssigneeId("");
+    setAssigneeIds([]);
     setEditTask(null);
+  };
+
+  const toggleAssignee = (userId: string) => {
+    setAssigneeIds(prev =>
+      prev.includes(userId)
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
   };
 
   const handleCreateTask = async () => {
@@ -190,7 +212,7 @@ export default function ProjectDetailPage() {
           priority,
           dueDate: dueDate || null,
           projectId,
-          assigneeId: assigneeId || null,
+          assigneeIds: assigneeIds.length > 0 ? assigneeIds : undefined,
         }),
       });
 
@@ -226,7 +248,7 @@ export default function ProjectDetailPage() {
           status,
           priority,
           dueDate: dueDate || null,
-          assigneeId: assigneeId || null,
+          assigneeIds: assigneeIds.length > 0 ? assigneeIds : [],
         }),
       });
 
@@ -235,6 +257,7 @@ export default function ProjectDetailPage() {
         setTasks(tasks.map(t => t.id === editTask.id ? updated : t));
         resetTaskForm();
         setEditTask(null);
+        setTaskOpen(false);
         toast.success("Tarea actualizada");
       }
     } catch {
@@ -262,7 +285,9 @@ export default function ProjectDetailPage() {
     setStatus(task.status);
     setPriority(task.priority);
     setDueDate(task.dueDate ? task.dueDate.split("T")[0] : "");
-    setAssigneeId(task.assignee?.id || "");
+    // Load multi-assignees
+    const taskAssigneeIds = task.assignees?.map(a => a.id) || [];
+    setAssigneeIds(taskAssigneeIds.length > 0 ? taskAssigneeIds : (task.assignee ? [task.assignee.id] : []));
   };
 
   const handleAddMember = async () => {
@@ -310,6 +335,11 @@ export default function ProjectDetailPage() {
   };
 
   const getTasksByStatus = (s: string) => tasks.filter(t => t.status === s);
+
+  const getMemberName = (userId: string) => {
+    const m = members.find(m => m.user.id === userId);
+    return m ? (m.user.name || m.user.email) : userId;
+  };
 
   const fetchInviteLinks = async () => {
     try {
@@ -434,50 +464,58 @@ export default function ProjectDetailPage() {
               {getTasksByStatus(col.id).length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground text-sm">Sin tareas</div>
               ) : (
-                getTasksByStatus(col.id).map((task) => (
-                  <Card key={task.id} className="bg-muted border-border hover:shadow-sm">
-                    <CardContent className="p-3">
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <h4 className="font-medium text-sm text-foreground">{task.title}</h4>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                              <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="bg-card border-border">
-                            <DropdownMenuItem onClick={() => { openEditTask(task); setTaskOpen(true); }} className="cursor-pointer">
-                              <Pencil className="h-4 w-4 mr-2" /> Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleDeleteTask(task.id)} className="text-red-500 cursor-pointer">
-                              <Trash2 className="h-4 w-4 mr-2" /> Eliminar
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                      {task.description && <p className="text-xs text-muted-foreground mb-2">{task.description}</p>}
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {task.priority !== "NONE" && (
-                          <Badge variant="secondary" className={cn("text-xs border", priorityColors[task.priority])}>
-                            {priorityLabels[task.priority]}
-                          </Badge>
-                        )}
-                        {task.dueDate && (
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Calendar className="h-3 w-3" />
-                            {new Date(task.dueDate).toLocaleDateString()}
-                          </div>
-                        )}
-                        {task.assignee && (
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <User className="h-3 w-3" />
-                            {task.assignee.name || task.assignee.email}
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
+                getTasksByStatus(col.id).map((task) => {
+                  const taskAssignees = task.assignees && task.assignees.length > 0
+                    ? task.assignees
+                    : task.assignee ? [task.assignee] : [];
+
+                  return (
+                    <Card key={task.id} className="bg-muted border-border hover:shadow-sm">
+                      <CardContent className="p-3">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h4 className="font-medium text-sm text-foreground">{task.title}</h4>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="bg-card border-border">
+                              <DropdownMenuItem onClick={() => { openEditTask(task); setTaskOpen(true); }} className="cursor-pointer">
+                                <Pencil className="h-4 w-4 mr-2" /> Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleDeleteTask(task.id)} className="text-red-500 cursor-pointer">
+                                <Trash2 className="h-4 w-4 mr-2" /> Eliminar
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                        {task.description && <p className="text-xs text-muted-foreground mb-2">{task.description}</p>}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {task.priority !== "NONE" && (
+                            <Badge variant="secondary" className={cn("text-xs border", priorityColors[task.priority])}>
+                              {priorityLabels[task.priority]}
+                            </Badge>
+                          )}
+                          {task.dueDate && (
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Calendar className="h-3 w-3" />
+                              {new Date(task.dueDate).toLocaleDateString()}
+                            </div>
+                          )}
+                          {taskAssignees.map((a, i) => (
+                            <div key={a.id + i} className="flex items-center gap-1">
+                              <div className="w-5 h-5 rounded-full bg-indigo-500 text-white flex items-center justify-center text-[10px]" title={a.name || a.email}>
+                                {a.name?.[0]?.toUpperCase() || a.email[0].toUpperCase()}
+                              </div>
+                              <span className="text-xs text-muted-foreground">{a.name || a.email}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
               )}
             </div>
           </div>
@@ -548,21 +586,72 @@ export default function ProjectDetailPage() {
                 className="bg-card border-border text-foreground"
               />
             </div>
-            <div className="space-y-2">
+            {/* Multi-assignee dropdown */}
+            <div className="space-y-2" ref={assigneeDropdownRef}>
               <Label className="text-foreground">Asignar a</Label>
-              <Select value={assigneeId || "__none__"} onValueChange={(v) => setAssigneeId(v === "__none__" ? "" : v)}>
-                <SelectTrigger className="bg-card border-border text-foreground">
-                  <SelectValue placeholder="Sin asignar" />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  <SelectItem value="__none__">Sin asignar</SelectItem>
-                  {members.map((m) => (
-                    <SelectItem key={m.user.id} value={m.user.id}>
-                      {m.user.name || m.user.email}
-                    </SelectItem>
+              <button
+                type="button"
+                onClick={() => setAssigneeDropdownOpen(!assigneeDropdownOpen)}
+                className="flex items-center justify-between w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground hover:bg-accent"
+              >
+                <span className="truncate">
+                  {assigneeIds.length === 0
+                    ? "Seleccionar asignados..."
+                    : assigneeIds.length === 1
+                    ? getMemberName(assigneeIds[0])
+                    : `${assigneeIds.length} asignados`}
+                </span>
+                <ChevronDown className={cn("h-4 w-4 opacity-50 transition-transform", assigneeDropdownOpen && "rotate-180")} />
+              </button>
+
+              {/* Selected assignees as badges */}
+              {assigneeIds.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {assigneeIds.map(uid => (
+                    <Badge key={uid} variant="secondary" className="gap-1 pr-1 border bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-700">
+                      {getMemberName(uid)}
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); toggleAssignee(uid); }}
+                        className="ml-1 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800 p-0.5"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
                   ))}
-                </SelectContent>
-              </Select>
+                </div>
+              )}
+
+              {assigneeDropdownOpen && (
+                <div className="absolute z-50 mt-1 w-full max-w-[calc(100%-3rem)] rounded-md border border-border bg-popover shadow-lg max-h-60 overflow-y-auto">
+                  {members.length === 0 ? (
+                    <div className="p-3 text-sm text-muted-foreground text-center">No hay miembros en el proyecto</div>
+                  ) : (
+                    members.map((m) => (
+                      <label
+                        key={m.user.id}
+                        className="flex items-center gap-2 px-3 py-2 hover:bg-accent cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={assigneeIds.includes(m.user.id)}
+                          onChange={() => toggleAssignee(m.user.id)}
+                          className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <div className="w-6 h-6 rounded-full bg-indigo-500 text-white flex items-center justify-center text-xs">
+                          {m.user.name?.[0]?.toUpperCase() || m.user.email[0].toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-foreground truncate">{m.user.name || m.user.email}</p>
+                        </div>
+                        <Badge variant="secondary" className={cn("text-xs border", roleColors[m.role])}>
+                          {roleLabels[m.role]}
+                        </Badge>
+                      </label>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
             <Button onClick={editTask ? handleEditTask : handleCreateTask} className="w-full">
               {editTask ? "Guardar" : "Crear Tarea"}
@@ -580,7 +669,6 @@ export default function ProjectDetailPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-5 pt-4">
-            {/* Generate new link */}
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">Genera un link único para invitar gente a este proyecto. Cualquiera con el link podrá unirse tras registrarse.</p>
               
@@ -630,7 +718,6 @@ export default function ProjectDetailPage() {
               </Button>
             </div>
 
-            {/* Generated link */}
             {inviteLink && (
               <div className="bg-indigo-500/10 border border-indigo-300 dark:border-indigo-700 rounded-lg p-3 space-y-2">
                 <p className="text-xs font-medium text-indigo-700">✅ Link generado — compártelo:</p>
@@ -647,7 +734,6 @@ export default function ProjectDetailPage() {
               </div>
             )}
 
-            {/* Existing links */}
             {inviteLinks.length > 0 && (
               <div className="space-y-2">
                 <p className="text-sm font-medium text-foreground">Links activos</p>
@@ -688,7 +774,6 @@ export default function ProjectDetailPage() {
             <DialogTitle className="text-foreground">Miembros del Proyecto</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-4">
-            {/* Add member */}
             <div className="flex gap-2">
               <Input
                 placeholder="Email del usuario"
@@ -708,7 +793,6 @@ export default function ProjectDetailPage() {
               <Button onClick={handleAddMember}>Añadir</Button>
             </div>
 
-            {/* Members list */}
             <div className="space-y-2">
               {members.length === 0 ? (
                 <p className="text-center text-muted-foreground py-4">No hay miembros</p>

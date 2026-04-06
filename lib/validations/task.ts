@@ -25,6 +25,7 @@ export const taskCreateSchema = z.object({
   projectId: z.string().optional().nullable(),
   assignedTo: emailOrBlank,
   assigneeId: z.string().optional().nullable(),
+  assigneeIds: z.array(z.string()).optional().nullable(),
   parentId: z.string().optional().nullable(),
 });
 
@@ -38,4 +39,5 @@ export const taskUpdateSchema = z.object({
   projectId: z.string().optional().nullable(),
   assignedTo: emailOrBlank,
   assigneeId: z.string().optional().nullable(),
+  assigneeIds: z.array(z.string()).optional().nullable(),
 });

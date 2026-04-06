@@ -21,33 +21,28 @@ export async function GET(request: NextRequest) {
       OR: [
         { creatorId: authResult.userId },
         { assigneeId: authResult.userId },
+        { taskAssignees: { some: { userId: authResult.userId } } },
       ],
     };
 
-    // Filter by project if provided
     if (projectId) {
       whereClause.projectId = projectId;
     }
 
-    // Filter by organization
     if (organizationId) {
       whereClause.project = {
         organizationId: organizationId,
       };
-      // Remove projectId filter if both are set (org takes precedence for project filter)
       if (!projectId) {
         delete whereClause.projectId;
       }
     }
 
-    // Filter by parentId for subtasks
     const parentId = searchParams.get("parentId");
     if (parentId) {
-      // When fetching subtasks, don't filter by user - if you can see the parent, you can see children
       delete whereClause.OR;
       whereClause.parentId = parentId;
     } else {
-      // Only main tasks by default (no parentId)
       whereClause.parentId = null;
     }
 
@@ -60,6 +55,11 @@ export async function GET(request: NextRequest) {
         assignee: {
           select: { id: true, name: true, email: true }
         },
+        taskAssignees: {
+          include: {
+            user: { select: { id: true, name: true, email: true, image: true } }
+          }
+        },
         tags: true,
       },
       orderBy: { createdAt: "desc" },
@@ -68,6 +68,7 @@ export async function GET(request: NextRequest) {
     const formattedTasks = tasks.map(task => ({
       ...task,
       assignedTo: task.assignee?.email || null,
+      assignees: task.taskAssignees.map(ta => ta.user),
     }));
 
     return NextResponse.json(formattedTasks);
@@ -86,31 +87,28 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    // Validate input with Zod
     const parsed = taskCreateSchema.safeParse(body);
     if (!parsed.success) {
       const errors = parsed.error.issues.map(i => i.message).join(", ");
       return NextResponse.json({ error: errors }, { status: 400 });
     }
 
-    const { title, description, status, priority, dueDate, projectId, assignedTo, assigneeId, parentId } = parsed.data;
+    const { title, description, status, priority, dueDate, projectId, assignedTo, assigneeId, assigneeIds, parentId } = parsed.data;
 
-    // Verify user exists in database
     const userExists = await prisma.user.findUnique({ where: { id: authResult.userId }, select: { id: true } });
     if (!userExists) {
       return NextResponse.json({ error: "Sesión inválida. Por favor, cierra sesión y vuelve a iniciar." }, { status: 401 });
     }
 
-    // Resolve assigneeId - can come directly or via email
     let finalAssigneeId: string | null = null;
     if (assigneeId) {
       finalAssigneeId = assigneeId;
     } else if (assignedTo) {
-      const assignee = await prisma.user.findUnique({
-        where: { email: assignedTo },
-      });
+      const assignee = await prisma.user.findUnique({ where: { email: assignedTo } });
       finalAssigneeId = assignee?.id || null;
     }
+
+    const finalAssigneeIds: string[] = Array.isArray(assigneeIds) ? assigneeIds.filter(Boolean) : [];
 
     const task = await prisma.task.create({
       data: {
@@ -124,19 +122,37 @@ export async function POST(request: NextRequest) {
         creatorId: authResult.userId,
         assigneeId: finalAssigneeId,
         parentId: parentId || null,
+        taskAssignees: finalAssigneeIds.length > 0 ? {
+          create: finalAssigneeIds.map(uid => ({ id: cuid(), userId: uid }))
+        } : undefined,
       },
       include: {
-        project: {
-          select: { id: true, name: true, color: true }
-        },
-        assignee: {
-          select: { id: true, name: true, email: true }
+        project: { select: { id: true, name: true, color: true } },
+        assignee: { select: { id: true, name: true, email: true } },
+        taskAssignees: {
+          include: { user: { select: { id: true, name: true, email: true, image: true } } }
         },
       },
     });
 
-    // Notify assignee if different from creator
-    if (finalAssigneeId && finalAssigneeId !== authResult.userId) {
+    // Notify multi-assignees
+    for (const uid of finalAssigneeIds) {
+      if (uid !== authResult.userId) {
+        await prisma.notification.create({
+          data: {
+            id: cuid(),
+            userId: uid,
+            type: "TASK_ASSIGNED",
+            title: `Tarea asignada: ${title}`,
+            content: `Te han asignado la tarea "${title}"`,
+            data: { taskId: task.id, projectId: projectId || null },
+          },
+        });
+      }
+    }
+
+    // Legacy single assignee notification
+    if (finalAssigneeId && finalAssigneeId !== authResult.userId && !finalAssigneeIds.includes(finalAssigneeId)) {
       await prisma.notification.create({
         data: {
           id: cuid(),
@@ -149,12 +165,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Webhook for OpenClaw
     await notifyTaskWebhook({ id: task.id, title, description, priority, dueDate: dueDate ? new Date(dueDate).toISOString() : null, assigneeId: finalAssigneeId, creatorId: authResult.userId });
 
     return NextResponse.json({
       ...task,
       assignedTo: task.assignee?.email || null,
+      assignees: task.taskAssignees.map(ta => ta.user),
     });
   } catch (error) {
     console.error("Create task error:", error);
@@ -171,16 +187,14 @@ export async function PATCH(request: NextRequest) {
 
     const body = await request.json();
 
-    // Validate input with Zod
     const parsed = taskUpdateSchema.safeParse(body);
     if (!parsed.success) {
       const errors = parsed.error.issues.map(i => i.message).join(", ");
       return NextResponse.json({ error: errors }, { status: 400 });
     }
 
-    const { id, status, priority, title, description, projectId, assignedTo, assigneeId, dueDate } = parsed.data;
+    const { id, status, priority, title, description, projectId, assignedTo, assigneeId, assigneeIds, dueDate } = parsed.data;
 
-    // Authorization: user must be able to modify this task
     const authorized = await canModifyTask(authResult.userId, id);
     if (!authorized) {
       return NextResponse.json({ error: "No tienes permisos para modificar esta tarea" }, { status: 403 });
@@ -194,21 +208,56 @@ export async function PATCH(request: NextRequest) {
     if (projectId !== undefined) updateData.projectId = projectId || null;
     if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null;
 
-    // Resolve assigneeId
     if (assigneeId !== undefined) {
       updateData.assigneeId = assigneeId || null;
     } else if (assignedTo !== undefined) {
       if (assignedTo) {
-        const assignee = await prisma.user.findUnique({
-          where: { email: assignedTo },
-        });
+        const assignee = await prisma.user.findUnique({ where: { email: assignedTo } });
         updateData.assigneeId = assignee?.id || null;
       } else {
         updateData.assigneeId = null;
       }
     }
 
-    // Fetch current task to check changes
+    // Sync multi-assignees if provided
+    if (assigneeIds !== undefined) {
+      const newIds: string[] = Array.isArray(assigneeIds) ? assigneeIds.filter(Boolean) : [];
+      const current = await prisma.taskAssignee.findMany({
+        where: { taskId: id },
+        select: { userId: true },
+      });
+      const currentIds = current.map(c => c.userId);
+      const toAdd = newIds.filter(uid => !currentIds.includes(uid));
+      const toRemove = currentIds.filter(uid => !newIds.includes(uid));
+
+      if (toRemove.length > 0) {
+        await prisma.taskAssignee.deleteMany({
+          where: { taskId: id, userId: { in: toRemove } },
+        });
+      }
+      if (toAdd.length > 0) {
+        await prisma.taskAssignee.createMany({
+          data: toAdd.map(uid => ({ id: cuid(), taskId: id, userId: uid })),
+        });
+      }
+
+      // Notify new assignees
+      for (const uid of toAdd) {
+        if (uid !== authResult.userId) {
+          await prisma.notification.create({
+            data: {
+              id: cuid(),
+              userId: uid,
+              type: "TASK_ASSIGNED",
+              title: `Tarea asignada: ${title || ''}`,
+              content: `Te han asignado la tarea "${title || ''}"`,
+              data: { taskId: id, projectId: projectId || null },
+            },
+          }).catch(() => {});
+        }
+      }
+    }
+
     const currentTask = await prisma.task.findUnique({
       where: { id },
       select: { status: true, assigneeId: true, creatorId: true, title: true },
@@ -218,16 +267,14 @@ export async function PATCH(request: NextRequest) {
       where: { id },
       data: updateData,
       include: {
-        project: {
-          select: { id: true, name: true, color: true }
-        },
-        assignee: {
-          select: { id: true, name: true, email: true }
+        project: { select: { id: true, name: true, color: true } },
+        assignee: { select: { id: true, name: true, email: true } },
+        taskAssignees: {
+          include: { user: { select: { id: true, name: true, email: true, image: true } } }
         },
       },
     });
 
-    // Notify on task completed
     if (status === "DONE" && currentTask?.status !== "DONE") {
       const notifyUserId = currentTask?.creatorId;
       if (notifyUserId && notifyUserId !== authResult.userId) {
@@ -244,7 +291,6 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    // Notify newly assigned user
     if (assigneeId !== undefined && assigneeId && assigneeId !== currentTask?.assigneeId) {
       if (assigneeId !== authResult.userId) {
         await prisma.notification.create({
@@ -260,7 +306,6 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    // Webhook for OpenClaw on reassign
     if (assigneeId !== undefined && assigneeId) {
       await notifyTaskWebhook({ id, title: task.title, description: task.description, priority: priority || null, dueDate: dueDate ? new Date(dueDate).toISOString() : null, assigneeId, creatorId: authResult.userId });
     }
@@ -268,6 +313,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({
       ...task,
       assignedTo: task.assignee?.email || null,
+      assignees: task.taskAssignees.map(ta => ta.user),
     });
   } catch (error) {
     console.error("Update task error:", error);
@@ -282,7 +328,6 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
@@ -290,15 +335,12 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "ID requerido" }, { status: 400 });
     }
 
-    // Authorization: user must be able to modify (delete) this task
     const authorized = await canModifyTask(authResult.userId, id);
     if (!authorized) {
       return NextResponse.json({ error: "No tienes permisos para eliminar esta tarea" }, { status: 403 });
     }
 
-    await prisma.task.delete({
-      where: { id },
-    });
+    await prisma.task.delete({ where: { id } });
 
     return NextResponse.json({ success: true });
   } catch (error) {
