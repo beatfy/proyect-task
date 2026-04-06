@@ -438,7 +438,7 @@ export async function POST(request: NextRequest) {
     }
 
     const baseUrl = process.env.GLM_BASE_URL || process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
-    const model = process.env.CHAT_MODEL || "glm-5";
+    const model = process.env.CHAT_MODEL || "glm-4.5-air";
 
     // First call — may return tool calls
     const firstResponse = await fetch(`${baseUrl}/chat/completions`, {
@@ -459,11 +459,12 @@ export async function POST(request: NextRequest) {
 
     if (!firstResponse.ok) {
       const err = await firstResponse.text();
-      console.error("OpenAI error:", err);
+      console.error("LLM API error:", err);
       return NextResponse.json({ error: "Error del modelo de IA" }, { status: 502 });
     }
 
     const firstData = await firstResponse.json();
+    console.log(`[Tasky] LLM response:`, JSON.stringify(firstData.choices?.[0]?.message || {}).substring(0, 300));
     const choice = firstData.choices[0];
     const assistantMessage = choice.message;
 
@@ -488,6 +489,8 @@ export async function POST(request: NextRequest) {
         toolArgs = {};
       }
 
+      console.log(`[Tasky] Tool call: ${toolName}`, JSON.stringify(toolArgs));
+
       const result = await executeTool(
         toolName,
         toolArgs,
@@ -496,6 +499,7 @@ export async function POST(request: NextRequest) {
         organizationId
       );
 
+      console.log(`[Tasky] Tool result:`, JSON.stringify(result).substring(0, 200));
       actions.push({ tool: toolName, result });
       toolResults.push({
         role: "tool",
@@ -542,6 +546,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Chat API error:", error);
-    return NextResponse.json({ error: "Error interno" }, { status: 500 });
+    return NextResponse.json({ error: `Error interno: ${error instanceof Error ? error.message : String(error)}` }, { status: 500 });
   }
 }
