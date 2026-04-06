@@ -137,7 +137,7 @@ export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<ViewType>("kanban");
+  const [view, setView] = useState<ViewType>(typeof window !== 'undefined' && window.innerWidth < 768 ? "list" : "kanban");
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -855,6 +855,8 @@ export default function TasksPage() {
                 />
               )}
             </div>
+          </div>
+          <div className="flex-shrink-0 pt-4">
             <Button onClick={handleCreate} className="w-full">
               Crear Tarea
             </Button>
@@ -924,6 +926,8 @@ export default function TasksPage() {
                 className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
               />
             </div>
+          </div>
+          <div className="flex-shrink-0 pt-4">
             <Button onClick={handleUpdate} className="w-full">
               Guardar Cambios
             </Button>
