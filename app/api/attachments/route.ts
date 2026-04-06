@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateRequest } from "@/lib/api-auth";
-import { writeFile, unlink, mkdir } from "fs/promises";
-import { join } from "path";
+import { put, del } from "@vercel/blob";
 import { cuid } from "@/lib/utils";
 
 const ALLOWED_MIME_TYPES = [
@@ -16,20 +15,19 @@ const ALLOWED_MIME_TYPES = [
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 function sanitizeFilename(filename: string): string {
-  // Remove path components and dangerous characters
   return filename
-    .replace(/^.*[\\/]/, "")           // Remove path
-    .replace(/[^\w.\- ]/g, "")         // Keep only alphanumeric, dots, dashes, spaces
-    .replace(/\.{2,}/g, ".")           // No double dots
-    .replace(/^\./, "")                // No leading dot
-    .substring(0, 100);                // Limit length
+    .replace(/^.*[\\/]/, "")
+    .replace(/[^\w.\- ]/g, "")
+    .replace(/\.{2,}/g, ".")
+    .replace(/^\./, "")
+    .substring(0, 100);
 }
 
 // GET attachments for a task
 export async function GET(request: NextRequest) {
   const authResult = await authenticateRequest(request);
-    if (!authResult) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!authResult) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -42,20 +40,23 @@ export async function GET(request: NextRequest) {
   try {
     const attachments = await prisma.attachment.findMany({
       where: { taskId },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
     });
 
     return NextResponse.json(attachments);
   } catch {
-    return NextResponse.json({ error: "Error al obtener archivos" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Error al obtener archivos" },
+      { status: 500 }
+    );
   }
 }
 
-// POST upload attachment
+// POST upload attachment → Vercel Blob
 export async function POST(request: NextRequest) {
   const authResult = await authenticateRequest(request);
-    if (!authResult) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!authResult) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
   try {
@@ -64,13 +65,18 @@ export async function POST(request: NextRequest) {
     const taskId = formData.get("taskId") as string | null;
 
     if (!file || !taskId) {
-      return NextResponse.json({ error: "file y taskId requeridos" }, { status: 400 });
+      return NextResponse.json(
+        { error: "file y taskId requeridos" },
+        { status: 400 }
+      );
     }
 
     // Validate MIME type
     if (!ALLOWED_MIME_TYPES.includes(file.type)) {
       return NextResponse.json(
-        { error: `Tipo de archivo no permitido: ${file.type}. Solo se permiten imágenes (JPEG, PNG, GIF, WebP) y PDF.` },
+        {
+          error: `Tipo de archivo no permitido: ${file.type}. Solo se permiten imágenes (JPEG, PNG, GIF, WebP) y PDF.`,
+        },
         { status: 400 }
       );
     }
@@ -78,7 +84,9 @@ export async function POST(request: NextRequest) {
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: `El archivo supera el límite de 5MB (${(file.size / 1024 / 1024).toFixed(1)}MB)` },
+        {
+          error: `El archivo supera el límite de 5MB (${(file.size / 1024 / 1024).toFixed(1)}MB)`,
+        },
         { status: 400 }
       );
     }
@@ -87,54 +95,46 @@ export async function POST(request: NextRequest) {
     const safeName = sanitizeFilename(file.name);
     const timestamp = Date.now();
     const ext = safeName.split(".").pop() || "bin";
-    const filename = `${timestamp}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const uniqueName = `${timestamp}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-    // Save to public/uploads
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const uploadDir = join(process.cwd(), "public", "uploads");
-    const filepath = join(uploadDir, filename);
-
-    try {
-      await mkdir(uploadDir, { recursive: true });
-      await writeFile(filepath, buffer);
-    } catch (writeError) {
-      console.error("Filesystem write failed (likely serverless):", writeError);
-      return NextResponse.json(
-        { error: "No se pudo guardar el archivo. El almacenamiento en disco no está disponible en este entorno." },
-        { status: 501 }
-      );
-    }
+    // Upload to Vercel Blob
+    const key = `task-attachments/${taskId}/${uniqueName}`;
+    const blob = await put(key, file, {
+      access: "public",
+    });
 
     // Determine type
     let type = "document";
     if (file.type.startsWith("image/")) type = "image";
     else if (file.type.includes("pdf")) type = "pdf";
 
-    // Save to database
+    // Save to database with Blob URL
     const attachment = await prisma.attachment.create({
       data: {
         id: cuid(),
         name: safeName,
-        url: `/uploads/${filename}`,
+        url: blob.url,
         type,
         size: file.size,
-        taskId
-      }
+        taskId,
+      },
     });
 
     return NextResponse.json(attachment);
   } catch (error) {
     console.error("Upload error:", error);
-    return NextResponse.json({ error: "Error al subir archivo" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Error al subir archivo" },
+      { status: 500 }
+    );
   }
 }
 
-// DELETE attachment - only the uploader (via task ownership) can delete
+// DELETE attachment → remove from Vercel Blob + DB
 export async function DELETE(request: NextRequest) {
   const authResult = await authenticateRequest(request);
-    if (!authResult) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!authResult) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -151,31 +151,39 @@ export async function DELETE(request: NextRequest) {
     });
 
     if (!attachment) {
-      return NextResponse.json({ error: "Archivo no encontrado" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Archivo no encontrado" },
+        { status: 404 }
+      );
     }
 
-    // Verify ownership: only task creator or assignee can delete attachments
+    // Verify ownership
     const isCreator = attachment.task.creatorId === authResult.userId;
     const isAssignee = attachment.task.assigneeId === authResult.userId;
     if (!isCreator && !isAssignee) {
-      return NextResponse.json({ error: "No tienes permisos para eliminar este archivo" }, { status: 403 });
+      return NextResponse.json(
+        { error: "No tienes permisos para eliminar este archivo" },
+        { status: 403 }
+      );
     }
 
-    // Delete file
-    const filepath = join(process.cwd(), "public", attachment.url);
+    // Delete from Vercel Blob
     try {
-      await unlink(filepath);
-    } catch {
-      // File might not exist
+      await del(attachment.url);
+    } catch (blobError) {
+      console.error("Blob delete failed (continuing with DB delete):", blobError);
     }
 
     // Delete from database
     await prisma.attachment.delete({
-      where: { id }
+      where: { id },
     });
 
     return NextResponse.json({ success: true });
   } catch {
-    return NextResponse.json({ error: "Error al eliminar archivo" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Error al eliminar archivo" },
+      { status: 500 }
+    );
   }
 }
