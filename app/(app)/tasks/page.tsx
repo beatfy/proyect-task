@@ -537,23 +537,45 @@ export default function TasksPage() {
     }
   };
 
-  const MAX_CLIENT_FILE_SIZE = 4 * 1024 * 1024; // 4MB
+  const MAX_CLIENT_FILE_SIZE = 10 * 1024 * 1024; // 10MB (imágenes se comprimen antes)
+  const COMPRESS_THRESHOLD = 4 * 1024 * 1024; // Comprimir si es mayor a 4MB
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !detailTask) return;
+    const rawFile = e.target.files?.[0];
+    if (!rawFile || !detailTask) return;
 
-    // Validación client-side de tamaño
-    if (file.size > MAX_CLIENT_FILE_SIZE) {
-      toast.error(`El archivo supera el límite de 4MB (${(file.size / 1024 / 1024).toFixed(1)}MB). Reduce el tamaño o comprime la imagen.`);
+    // Validación client-side de tamaño (antes de comprimir)
+    if (rawFile.size > MAX_CLIENT_FILE_SIZE) {
+      toast.error(`El archivo supera el límite de 10MB (${(rawFile.size / 1024 / 1024).toFixed(1)}MB). Reduce el tamaño o comprime la imagen.`);
       e.target.value = "";
       return;
     }
 
     setUploading(true);
     try {
+      // Comprimir imagen si es grande
+      let fileToUpload = rawFile;
+      if (rawFile.type.startsWith("image/") && rawFile.size > COMPRESS_THRESHOLD) {
+        try {
+          const { compressImageIfNeeded } = await import("@/lib/image-compress");
+          fileToUpload = await compressImageIfNeeded(rawFile, {
+            maxDimension: 1920,
+            quality: 0.8,
+            maxFileSize: COMPRESS_THRESHOLD,
+          });
+        } catch {
+          // Si la compresión falla, subir original si cabe
+          if (rawFile.size > 4 * 1024 * 1024) {
+            toast.error("No se pudo comprimir la imagen. Intenta con una imagen más pequeña.");
+            setUploading(false);
+            e.target.value = "";
+            return;
+          }
+        }
+      }
+
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", fileToUpload);
       formData.append("taskId", detailTask.id);
 
       const res = await fetch("/api/attachments", {

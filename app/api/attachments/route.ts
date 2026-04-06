@@ -12,7 +12,7 @@ const ALLOWED_MIME_TYPES = [
   "application/pdf",
 ];
 
-const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB (límite seguro bajo Vercel serverless 4.5MB)
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB (las imágenes se comprimen en cliente antes de subir)
 
 function sanitizeFilename(filename: string): string {
   return filename
@@ -23,7 +23,7 @@ function sanitizeFilename(filename: string): string {
     .substring(0, 100);
 }
 
-// GET attachments for a task
+// GET attachments for a task OR all user attachments
 export async function GET(request: NextRequest) {
   const authResult = await authenticateRequest(request);
   if (!authResult) {
@@ -32,12 +32,48 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const taskId = searchParams.get("taskId");
-
-  if (!taskId) {
-    return NextResponse.json({ error: "taskId requerido" }, { status: 400 });
-  }
+  const all = searchParams.get("all");
+  const typeFilter = searchParams.get("type"); // image | document | pdf
 
   try {
+    if (all === "true") {
+      // Traer todos los archivos del usuario (de tareas donde es creador o asignado)
+      const where: Record<string, unknown> = {
+        task: {
+          OR: [
+            { creatorId: authResult.userId },
+            { assigneeId: authResult.userId },
+            { taskAssignees: { some: { userId: authResult.userId } } },
+          ],
+        },
+      };
+
+      if (typeFilter === "image") {
+        where.type = "image";
+      } else if (typeFilter === "document") {
+        where.type = { in: ["document", "pdf"] };
+      }
+
+      const attachments = await prisma.attachment.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        include: {
+          task: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
+        },
+      });
+
+      return NextResponse.json(attachments);
+    }
+
+    if (!taskId) {
+      return NextResponse.json({ error: "taskId requerido o usa all=true" }, { status: 400 });
+    }
+
     const attachments = await prisma.attachment.findMany({
       where: { taskId },
       orderBy: { createdAt: "desc" },
@@ -91,11 +127,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size (4MB límite seguro bajo Vercel serverless)
+    // Validate file size (10MB)
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
         {
-          error: `El archivo supera el límite de 4MB (${(file.size / 1024 / 1024).toFixed(1)}MB)`,
+          error: `El archivo supera el límite de 10MB (${(file.size / 1024 / 1024).toFixed(1)}MB)`,
         },
         { status: 400 }
       );
