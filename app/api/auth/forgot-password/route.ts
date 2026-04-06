@@ -3,7 +3,9 @@ import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+function getResend() {
+  return new Resend(process.env.RESEND_API_KEY);
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,7 +31,7 @@ export async function POST(req: NextRequest) {
 
       const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?token=${token}`;
 
-      await resend.emails.send({
+      await getResend().emails.send({
         from: "TaskX <noreply@beatfy.app>",
         to: email,
         subject: "Reset your TaskX password",
