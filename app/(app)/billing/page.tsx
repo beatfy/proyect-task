@@ -192,7 +192,7 @@ export default function BillingPage() {
             const bruto = regularProjects.reduce((s, p) => s + p.monthlyFee, 0);
             const iva = bruto * 0.21;
             const irpf = bruto * 0.15;
-            const neto = bruto - irpf;
+            const neto = bruto + iva - irpf;
             const fmt = (v: number) => v.toLocaleString("es-ES", { style: "currency", currency: "EUR" });
             return (
               <>
@@ -220,9 +220,9 @@ export default function BillingPage() {
                 )}
                 <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 space-y-1 text-sm">
                   <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">Bruto mensual:</span><span className="font-medium text-slate-900 dark:text-slate-100">{fmt(bruto)}</span></div>
-                  <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">IVA 21%:</span><span className="text-slate-500">-{fmt(iva)}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">IVA 21%:</span><span className="text-blue-600">+{fmt(iva)}</span></div>
                   <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">IRPF -15%:</span><span className="text-red-500">-{fmt(irpf)}</span></div>
-                  <div className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-1 mt-1"><span className="font-medium text-slate-700 dark:text-slate-300">Neto mensual (sin IVA):</span><span className="font-bold text-green-600">{fmt(neto)}</span></div>
+                  <div className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-1 mt-1"><span className="font-medium text-slate-700 dark:text-slate-300">Neto mensual:</span><span className="font-bold text-green-600">{fmt(neto)}</span></div>
                 </div>
               </>
             );
