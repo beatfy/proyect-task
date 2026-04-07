@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
@@ -26,6 +27,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
           return null;
+        }
+
+        const email = credentials.email as string;
+        const { allowed } = await rateLimit(`login:${email}`);
+        if (!allowed) {
+          throw new Error("Demasiados intentos. Espera un minuto.");
         }
 
         const user = await prisma.user.findUnique({
