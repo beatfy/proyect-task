@@ -42,3 +42,4 @@ next-env.d.ts
 /public/uploads/
 
 # build trigger 1774601156
+.env.check
