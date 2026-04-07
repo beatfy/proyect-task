@@ -170,9 +170,9 @@ export default function ProjectBillingPage() {
       </Card>
 
       {/* Invoices */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Facturas</h2>
-        <Button onClick={() => { const p = getPrevMonth(); setForm({ month: p.month, year: p.year, amount: "", dueDate: p.dueDate, notes: "" }); setCreateOpen(true); }}><Receipt className="h-4 w-4 mr-2" /> Nueva</Button>
+        <Button size="sm" onClick={() => { const p = getPrevMonth(); setForm({ month: p.month, year: p.year, amount: "", dueDate: p.dueDate, notes: "" }); setCreateOpen(true); }}><Receipt className="h-4 w-4 mr-2" /> Nueva</Button>
       </div>
 
       {invoices.length === 0 ? (
@@ -188,22 +188,24 @@ export default function ProjectBillingPage() {
             const cfg = statusConfig[inv.status] || statusConfig.PENDING;
             return (
               <Card key={inv.id} className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-                <CardContent className="flex items-center justify-between p-4">
-                  <div>
-                    <p className="font-medium text-slate-900 dark:text-slate-100">{monthNames[inv.month - 1]} {inv.year}</p>
-                    <p className="text-sm text-slate-500">Emitida: {new Date(inv.createdAt || inv.dueDate).toLocaleDateString("es-ES", { day: "numeric", month: "short" })} · Vence: {new Date(inv.dueDate).toLocaleDateString("es-ES", { day: "numeric", month: "short" })}{inv.notes && ` · ${inv.notes}`}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-lg font-semibold">{inv.amount.toLocaleString("es-ES", { style: "currency", currency: "EUR" })}</span>
-                    <Badge className={cfg.color}>{cfg.label}</Badge>
-                    {inv.status !== "PAID" && (
-                      <Button variant="ghost" size="sm" onClick={() => handleStatusChange(inv.id, "PAID")} className="text-green-600">
-                        <CheckCircle className="h-4 w-4" />
+                <CardContent className="p-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="font-medium text-slate-900 dark:text-slate-100">{monthNames[inv.month - 1]} {inv.year}</p>
+                      <p className="text-xs sm:text-sm text-slate-500 truncate">Vence: {new Date(inv.dueDate).toLocaleDateString("es-ES", { day: "numeric", month: "short" })}{inv.notes && ` · ${inv.notes}`}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-base sm:text-lg font-semibold">{inv.amount.toLocaleString("es-ES", { style: "currency", currency: "EUR" })}</span>
+                      <Badge className={cfg.color}>{cfg.label}</Badge>
+                      {inv.status !== "PAID" && (
+                        <Button variant="ghost" size="sm" onClick={() => handleStatusChange(inv.id, "PAID")} className="text-green-600">
+                          <CheckCircle className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete(inv.id)} className="text-red-500">
+                        <Trash2 className="h-4 w-4" />
                       </Button>
-                    )}
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(inv.id)} className="text-red-500">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

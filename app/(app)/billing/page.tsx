@@ -152,17 +152,17 @@ export default function BillingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Facturación</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">Gestiona las facturas de tus proyectos</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">Facturación</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">Gestiona las facturas de tus proyectos</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleAutoGenerate}>
-            <Zap className="h-4 w-4 mr-2" /> Auto-generar
+          <Button variant="outline" size="sm" className="shrink-0" onClick={handleAutoGenerate}>
+            <Zap className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Auto-generar</span>
           </Button>
-          <Button onClick={() => { const p = getPrevMonth(); setForm({ projectId: "", month: p.month, year: p.year, amount: "", dueDate: p.dueDate, notes: "" }); setCreateOpen(true); }}>
-            <Plus className="h-4 w-4 mr-2" /> Nueva Factura
+          <Button size="sm" className="shrink-0" onClick={() => { const p = getPrevMonth(); setForm({ projectId: "", month: p.month, year: p.year, amount: "", dueDate: p.dueDate, notes: "" }); setCreateOpen(true); }}>
+            <Plus className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Nueva Factura</span>
           </Button>
         </div>
       </div>
@@ -199,24 +199,26 @@ export default function BillingPage() {
                 {regularProjects.length === 0 ? (
                   <p className="text-slate-500 text-sm py-4">No hay clientes con cuota mensual configurada</p>
                 ) : (
-                  <table className="w-full text-sm mb-4">
+                  <div className="overflow-x-auto -mx-4 sm:mx-0">
+                  <table className="w-full text-sm mb-4 min-w-[400px]">
                     <thead>
                       <tr className="border-b border-slate-200 dark:border-slate-700">
-                        <th className="text-left py-2 text-slate-500 dark:text-slate-400 font-medium">Proyecto</th>
-                        <th className="text-right py-2 text-slate-500 dark:text-slate-400 font-medium">Cuota mensual</th>
-                        <th className="text-center py-2 text-slate-500 dark:text-slate-400 font-medium">Estado</th>
+                        <th className="text-left py-2 px-2 text-slate-500 dark:text-slate-400 font-medium">Proyecto</th>
+                        <th className="text-right py-2 px-2 text-slate-500 dark:text-slate-400 font-medium">Cuota mensual</th>
+                        <th className="text-center py-2 px-2 text-slate-500 dark:text-slate-400 font-medium">Estado</th>
                       </tr>
                     </thead>
                     <tbody>
                       {regularProjects.map(p => (
                         <tr key={p.id} className="border-b border-slate-100 dark:border-slate-800">
-                          <td className="py-2 font-medium text-slate-900 dark:text-slate-100">{p.name}</td>
-                          <td className="py-2 text-right text-slate-700 dark:text-slate-300">{fmt(p.monthlyFee)}</td>
-                          <td className="py-2 text-center"><Badge className={p.active !== false ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"}>{p.active !== false ? "Activo" : "Inactivo"}</Badge></td>
+                          <td className="py-2 px-2 font-medium text-slate-900 dark:text-slate-100">{p.name}</td>
+                          <td className="py-2 px-2 text-right text-slate-700 dark:text-slate-300">{fmt(p.monthlyFee)}</td>
+                          <td className="py-2 px-2 text-center"><Badge className={p.active !== false ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"}>{p.active !== false ? "Activo" : "Inactivo"}</Badge></td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 )}
                 <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 space-y-1 text-sm">
                   <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">Bruto mensual:</span><span className="font-medium text-slate-900 dark:text-slate-100">{fmt(bruto)}</span></div>
@@ -231,7 +233,7 @@ export default function BillingPage() {
       </Card>
 
       {/* Filter */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {["all", "PENDING", "PAID", "OVERDUE"].map((s) => (
           <Button key={s} variant={filterStatus === s ? "default" : "outline"} size="sm" onClick={() => setFilterStatus(s)}>
             {s === "all" ? "Todas" : statusConfig[s]?.label || s}
@@ -254,53 +256,54 @@ export default function BillingPage() {
             const cfg = statusConfig[invoice.status] || statusConfig.PENDING;
             return (
               <Card key={invoice.id} className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-                <CardContent className="flex items-center justify-between p-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: invoice.project.color }} />
-                    <div>
-                      <Link href={`/billing/${invoice.projectId}`} className="font-medium text-slate-900 dark:text-slate-100 hover:underline">
-                        {invoice.project.name}
-                      </Link>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        <span className="font-medium">{monthNames[invoice.month - 1]} {invoice.year}</span>{' '}
-                        · Emitida: {new Date(invoice.createdAt).toLocaleDateString("es-ES", { day: "numeric", month: "short" })}{' '}
-                        · Vence: {new Date(invoice.dueDate).toLocaleDateString("es-ES", { day: "numeric", month: "short" })}
-                      </p>
+                <CardContent className="p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: invoice.project.color }} />
+                      <div className="min-w-0">
+                        <Link href={`/billing/${invoice.projectId}`} className="font-medium text-slate-900 dark:text-slate-100 hover:underline block truncate">
+                          {invoice.project.name}
+                        </Link>
+                        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                          <span className="font-medium">{monthShort[invoice.month - 1]} {invoice.year}</span>{' '}
+                          · Vence: {new Date(invoice.dueDate).toLocaleDateString("es-ES", { day: "numeric", month: "short" })}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                      {invoice.amount.toLocaleString("es-ES", { style: "currency", currency: "EUR" })}
-                    </span>
-                    <Badge className={cfg.color}>{cfg.label}</Badge>
-                    <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => {
-                      const proj = projects.find(p => p.id === invoice.projectId);
-                      setEditingFee({ projectId: invoice.projectId, value: String(proj?.monthlyFee || "") });
-                    }}>
-                      <Pencil className="h-3 w-3 mr-1" /> Cuota
-                    </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-                        {invoice.status !== "PAID" && (
-                          <DropdownMenuItem onClick={() => handleStatusChange(invoice.id, "PAID")} className="text-green-600">
-                            <CheckCircle className="h-4 w-4 mr-2" /> Marcar pagada
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100">
+                        {invoice.amount.toLocaleString("es-ES", { style: "currency", currency: "EUR" })}
+                      </span>
+                      <Badge className={cfg.color}>{cfg.label}</Badge>
+                      <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => {
+                        const proj = projects.find(p => p.id === invoice.projectId);
+                        setEditingFee({ projectId: invoice.projectId, value: String(proj?.monthlyFee || "") });
+                      }}>
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                          {invoice.status !== "PAID" && (
+                            <DropdownMenuItem onClick={() => handleStatusChange(invoice.id, "PAID")} className="text-green-600">
+                              <CheckCircle className="h-4 w-4 mr-2" /> Marcar pagada
+                            </DropdownMenuItem>
+                          )}
+                          {invoice.status === "PAID" && (
+                            <DropdownMenuItem onClick={() => handleStatusChange(invoice.id, "PENDING")} className="text-yellow-600">
+                              <Clock className="h-4 w-4 mr-2" /> Marcar pendiente
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem onClick={() => handleDelete(invoice.id)} className="text-red-600">
+                            <Trash2 className="h-4 w-4 mr-2" /> Eliminar
                           </DropdownMenuItem>
-                        )}
-                        {invoice.status === "PAID" && (
-                          <DropdownMenuItem onClick={() => handleStatusChange(invoice.id, "PENDING")} className="text-yellow-600">
-                            <Clock className="h-4 w-4 mr-2" /> Marcar pendiente
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem onClick={() => handleDelete(invoice.id)} className="text-red-600">
-                          <Trash2 className="h-4 w-4 mr-2" /> Eliminar
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
