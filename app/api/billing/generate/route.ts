@@ -11,9 +11,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const month = parseInt(body.month) || new Date().getMonth() + 1;
-    const year = parseInt(body.year) || new Date().getFullYear();
+    // Calculate previous month
+    const now = new Date();
+    let month = now.getMonth(); // 0-indexed, so current month - 1 = previous month
+    let year = now.getFullYear();
+    if (month === 0) { month = 12; year--; } // January → December prev year
+
+    // Override if body provides values
+    const body = await request.json().catch(() => ({}));
+    if (body.month) month = parseInt(body.month);
+    if (body.year) year = parseInt(body.year);
 
     // Get projects with fee where user is member
     const projects = await prisma.project.findMany({
@@ -23,7 +30,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const dueDate = new Date(year, month, 15); // 15th of the month
+    const dueDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // today + 7 days
     let created = 0;
 
     for (const project of projects) {

@@ -22,11 +22,13 @@ interface Invoice {
   status: string;
   paidAt: string | null;
   dueDate: string;
+  createdAt: string;
   notes: string | null;
   project: { id: string; name: string; color: string };
 }
 
-const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+const monthShort = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   PENDING: { label: "Pendiente", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200", icon: Clock },
   PAID: { label: "Pagada", color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200", icon: CheckCircle },
@@ -40,6 +42,16 @@ export default function BillingPage() {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [form, setForm] = useState({ projectId: "", month: "", year: "", amount: "", dueDate: "", notes: "" });
   const [projects, setProjects] = useState<{ id: string; name: string; monthlyFee: number }[]>([]);
+
+  // Helper: get previous month info
+  const getPrevMonth = () => {
+    const now = new Date();
+    let m = now.getMonth(); // 0-indexed = previous month
+    let y = now.getFullYear();
+    if (m === 0) { m = 12; y--; }
+    const due = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    return { month: String(m), year: String(y), dueDate: due.toISOString().split("T")[0] };
+  };
 
   useEffect(() => {
     fetchInvoices();
@@ -74,7 +86,8 @@ export default function BillingPage() {
       if (res.ok) {
         toast.success("Factura creada");
         setCreateOpen(false);
-        setForm({ projectId: "", month: "", year: "", amount: "", dueDate: "", notes: "" });
+        const p = getPrevMonth();
+        setForm({ projectId: "", month: p.month, year: p.year, amount: "", dueDate: p.dueDate, notes: "" });
         fetchInvoices();
       } else {
         const data = await res.json();
@@ -103,11 +116,10 @@ export default function BillingPage() {
 
   const handleAutoGenerate = async () => {
     try {
-      const now = new Date();
       const res = await fetch("/api/billing/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ month: now.getMonth() + 1, year: now.getFullYear() }),
+        body: JSON.stringify({}),
       });
       if (res.ok) {
         const data = await res.json();
@@ -135,7 +147,7 @@ export default function BillingPage() {
           <Button variant="outline" onClick={handleAutoGenerate}>
             <Zap className="h-4 w-4 mr-2" /> Auto-generar
           </Button>
-          <Button onClick={() => setCreateOpen(true)}>
+          <Button onClick={() => { const p = getPrevMonth(); setForm({ projectId: "", month: p.month, year: p.year, amount: "", dueDate: p.dueDate, notes: "" }); setCreateOpen(true); }}>
             <Plus className="h-4 w-4 mr-2" /> Nueva Factura
           </Button>
         </div>
@@ -189,7 +201,9 @@ export default function BillingPage() {
                         {invoice.project.name}
                       </Link>
                       <p className="text-sm text-slate-500 dark:text-slate-400">
-                        {monthNames[invoice.month - 1]} {invoice.year} · Vence: {new Date(invoice.dueDate).toLocaleDateString("es-ES")}
+                        <span className="font-medium">{monthNames[invoice.month - 1]} {invoice.year}</span>{' '}
+                        · Emitida: {new Date(invoice.createdAt).toLocaleDateString("es-ES", { day: "numeric", month: "short" })}{' '}
+                        · Vence: {new Date(invoice.dueDate).toLocaleDateString("es-ES", { day: "numeric", month: "short" })}
                       </p>
                     </div>
                   </div>

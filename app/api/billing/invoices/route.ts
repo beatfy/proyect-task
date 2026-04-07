@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     const invoices = await prisma.invoice.findMany({
       where,
       include: { project: { select: { id: true, name: true, color: true } } },
-      orderBy: [{ year: "desc" }, { month: "desc" }],
+      orderBy: [{ year: "desc" }, { month: "desc" }, { createdAt: "desc" }],
     });
 
     return NextResponse.json(invoices);
@@ -44,9 +44,21 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { projectId, month, year, amount, dueDate, notes } = body;
+    const { projectId, amount, notes } = body;
 
-    if (!projectId || !month || !year || !amount || !dueDate) {
+    // Auto-calculate previous month + dueDate = today + 7 days
+    const now = new Date();
+    let month = now.getMonth(); // 0-indexed → previous month
+    let year = now.getFullYear();
+    if (month === 0) { month = 12; year--; }
+    const dueDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    // Allow explicit overrides from body
+    if (body.month) month = parseInt(body.month);
+    if (body.year) year = parseInt(body.year);
+    const finalDueDate = body.dueDate ? new Date(body.dueDate) : dueDate;
+
+    if (!projectId || !amount) {
       return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 });
     }
 
@@ -62,10 +74,10 @@ export async function POST(request: NextRequest) {
       data: {
         id: cuid(),
         projectId,
-        month: parseInt(month),
-        year: parseInt(year),
+        month,
+        year,
         amount: parseFloat(amount),
-        dueDate: new Date(dueDate),
+        dueDate: finalDueDate,
         notes: notes || null,
       },
     });

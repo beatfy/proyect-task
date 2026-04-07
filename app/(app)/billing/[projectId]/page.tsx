@@ -20,6 +20,7 @@ interface Invoice {
   status: string;
   paidAt: string | null;
   dueDate: string;
+  createdAt: string;
   notes: string | null;
 }
 
@@ -30,7 +31,7 @@ interface Project {
   monthlyFee: number;
 }
 
-const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 const statusConfig: Record<string, { label: string; color: string }> = {
   PENDING: { label: "Pendiente", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" },
   PAID: { label: "Pagada", color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" },
@@ -49,6 +50,16 @@ export default function ProjectBillingPage() {
   const [saving, setSaving] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState({ month: "", year: "", amount: "", dueDate: "", notes: "" });
+
+  // Helper: get previous month info
+  const getPrevMonth = () => {
+    const now = new Date();
+    let m = now.getMonth();
+    let y = now.getFullYear();
+    if (m === 0) { m = 12; y--; }
+    const due = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    return { month: String(m), year: String(y), dueDate: due.toISOString().split("T")[0] };
+  };
 
   useEffect(() => {
     fetchProject();
@@ -161,7 +172,7 @@ export default function ProjectBillingPage() {
       {/* Invoices */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Facturas</h2>
-        <Button onClick={() => setCreateOpen(true)}><Receipt className="h-4 w-4 mr-2" /> Nueva</Button>
+        <Button onClick={() => { const p = getPrevMonth(); setForm({ month: p.month, year: p.year, amount: "", dueDate: p.dueDate, notes: "" }); setCreateOpen(true); }}><Receipt className="h-4 w-4 mr-2" /> Nueva</Button>
       </div>
 
       {invoices.length === 0 ? (
@@ -180,7 +191,7 @@ export default function ProjectBillingPage() {
                 <CardContent className="flex items-center justify-between p-4">
                   <div>
                     <p className="font-medium text-slate-900 dark:text-slate-100">{monthNames[inv.month - 1]} {inv.year}</p>
-                    <p className="text-sm text-slate-500">Vence: {new Date(inv.dueDate).toLocaleDateString("es-ES")}{inv.notes && ` · ${inv.notes}`}</p>
+                    <p className="text-sm text-slate-500">Emitida: {new Date(inv.createdAt || inv.dueDate).toLocaleDateString("es-ES", { day: "numeric", month: "short" })} · Vence: {new Date(inv.dueDate).toLocaleDateString("es-ES", { day: "numeric", month: "short" })}{inv.notes && ` · ${inv.notes}`}</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-lg font-semibold">{inv.amount.toLocaleString("es-ES", { style: "currency", currency: "EUR" })}</span>
