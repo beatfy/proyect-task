@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Receipt, Loader2, Plus, DollarSign, Calendar, CheckCircle, Clock, AlertCircle, MoreHorizontal, Trash2, Zap } from "lucide-react";
+import { Receipt, Loader2, Plus, DollarSign, Calendar, CheckCircle, Clock, AlertCircle, MoreHorizontal, Trash2, Zap, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -41,7 +41,8 @@ export default function BillingPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [form, setForm] = useState({ projectId: "", month: "", year: "", amount: "", dueDate: "", notes: "" });
-  const [projects, setProjects] = useState<{ id: string; name: string; monthlyFee: number }[]>([]);
+  const [projects, setProjects] = useState<{ id: string; name: string; monthlyFee: number; active?: boolean }[]>([]);
+  const [editingFee, setEditingFee] = useState<{ projectId: string; value: string } | null>(null);
 
   // Helper: get previous month info
   const getPrevMonth = () => {
@@ -75,6 +76,19 @@ export default function BillingPage() {
   };
 
   useEffect(() => { fetchInvoices(); }, [filterStatus]);
+
+  const handleSaveFee = async (projectId: string) => {
+    if (!editingFee) return;
+    try {
+      const res = await fetch(`/api/billing/projects/${projectId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ monthlyFee: editingFee.value }),
+      });
+      if (res.ok) { toast.success("Cuota actualizada"); setEditingFee(null); fetchProjects(); }
+      else { toast.error("Error al guardar cuota"); }
+    } catch { toast.error("Error al guardar cuota"); }
+  };
 
   const handleCreate = async () => {
     try {
@@ -169,6 +183,53 @@ export default function BillingPage() {
         </Card>
       </div>
 
+      {/* Clientes Regulares */}
+      <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+        <CardHeader><CardTitle className="text-slate-900 dark:text-slate-100">Clientes Regulares</CardTitle></CardHeader>
+        <CardContent>
+          {(() => {
+            const regularProjects = projects.filter(p => p.monthlyFee > 0);
+            const bruto = regularProjects.reduce((s, p) => s + p.monthlyFee, 0);
+            const iva = bruto * 0.21;
+            const irpf = bruto * 0.15;
+            const neto = bruto - irpf;
+            const fmt = (v: number) => v.toLocaleString("es-ES", { style: "currency", currency: "EUR" });
+            return (
+              <>
+                {regularProjects.length === 0 ? (
+                  <p className="text-slate-500 text-sm py-4">No hay clientes con cuota mensual configurada</p>
+                ) : (
+                  <table className="w-full text-sm mb-4">
+                    <thead>
+                      <tr className="border-b border-slate-200 dark:border-slate-700">
+                        <th className="text-left py-2 text-slate-500 dark:text-slate-400 font-medium">Proyecto</th>
+                        <th className="text-right py-2 text-slate-500 dark:text-slate-400 font-medium">Cuota mensual</th>
+                        <th className="text-center py-2 text-slate-500 dark:text-slate-400 font-medium">Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {regularProjects.map(p => (
+                        <tr key={p.id} className="border-b border-slate-100 dark:border-slate-800">
+                          <td className="py-2 font-medium text-slate-900 dark:text-slate-100">{p.name}</td>
+                          <td className="py-2 text-right text-slate-700 dark:text-slate-300">{fmt(p.monthlyFee)}</td>
+                          <td className="py-2 text-center"><Badge className={p.active !== false ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"}>{p.active !== false ? "Activo" : "Inactivo"}</Badge></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+                <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 space-y-1 text-sm">
+                  <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">Bruto mensual:</span><span className="font-medium text-slate-900 dark:text-slate-100">{fmt(bruto)}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">IVA 21%:</span><span className="text-slate-500">-{fmt(iva)}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">IRPF -15%:</span><span className="text-red-500">-{fmt(irpf)}</span></div>
+                  <div className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-1 mt-1"><span className="font-medium text-slate-700 dark:text-slate-300">Neto mensual (sin IVA):</span><span className="font-bold text-green-600">{fmt(neto)}</span></div>
+                </div>
+              </>
+            );
+          })()}
+        </CardContent>
+      </Card>
+
       {/* Filter */}
       <div className="flex gap-2">
         {["all", "PENDING", "PAID", "OVERDUE"].map((s) => (
@@ -212,6 +273,12 @@ export default function BillingPage() {
                       {invoice.amount.toLocaleString("es-ES", { style: "currency", currency: "EUR" })}
                     </span>
                     <Badge className={cfg.color}>{cfg.label}</Badge>
+                    <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => {
+                      const proj = projects.find(p => p.id === invoice.projectId);
+                      setEditingFee({ projectId: invoice.projectId, value: String(proj?.monthlyFee || "") });
+                    }}>
+                      <Pencil className="h-3 w-3 mr-1" /> Cuota
+                    </Button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -241,6 +308,20 @@ export default function BillingPage() {
           })}
         </div>
       )}
+
+      {/* Edit monthly fee dialog */}
+      <Dialog open={!!editingFee} onOpenChange={(open) => { if (!open) setEditingFee(null); }}>
+        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+          <DialogHeader><DialogTitle className="text-slate-900 dark:text-slate-100">Editar cuota mensual</DialogTitle></DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label className="text-slate-700 dark:text-slate-300">Cuota mensual (€)</Label>
+              <Input type="number" step="0.01" value={editingFee?.value || ""} onChange={(e) => editingFee && setEditingFee({ ...editingFee, value: e.target.value })} placeholder="0.00" className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600" />
+            </div>
+            <Button onClick={() => editingFee && handleSaveFee(editingFee.projectId)} className="w-full">Guardar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Create dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
