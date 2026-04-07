@@ -48,6 +48,7 @@ model Project {
   invitations    Invitation[]
   inviteTokens   ProjectInviteToken[]
   monthlyFee     Float           @default(0)
+  clientContext  String?
   invoices       Invoice[]
 }
 

@@ -142,6 +142,18 @@ const TOOLS = [
   {
     type: "function" as const,
     function: {
+      name: "client_context",
+      description: "OBTENER CONTEXTO DEL CLIENTE antes de crear contenido, posts, o tareas para un cliente. Devuelve info sobre el cliente: web, nicho, servicios, estrategia, tono de voz, etc. SIEMPRE consulta esto antes de actuar para un cliente.",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
       name: "project_create",
       description: "Crear un nuevo proyecto dentro de la organización activa",
       parameters: {
@@ -248,6 +260,17 @@ async function executeTool(
         },
       });
       return { tasks, count: tasks.length };
+    }
+
+    case "client_context": {
+      if (!projectId) return { error: "No hay proyecto activo" };
+      const project = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: { name: true, clientContext: true },
+      });
+      if (!project) return { error: "Proyecto no encontrado" };
+      if (!project.clientContext) return { context: "No hay información de contexto para este cliente aún." };
+      return { client: project.name, context: project.clientContext };
     }
 
     case "task_move": {
@@ -366,6 +389,8 @@ async function buildSystemPrompt(
 - Respuestas concisas. Máximo 3-4 líneas salvo que se pida detalle.
 - Para acciones destructivas (eliminar), confirma brevemente antes.
 - MUY IMPORTANTE: Para actualizar/mover/eliminar tareas, usa SIEMPRE el ID exacto del listado de tareas actual. NUNCA inventes IDs.
+- ANTES DE CREAR CONTENIDO (posts, textos, imágenes, emails, copys) para un cliente, usa la tool client_context para obtener información del cliente. Siempre adapta el contenido al nicho, tono y estrategia del cliente.
+- Si el usuario menciona un cliente por nombre y no coincide con el proyecto activo, avísale.
 
 ## Tareas del proyecto actual
 ${taskList || "Sin proyecto activo."}
