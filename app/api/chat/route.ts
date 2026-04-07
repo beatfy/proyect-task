@@ -399,7 +399,30 @@ ${taskList || "Sin proyecto activo."}
 ${memberList || "Sin proyecto activo."}`;
 }
 
-// ---- Main handler ----
+// ---- GET: chat history ----
+export async function GET(request: NextRequest) {
+  try {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+    const { searchParams } = new URL(request.url);
+    const projectId = searchParams.get("projectId");
+    const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
+
+    const messages = await prisma.chatMessage.findMany({
+      where: { userId: authResult.userId, ...(projectId ? { projectId } : {}) },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      select: { id: true, role: true, content: true, createdAt: true, projectId: true },
+    });
+
+    return NextResponse.json(messages.reverse());
+  } catch (error) {
+    return NextResponse.json({ error: "Error al cargar historial" }, { status: 500 });
+  }
+}
+
+// ---- POST: main handler ----
 export async function POST(request: NextRequest) {
   try {
     const authResult = await authenticateRequest(request);
@@ -490,6 +513,9 @@ export async function POST(request: NextRequest) {
 
     messages.push({ role: "user", content: message });
 
+    // Save user message
+    await prisma.chatMessage.create({ data: { userId: authResult.userId, projectId: projectId || null, role: "user", content: message } });
+
     // Call LLM (GLM via OpenAI-compatible API)
     const apiKey = process.env.GLM_API_KEY || process.env.OPENAI_API_KEY;
     if (!apiKey) {
@@ -532,10 +558,9 @@ export async function POST(request: NextRequest) {
 
     // If no tool calls, return directly
     if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
-      return NextResponse.json({
-        reply: assistantMessage.content || "",
-        actions: [],
-      });
+      const reply = assistantMessage.content || "";
+      await prisma.chatMessage.create({ data: { userId: authResult.userId, projectId: projectId || null, role: "assistant", content: reply } });
+      return NextResponse.json({ reply, actions: [] });
     }
 
     // Execute tool calls
@@ -602,10 +627,9 @@ export async function POST(request: NextRequest) {
     const secondData = await secondResponse.json();
     const finalReply = secondData.choices[0]?.message?.content || "Acción completada.";
 
-    return NextResponse.json({
-      reply: finalReply,
-      actions,
-    });
+    await prisma.chatMessage.create({ data: { userId: authResult.userId, projectId: projectId || null, role: "assistant", content: finalReply } });
+
+    return NextResponse.json({ reply: finalReply, actions });
   } catch (error) {
     console.error("Chat API error:", error);
     return NextResponse.json({ error: `Error interno: ${error instanceof Error ? error.message : String(error)}` }, { status: 500 });

@@ -301,6 +301,15 @@ model Invoice {
   @@unique([projectId, month, year])
 }
 
+model ChatMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  projectId String?
+  role      String   // "user" | "assistant" | "system"
+  content   String
+  createdAt DateTime @default(now())
+}
+
 model EmailConfig {
   id               String   @id
   userId           String   @unique
