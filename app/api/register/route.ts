@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { cuid } from "@/lib/utils";
 import { registerSchema } from "@/lib/validations/auth";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,6 +17,12 @@ export async function POST(request: NextRequest) {
     }
 
     const { name, email, password } = parsed.data;
+
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const { allowed } = await rateLimit(`register:${ip}`);
+    if (!allowed) {
+      return NextResponse.json({ error: "Demasiados intentos. Espera un minuto." }, { status: 429 });
+    }
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
