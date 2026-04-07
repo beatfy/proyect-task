@@ -271,10 +271,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {/* Tasky Chat Button */}
         <button
           onClick={() => setChatOpen(true)}
-          className="fixed bottom-6 right-6 z-30 w-14 h-14 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center"
+          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center"
           title="Chat con Tasky"
         >
-          <MessageCircle className="w-6 h-6" />
+          <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6" />
         </button>
 
         {/* Tasky Chat Sidebar */}

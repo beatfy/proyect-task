@@ -404,20 +404,20 @@ export default function ProjectDetailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: project?.color }} />
-          <h1 className="text-3xl font-bold text-foreground">{project?.name}</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: project?.color }} />
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground truncate">{project?.name}</h1>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => { fetchInviteLinks(); setInviteOpen(true); }}>
-            <Link2 className="h-4 w-4 mr-2" /> Invitar con link
+        <div className="flex gap-2 shrink-0">
+          <Button variant="outline" size="sm" onClick={() => { fetchInviteLinks(); setInviteOpen(true); }}>
+            <Link2 className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Invitar</span>
           </Button>
-          <Button variant="outline" onClick={() => setMemberOpen(true)}>
-            <Users className="h-4 w-4 mr-2" /> Miembros
+          <Button variant="outline" size="sm" onClick={() => setMemberOpen(true)}>
+            <Users className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Miembros</span>
           </Button>
-          <Button onClick={() => { resetTaskForm(); setTaskOpen(true); }}>
-            <Plus className="h-4 w-4 mr-2" /> Nueva Tarea
+          <Button size="sm" onClick={() => { resetTaskForm(); setTaskOpen(true); }}>
+            <Plus className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Nueva Tarea</span>
           </Button>
         </div>
       </div>
