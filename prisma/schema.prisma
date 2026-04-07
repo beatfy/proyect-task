@@ -47,6 +47,8 @@ model Project {
   tasks          Task[]
   invitations    Invitation[]
   inviteTokens   ProjectInviteToken[]
+  monthlyFee     Float           @default(0)
+  invoices       Invoice[]
 }
 
 model ProjectMember {
@@ -279,6 +281,23 @@ model PasswordResetToken {
   expiresAt DateTime
   used      Boolean  @default(false)
   createdAt DateTime @default(now())
+}
+
+model Invoice {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  month     Int
+  year      Int
+  amount    Float
+  status    String   @default("PENDING")
+  paidAt    DateTime?
+  dueDate   DateTime
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([projectId, month, year])
 }
 
 model EmailConfig {
