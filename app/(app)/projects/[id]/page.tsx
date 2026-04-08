@@ -29,7 +29,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent, type DragOverEvent } from "@dnd-kit/core";
+import { DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors, useDroppable, type DragStartEvent, type DragEndEvent, type DragOverEvent } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -108,6 +108,11 @@ const roleColors: Record<string, string> = {
 
 // --- Kanban DnD Components ---
 
+function DroppableColumn({ id, children }: { id: string; children: React.ReactNode }) {
+  const { setNodeRef } = useDroppable({ id });
+  return <div ref={setNodeRef} className="bg-card rounded-lg p-2 space-y-2 border border-border min-h-[100px]">{children}</div>;
+}
+
 function SortableTaskCard({ task, onEdit, onDelete }: { task: Task; onEdit: () => void; onDelete: () => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id, data: { task } });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
@@ -182,8 +187,9 @@ function KanbanBoard({ tasks, setTasks, onTaskClick, handleDeleteTask, projectId
 
   const getTasksByStatus = (s: string) => tasks.filter(t => t.status === s);
 
-  const updateTaskStatus = useCallback(async (taskId: string, newStatus: string) => {
+  const updateTaskStatus = useCallback(async (taskId: string, newStatus: string, rollbackStatus: string) => {
     try {
+      console.log(`[Kanban] PATCH taskId=${taskId} newStatus=${newStatus}`);
       const res = await fetch("/api/tasks", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -191,12 +197,18 @@ function KanbanBoard({ tasks, setTasks, onTaskClick, handleDeleteTask, projectId
       });
       if (res.ok) {
         const updated = await res.json();
+        console.log(`[Kanban] PATCH OK`, updated.status);
         setTasks(prev => prev.map(t => t.id === taskId ? updated : t));
         toast.success(`Tarea movida a ${statusLabels[newStatus] || newStatus}`);
       } else {
+        console.error(`[Kanban] PATCH failed`, res.status);
+        // Revert optimistic update
+        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: rollbackStatus } : t));
         toast.error("Error al mover tarea");
       }
-    } catch {
+    } catch (err) {
+      console.error(`[Kanban] PATCH error`, err);
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: rollbackStatus } : t));
       toast.error("Error de conexión");
     }
   }, [setTasks]);
@@ -204,7 +216,10 @@ function KanbanBoard({ tasks, setTasks, onTaskClick, handleDeleteTask, projectId
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
     const task = tasks.find(t => t.id === event.active.id);
-    if (task) setOriginalStatus(task.status);
+    if (task) {
+      setOriginalStatus(task.status);
+      console.log(`[Kanban] dragStart taskId=${task.id} originalStatus=${task.status}`);
+    }
   };
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -247,8 +262,12 @@ function KanbanBoard({ tasks, setTasks, onTaskClick, handleDeleteTask, projectId
       if (overTask) targetStatus = overTask.status;
     }
 
+    console.log(`[Kanban] dragEnd originalStatus=${originalStatus} targetStatus=${targetStatus} over.id=${over?.id}`);
     if (targetStatus && originalStatus !== null && originalStatus !== targetStatus) {
-      updateTaskStatus(activeTask.id, targetStatus);
+      console.log(`[Kanban] calling PATCH`);
+      updateTaskStatus(activeTask.id, targetStatus, originalStatus);
+    } else {
+      console.log(`[Kanban] skipping PATCH (same column or no target)`);
     }
     setOriginalStatus(null);
   };
@@ -267,7 +286,7 @@ function KanbanBoard({ tasks, setTasks, onTaskClick, handleDeleteTask, projectId
                 <h3 className="font-medium text-sm text-foreground">{col.title}</h3>
                 <span className="text-xs text-muted-foreground ml-auto">{colTasks.length}</span>
               </div>
-              <div id={`column-${col.id}`} className="bg-card rounded-lg p-2 space-y-2 border border-border min-h-[100px]">
+              <DroppableColumn id={`column-${col.id}`}>
                 <SortableContext items={colTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
                   {colTasks.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground text-sm">Sin tareas</div>
@@ -282,7 +301,7 @@ function KanbanBoard({ tasks, setTasks, onTaskClick, handleDeleteTask, projectId
                     ))
                   )}
                 </SortableContext>
-              </div>
+              </DroppableColumn>
             </div>
           );
         })}
