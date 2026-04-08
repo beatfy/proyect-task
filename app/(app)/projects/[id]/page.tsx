@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useState, useEffect, useRef, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Plus, Users, Trash2, MoreHorizontal, Pencil, Calendar, User, Loader2, Link2, Copy, Check, Mail, ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -169,14 +169,15 @@ function SortableTaskCard({ task, onEdit, onDelete }: { task: Task; onEdit: () =
   );
 }
 
-function KanbanBoard({ tasks, setTasks, openEditTask, handleDeleteTask, projectId }: {
+function KanbanBoard({ tasks, setTasks, onTaskClick, handleDeleteTask, projectId }: {
   tasks: Task[];
   setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
-  openEditTask: (task: Task) => void;
+  onTaskClick: (task: Task) => void;
   handleDeleteTask: (id: string) => void;
   projectId: string;
 }) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [originalStatus, setOriginalStatus] = useState<string | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const getTasksByStatus = (s: string) => tasks.filter(t => t.status === s);
@@ -202,6 +203,8 @@ function KanbanBoard({ tasks, setTasks, openEditTask, handleDeleteTask, projectI
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
+    const task = tasks.find(t => t.id === event.active.id);
+    if (task) setOriginalStatus(task.status);
   };
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -244,12 +247,10 @@ function KanbanBoard({ tasks, setTasks, openEditTask, handleDeleteTask, projectI
       if (overTask) targetStatus = overTask.status;
     }
 
-    if (targetStatus && activeTask.status !== targetStatus) {
-      updateTaskStatus(activeTask.id, targetStatus);
-    } else if (targetStatus && activeTask.status === targetStatus) {
-      // Reorder within same column — just update status to confirm position
+    if (targetStatus && originalStatus !== null && originalStatus !== targetStatus) {
       updateTaskStatus(activeTask.id, targetStatus);
     }
+    setOriginalStatus(null);
   };
 
   const activeTask = activeId ? tasks.find(t => t.id === activeId) : null;
@@ -275,7 +276,7 @@ function KanbanBoard({ tasks, setTasks, openEditTask, handleDeleteTask, projectI
                       <SortableTaskCard
                         key={task.id}
                         task={task}
-                        onEdit={() => openEditTask(task)}
+                        onEdit={() => onTaskClick(task)}
                         onDelete={() => handleDeleteTask(task.id)}
                       />
                     ))
@@ -301,6 +302,7 @@ function KanbanBoard({ tasks, setTasks, openEditTask, handleDeleteTask, projectI
 
 export default function ProjectDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const projectId = params.id as string;
 
   const [project, setProject] = useState<Project | null>(null);
@@ -651,7 +653,7 @@ export default function ProjectDetailPage() {
       <KanbanBoard
         tasks={tasks}
         setTasks={setTasks}
-        openEditTask={(task) => { openEditTask(task); setTaskOpen(true); }}
+        onTaskClick={(task) => { router.push(`/tasks?openTask=${task.id}`); }}
         handleDeleteTask={handleDeleteTask}
         projectId={projectId}
       />

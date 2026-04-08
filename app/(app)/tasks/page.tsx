@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { Plus, MoreHorizontal, User, Pencil, Trash2, FolderOpen, LayoutGrid, List, Table, Calendar, MessageSquare, Paperclip, ChevronDown, ChevronUp, X, Upload, File, Image, FileText, Timer, Play, Square, LayoutTemplate } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -133,7 +134,9 @@ function formatTimer(seconds: number): string {
   return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
 
-export default function TasksPage() {
+import { Suspense } from "react";
+
+function TasksPageContent() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -180,12 +183,23 @@ export default function TasksPage() {
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const timerInterval = useRef<NodeJS.Timeout | null>(null);
 
+  const searchParams = useSearchParams();
+
   useEffect(() => {
     fetchTasks();
     fetchProjects();
     fetchTemplates();
     fetchActiveTimer();
   }, []);
+
+  // Auto-open task from URL param
+  useEffect(() => {
+    const openTaskId = searchParams.get('openTask');
+    if (openTaskId && tasks.length > 0 && !detailOpen) {
+      const task = tasks.find(t => t.id === openTaskId);
+      if (task) handleOpenDetail(task);
+    }
+  }, [searchParams, tasks]);
 
   // Fetch members when project changes
   useEffect(() => {
@@ -1314,5 +1328,13 @@ export default function TasksPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function TasksPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen">Cargando...</div>}>
+      <TasksPageContent />
+    </Suspense>
   );
 }
