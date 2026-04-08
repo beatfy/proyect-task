@@ -55,9 +55,30 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
     }
   }, [pathname]);
 
-  // Clear messages when project changes
+  // Load chat history from backend when project changes
   useEffect(() => {
     setMessages([]);
+    if (projectId) {
+      fetch(`/api/chat?projectId=${projectId}&limit=50`)
+        .then((r) => {
+          if (!r.ok) throw new Error("Failed to load history");
+          return r.json();
+        })
+        .then((data: Array<{ role: string; content: string; actions?: Array<{ tool: string; result: unknown }> }>) => {
+          if (Array.isArray(data) && data.length > 0) {
+            setMessages(
+              data.map((m) => ({
+                role: m.role as "user" | "assistant",
+                content: m.content,
+                actions: m.actions,
+              }))
+            );
+          }
+        })
+        .catch(() => {
+          // Silently fail — chat works without history
+        });
+    }
   }, [projectId]);
 
   useEffect(() => {

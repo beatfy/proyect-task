@@ -112,12 +112,12 @@ const TOOLS = [
     type: "function" as const,
     function: {
       name: "member_assign",
-      description: "Asignar una tarea a un miembro del proyecto",
+      description: "Asignar una tarea a un miembro del proyecto. El memberId debe ser el userId del usuario (no el ID de ProjectMember). Usa member_list para obtener los userIds correctos.",
       parameters: {
         type: "object",
         properties: {
           taskId: { type: "string" },
-          memberId: { type: "string", description: "ID del miembro" },
+          memberId: { type: "string", description: "userId del miembro (NO el ProjectMember ID). Obténlo de member_list." },
         },
         required: ["taskId", "memberId"],
       },
@@ -154,6 +154,20 @@ const TOOLS = [
   {
     type: "function" as const,
     function: {
+      name: "client_context_update",
+      description: "ACTUALIZAR el contexto del cliente del proyecto activo. Usa esto cuando el usuario proporcione info sobre el cliente (nicho, servicios, estrategia, tono de voz, web, etc.) o pida actualizar el contexto.",
+      parameters: {
+        type: "object",
+        properties: {
+          context: { type: "string", description: "Nuevo contenido del contexto del cliente. Se sobreescribe completamente." },
+        },
+        required: ["context"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
       name: "project_create",
       description: "Crear un nuevo proyecto dentro de la organización activa",
       parameters: {
@@ -179,51 +193,71 @@ async function executeTool(
 ): Promise<unknown> {
   switch (name) {
     case "task_create": {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data: any = {
-        id: crypto.randomUUID(),
-        title: args.title as string,
-        creatorId: userId,
-        priority: (args.priority as string) || "NONE",
-      };
-      if (args.description) data.description = args.description;
-      if (args.dueDate) data.dueDate = new Date(args.dueDate as string);
-      if (args.assigneeId) data.assigneeId = args.assigneeId;
-      if (args.parentId) data.parentId = args.parentId;
-      if (projectId) data.projectId = projectId;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const data: any = {
+          id: crypto.randomUUID(),
+          title: args.title as string,
+          creatorId: userId,
+          priority: (args.priority as string) || "NONE",
+        };
+        if (args.description) data.description = args.description;
+        if (args.dueDate) data.dueDate = new Date(args.dueDate as string);
+        if (args.assigneeId) data.assigneeId = args.assigneeId;
+        if (args.parentId) data.parentId = args.parentId;
+        if (projectId) data.projectId = projectId;
 
-      const task = await prisma.task.create({ data });
-      // Notify via webhook if assigned to someone
-      if (data.assigneeId) {
-        await notifyTaskWebhook({ id: task.id, title: task.title, description: task.description, priority: task.priority, dueDate: task.dueDate?.toISOString() || null, assigneeId: data.assigneeId, creatorId: userId });
+        const task = await prisma.task.create({ data });
+        // Notify via webhook if assigned to someone
+        if (data.assigneeId) {
+          await notifyTaskWebhook({ id: task.id, title: task.title, description: task.description, priority: task.priority, dueDate: task.dueDate?.toISOString() || null, assigneeId: data.assigneeId, creatorId: userId });
+        }
+        return { success: true, task: { id: task.id, title: task.title, status: task.status } };
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { error: `Error al crear tarea: ${msg}` };
       }
-      return { success: true, task: { id: task.id, title: task.title, status: task.status } };
     }
 
     case "task_update": {
-      const { id, ...updates } = args;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data: any = {};
-      if (updates.title) data.title = updates.title;
-      if (updates.description) data.description = updates.description;
-      if (updates.status) data.status = updates.status;
-      if (updates.priority) data.priority = updates.priority;
-      if (updates.dueDate) data.dueDate = new Date(updates.dueDate as string);
-      if (updates.assigneeId) data.assigneeId = updates.assigneeId;
+      try {
+        const { id, ...updates } = args;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const data: any = {};
+        if (updates.title) data.title = updates.title;
+        if (updates.description) data.description = updates.description;
+        if (updates.status) data.status = updates.status;
+        if (updates.priority) data.priority = updates.priority;
+        if (updates.dueDate) data.dueDate = new Date(updates.dueDate as string);
+        if (updates.assigneeId) data.assigneeId = updates.assigneeId;
 
-      const task = await prisma.task.update({
-        where: { id: id as string },
-        data,
-      });
-      return { success: true, task: { id: task.id, title: task.title, status: task.status } };
+        const task = await prisma.task.update({
+          where: { id: id as string },
+          data,
+        });
+        return { success: true, task: { id: task.id, title: task.title, status: task.status } };
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes("not found") || msg.includes("does not exist"))
+          return { error: `Tarea no encontrada (ID: ${args.id}). Verifica que el ID sea correcto.` };
+        return { error: `Error al actualizar tarea: ${msg}` };
+      }
     }
 
     case "task_delete": {
-      await prisma.task.delete({ where: { id: args.id as string } });
-      return { success: true };
+      try {
+        await prisma.task.delete({ where: { id: args.id as string } });
+        return { success: true };
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes("not found") || msg.includes("does not exist"))
+          return { error: `Tarea no encontrada (ID: ${args.id}). Verifica que el ID sea correcto.` };
+        return { error: `Error al eliminar tarea: ${msg}` };
+      }
     }
 
     case "task_list": {
+      // BUG 1 FIX: combine search OR with user filter using AND instead of overwriting
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const where: any = {
         OR: [
@@ -238,10 +272,17 @@ async function executeTool(
       if (args.assigneeId) where.assigneeId = args.assigneeId;
       if (args.parentId) where.parentId = args.parentId;
       if (args.search) {
-        where.OR = [
+        // Combine search OR with the existing user/project filter using AND
+        const userFilter = where.OR;
+        const searchFilter = [
           { title: { contains: args.search as string, mode: "insensitive" } },
           { description: { contains: args.search as string, mode: "insensitive" } },
         ];
+        where.AND = [
+          { OR: userFilter },
+          { OR: searchFilter },
+        ];
+        delete where.OR;
       }
 
       const limit = (args.limit as number) || 10;
@@ -273,80 +314,141 @@ async function executeTool(
       return { client: project.name, context: project.clientContext };
     }
 
+    // BUG 5 FIX: new tool to update client context
+    case "client_context_update": {
+      if (!projectId) return { error: "No hay proyecto activo" };
+      const contextText = args.context as string;
+      if (!contextText) return { error: "El parámetro 'context' es requerido" };
+      try {
+        const updated = await prisma.project.update({
+          where: { id: projectId },
+          data: { clientContext: contextText },
+          select: { name: true, clientContext: true },
+        });
+        return { success: true, client: updated.name, context: updated.clientContext };
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { error: `Error al actualizar contexto del cliente: ${msg}` };
+      }
+    }
+
     case "task_move": {
-      const task = await prisma.task.update({
-        where: { id: args.id as string },
-        data: { status: args.status as string },
-      });
-      return { success: true, task: { id: task.id, title: task.title, status: task.status } };
+      try {
+        const task = await prisma.task.update({
+          where: { id: args.id as string },
+          data: { status: args.status as string },
+        });
+        return { success: true, task: { id: task.id, title: task.title, status: task.status } };
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes("not found") || msg.includes("does not exist"))
+          return { error: `Tarea no encontrada (ID: ${args.id}). Verifica que el ID sea correcto.` };
+        return { error: `Error al mover tarea: ${msg}` };
+      }
     }
 
     case "project_summary": {
       if (!projectId) return { error: "No hay proyecto activo" };
-      const [todo, inProgress, inReview, done, upcoming] = await Promise.all([
-        prisma.task.count({ where: { projectId, status: "TODO" } }),
-        prisma.task.count({ where: { projectId, status: "IN_PROGRESS" } }),
-        prisma.task.count({ where: { projectId, status: "IN_REVIEW" } }),
-        prisma.task.count({ where: { projectId, status: "DONE" } }),
-        prisma.task.findMany({
-          where: { projectId, dueDate: { gte: new Date() }, status: { not: "DONE" } },
-          take: 5,
-          orderBy: { dueDate: "asc" },
-          select: { id: true, title: true, dueDate: true, priority: true },
-        }),
-      ]);
-      return { total: todo + inProgress + inReview + done, byStatus: { TODO: todo, IN_PROGRESS: inProgress, IN_REVIEW: inReview, DONE: done }, upcomingDeadlines: upcoming };
+      try {
+        const [todo, inProgress, inReview, done, upcoming] = await Promise.all([
+          prisma.task.count({ where: { projectId, status: "TODO" } }),
+          prisma.task.count({ where: { projectId, status: "IN_PROGRESS" } }),
+          prisma.task.count({ where: { projectId, status: "IN_REVIEW" } }),
+          prisma.task.count({ where: { projectId, status: "DONE" } }),
+          prisma.task.findMany({
+            where: { projectId, dueDate: { gte: new Date() }, status: { not: "DONE" } },
+            take: 5,
+            orderBy: { dueDate: "asc" },
+            select: { id: true, title: true, dueDate: true, priority: true },
+          }),
+        ]);
+        return { total: todo + inProgress + inReview + done, byStatus: { TODO: todo, IN_PROGRESS: inProgress, IN_REVIEW: inReview, DONE: done }, upcomingDeadlines: upcoming };
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { error: `Error al obtener resumen: ${msg}` };
+      }
     }
 
     case "member_list": {
       if (!projectId) return { error: "No hay proyecto activo" };
-      const members = await prisma.projectMember.findMany({
-        where: { projectId },
-        select: { id: true, userId: true, role: true, user: { select: { id: true, name: true, email: true } } },
-      });
-      return { members };
+      try {
+        const members = await prisma.projectMember.findMany({
+          where: { projectId },
+          select: { id: true, userId: true, role: true, user: { select: { id: true, name: true, email: true } } },
+        });
+        return { members };
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { error: `Error al listar miembros: ${msg}` };
+      }
     }
 
+    // BUG 3 FIX: resolve memberId — accept both userId and ProjectMember ID
     case "member_assign": {
-      const task = await prisma.task.update({
-        where: { id: args.taskId as string },
-        data: { assigneeId: args.memberId as string },
-      });
-      return { success: true, task: { id: task.id, title: task.title } };
+      try {
+        let resolvedUserId = args.memberId as string;
+        // If the LLM passed a ProjectMember ID instead of a userId, resolve it
+        const pm = await prisma.projectMember.findUnique({ where: { id: resolvedUserId } });
+        if (pm) {
+          resolvedUserId = pm.userId;
+        }
+        const task = await prisma.task.update({
+          where: { id: args.taskId as string },
+          data: { assigneeId: resolvedUserId },
+        });
+        return { success: true, task: { id: task.id, title: task.title } };
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes("not found") || msg.includes("does not exist"))
+          return { error: `Tarea o miembro no encontrado. Task ID: ${args.taskId}, Member ID: ${args.memberId}` };
+        return { error: `Error al asignar miembro: ${msg}` };
+      }
     }
 
     case "time_log": {
-      const hours = args.hours as number;
-      const entry = await prisma.timeEntry.create({
-        data: {
-          id: crypto.randomUUID(),
-          taskId: args.taskId as string,
-          userId,
-          startTime: new Date(Date.now() - hours * 3600000),
-          endTime: new Date(),
-          duration: Math.round(hours * 3600),
-          description: (args.description as string) || "",
-        },
-      });
-      return { success: true, entry: { id: entry.id, hours } };
+      try {
+        const hours = args.hours as number;
+        const entry = await prisma.timeEntry.create({
+          data: {
+            id: crypto.randomUUID(),
+            taskId: args.taskId as string,
+            userId,
+            startTime: new Date(Date.now() - hours * 3600000),
+            endTime: new Date(),
+            duration: Math.round(hours * 3600),
+            description: (args.description as string) || "",
+          },
+        });
+        return { success: true, entry: { id: entry.id, hours } };
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes("not found") || msg.includes("does not exist"))
+          return { error: `Tarea no encontrada (ID: ${args.taskId}). Verifica que el ID sea correcto.` };
+        return { error: `Error al registrar tiempo: ${msg}` };
+      }
     }
 
     case "project_create": {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data: any = {
-        name: args.name as string,
-        createdById: userId,
-      };
-      if (args.description) data.description = args.description;
-      if (args.organizationId || organizationId)
-        data.organizationId = (args.organizationId as string) || organizationId;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const data: any = {
+          name: args.name as string,
+          createdById: userId,
+        };
+        if (args.description) data.description = args.description;
+        if (args.organizationId || organizationId)
+          data.organizationId = (args.organizationId as string) || organizationId;
 
-      const project = await prisma.project.create({ data });
-      // Add creator as member
-      await prisma.projectMember.create({
-        data: { id: crypto.randomUUID(), projectId: project.id, userId, role: "ADMIN" },
-      });
-      return { success: true, project: { id: project.id, name: project.name } };
+        const project = await prisma.project.create({ data });
+        // Add creator as member
+        await prisma.projectMember.create({
+          data: { id: crypto.randomUUID(), projectId: project.id, userId, role: "ADMIN" },
+        });
+        return { success: true, project: { id: project.id, name: project.name } };
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { error: `Error al crear proyecto: ${msg}` };
+      }
     }
 
     default:
@@ -391,6 +493,7 @@ async function buildSystemPrompt(
 - MUY IMPORTANTE: Para actualizar/mover/eliminar tareas, usa SIEMPRE el ID exacto del listado de tareas actual. NUNCA inventes IDs.
 - ANTES DE CREAR CONTENIDO (posts, textos, imágenes, emails, copys) para un cliente, usa la tool client_context para obtener información del cliente. Siempre adapta el contenido al nicho, tono y estrategia del cliente.
 - Si el usuario menciona un cliente por nombre y no coincide con el proyecto activo, avísale.
+- Cuando el usuario proporcione información sobre un cliente (nicho, servicios, tono, web, etc.), usa client_context_update para guardarla.
 
 ## Tareas del proyecto actual
 ${taskList || "Sin proyecto activo."}
