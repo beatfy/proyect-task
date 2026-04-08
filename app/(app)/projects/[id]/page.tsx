@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useEffect, useRef } from "react";
+import { use, useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { Plus, Users, Trash2, MoreHorizontal, Pencil, Calendar, User, Loader2, Link2, Copy, Check, Mail, ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent, type DragOverEvent } from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface Project {
   id: string;
@@ -102,6 +105,199 @@ const roleColors: Record<string, string> = {
   ADMIN: "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800",
   MEMBER: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700",
 };
+
+// --- Kanban DnD Components ---
+
+function SortableTaskCard({ task, onEdit, onDelete }: { task: Task; onEdit: () => void; onDelete: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id, data: { task } });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+
+  const taskAssignees = task.assignees && task.assignees.length > 0
+    ? task.assignees
+    : task.assignee ? [task.assignee] : [];
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <Card
+        className={cn("bg-muted border-border hover:shadow-md cursor-pointer transition-shadow", isDragging && "shadow-lg ring-2 ring-indigo-400")}
+        onClick={(e) => { e.stopPropagation(); onEdit(); }}
+      >
+        <CardContent className="p-3">
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <h4 className="font-medium text-sm text-foreground">{task.title}</h4>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={(e) => e.stopPropagation()}>
+                  <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-card border-border">
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(); }} className="cursor-pointer">
+                  <Pencil className="h-4 w-4 mr-2" /> Editar
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDelete(); }} className="text-red-500 cursor-pointer">
+                  <Trash2 className="h-4 w-4 mr-2" /> Eliminar
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          {task.description && <p className="text-xs text-muted-foreground mb-2">{task.description}</p>}
+          <div className="flex items-center gap-2 flex-wrap">
+            {task.priority !== "NONE" && (
+              <Badge variant="secondary" className={cn("text-xs border", priorityColors[task.priority])}>
+                {priorityLabels[task.priority]}
+              </Badge>
+            )}
+            {task.dueDate && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Calendar className="h-3 w-3" />
+                {new Date(task.dueDate).toLocaleDateString()}
+              </div>
+            )}
+            {taskAssignees.map((a, i) => (
+              <div key={a.id + i} className="flex items-center gap-1">
+                <div className="w-5 h-5 rounded-full bg-indigo-500 text-white flex items-center justify-center text-[10px]" title={a.name || a.email}>
+                  {a.name?.[0]?.toUpperCase() || a.email[0].toUpperCase()}
+                </div>
+                <span className="text-xs text-muted-foreground">{a.name || a.email}</span>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function KanbanBoard({ tasks, setTasks, openEditTask, handleDeleteTask, projectId }: {
+  tasks: Task[];
+  setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
+  openEditTask: (task: Task) => void;
+  handleDeleteTask: (id: string) => void;
+  projectId: string;
+}) {
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  const getTasksByStatus = (s: string) => tasks.filter(t => t.status === s);
+
+  const updateTaskStatus = useCallback(async (taskId: string, newStatus: string) => {
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: taskId, status: newStatus }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setTasks(prev => prev.map(t => t.id === taskId ? updated : t));
+        toast.success(`Tarea movida a ${statusLabels[newStatus] || newStatus}`);
+      } else {
+        toast.error("Error al mover tarea");
+      }
+    } catch {
+      toast.error("Error de conexión");
+    }
+  }, [setTasks]);
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeTask = tasks.find(t => t.id === active.id);
+    if (!activeTask) return;
+
+    // Determine target column
+    let targetStatus: string | null = null;
+
+    // Dropped over a column container (id like "column-TODO")
+    if (typeof over.id === "string" && over.id.startsWith("column-")) {
+      targetStatus = over.id.replace("column-", "");
+    } else {
+      // Dropped over another task — find that task's column
+      const overTask = tasks.find(t => t.id === over.id);
+      if (overTask) targetStatus = overTask.status;
+    }
+
+    if (targetStatus && activeTask.status !== targetStatus) {
+      setTasks(prev => prev.map(t => t.id === activeTask.id ? { ...t, status: targetStatus! } : t));
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
+    if (!over) return;
+
+    const activeTask = tasks.find(t => t.id === active.id);
+    if (!activeTask) return;
+
+    let targetStatus: string | null = null;
+    if (typeof over.id === "string" && over.id.startsWith("column-")) {
+      targetStatus = over.id.replace("column-", "");
+    } else {
+      const overTask = tasks.find(t => t.id === over.id);
+      if (overTask) targetStatus = overTask.status;
+    }
+
+    if (targetStatus && activeTask.status !== targetStatus) {
+      updateTaskStatus(activeTask.id, targetStatus);
+    } else if (targetStatus && activeTask.status === targetStatus) {
+      // Reorder within same column — just update status to confirm position
+      updateTaskStatus(activeTask.id, targetStatus);
+    }
+  };
+
+  const activeTask = activeId ? tasks.find(t => t.id === activeId) : null;
+
+  return (
+    <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
+      <div className="flex gap-4 overflow-x-auto pb-4">
+        {columns.map((col) => {
+          const colTasks = getTasksByStatus(col.id);
+          return (
+            <div key={col.id} className="flex-1 min-w-[280px] max-w-[350px]">
+              <div className="flex items-center gap-2 mb-3 px-1">
+                <div className={cn("w-3 h-3 rounded-full", col.color)} />
+                <h3 className="font-medium text-sm text-foreground">{col.title}</h3>
+                <span className="text-xs text-muted-foreground ml-auto">{colTasks.length}</span>
+              </div>
+              <div id={`column-${col.id}`} className="bg-card rounded-lg p-2 space-y-2 border border-border min-h-[100px]">
+                <SortableContext items={colTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                  {colTasks.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground text-sm">Sin tareas</div>
+                  ) : (
+                    colTasks.map((task) => (
+                      <SortableTaskCard
+                        key={task.id}
+                        task={task}
+                        onEdit={() => openEditTask(task)}
+                        onDelete={() => handleDeleteTask(task.id)}
+                      />
+                    ))
+                  )}
+                </SortableContext>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <DragOverlay>
+        {activeTask ? (
+          <Card className="bg-muted border-border shadow-xl ring-2 ring-indigo-400 rotate-2">
+            <CardContent className="p-3">
+              <h4 className="font-medium text-sm text-foreground">{activeTask.title}</h4>
+            </CardContent>
+          </Card>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
+  );
+}
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -452,75 +648,13 @@ export default function ProjectDetailPage() {
       )}
 
       {/* Kanban */}
-      <div className="flex gap-4 overflow-x-auto pb-4">
-        {columns.map((col) => (
-          <div key={col.id} className="flex-1 min-w-[280px] max-w-[350px]">
-            <div className="flex items-center gap-2 mb-3 px-1">
-              <div className={cn("w-3 h-3 rounded-full", col.color)} />
-              <h3 className="font-medium text-sm text-foreground">{col.title}</h3>
-              <span className="text-xs text-muted-foreground ml-auto">{getTasksByStatus(col.id).length}</span>
-            </div>
-            <div className="bg-card rounded-lg p-2 space-y-2 border border-border">
-              {getTasksByStatus(col.id).length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground text-sm">Sin tareas</div>
-              ) : (
-                getTasksByStatus(col.id).map((task) => {
-                  const taskAssignees = task.assignees && task.assignees.length > 0
-                    ? task.assignees
-                    : task.assignee ? [task.assignee] : [];
-
-                  return (
-                    <Card key={task.id} className="bg-muted border-border hover:shadow-sm">
-                      <CardContent className="p-3">
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <h4 className="font-medium text-sm text-foreground">{task.title}</h4>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                                <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-card border-border">
-                              <DropdownMenuItem onClick={() => { openEditTask(task); setTaskOpen(true); }} className="cursor-pointer">
-                                <Pencil className="h-4 w-4 mr-2" /> Editar
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleDeleteTask(task.id)} className="text-red-500 cursor-pointer">
-                                <Trash2 className="h-4 w-4 mr-2" /> Eliminar
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                        {task.description && <p className="text-xs text-muted-foreground mb-2">{task.description}</p>}
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {task.priority !== "NONE" && (
-                            <Badge variant="secondary" className={cn("text-xs border", priorityColors[task.priority])}>
-                              {priorityLabels[task.priority]}
-                            </Badge>
-                          )}
-                          {task.dueDate && (
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <Calendar className="h-3 w-3" />
-                              {new Date(task.dueDate).toLocaleDateString()}
-                            </div>
-                          )}
-                          {taskAssignees.map((a, i) => (
-                            <div key={a.id + i} className="flex items-center gap-1">
-                              <div className="w-5 h-5 rounded-full bg-indigo-500 text-white flex items-center justify-center text-[10px]" title={a.name || a.email}>
-                                {a.name?.[0]?.toUpperCase() || a.email[0].toUpperCase()}
-                              </div>
-                              <span className="text-xs text-muted-foreground">{a.name || a.email}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
+      <KanbanBoard
+        tasks={tasks}
+        setTasks={setTasks}
+        openEditTask={(task) => { openEditTask(task); setTaskOpen(true); }}
+        handleDeleteTask={handleDeleteTask}
+        projectId={projectId}
+      />
 
       {/* Create/Edit Task Dialog */}
       <Dialog open={taskOpen} onOpenChange={(v) => { setTaskOpen(v); if (!v) resetTaskForm(); }}>
