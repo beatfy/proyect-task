@@ -2,7 +2,7 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, FolderOpen, CheckSquare, Calendar, Settings, LogOut, ChevronLeft, ChevronRight, Mail, Bell, Sun, Moon, LayoutTemplate, Building2, FileText, MessageCircle, Menu, Receipt } from "lucide-react";
+import { Home, FolderOpen, CheckSquare, Calendar, Settings, LogOut, ChevronLeft, ChevronRight, Mail, Sun, Moon, Building2, FileText, MessageCircle, Menu, Receipt } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -17,18 +17,36 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: Home },
-  { name: "Proyectos", href: "/projects", icon: FolderOpen },
-  { name: "Organizaciones", href: "/organizations", icon: Building2 },
-  { name: "Tareas", href: "/tasks", icon: CheckSquare },
-  { name: "Calendario", href: "/calendar", icon: Calendar },
-  { name: "Archivos", href: "/files", icon: FileText },
-  { name: "Plantillas", href: "/templates", icon: LayoutTemplate },
-  { name: "Mail", href: "/mail", icon: Mail },
-  { name: "Notificaciones", href: "/notifications", icon: Bell },
-  { name: "Facturación", href: "/billing", icon: Receipt },
-  { name: "Configuración", href: "/settings", icon: Settings },
+const sections = [
+  {
+    label: "General",
+    items: [
+      { name: "Dashboard", href: "/dashboard", icon: Home },
+      { name: "Organizaciones", href: "/organizations", icon: Building2 },
+    ],
+  },
+  {
+    label: "Trabajo",
+    items: [
+      { name: "Proyectos", href: "/projects", icon: FolderOpen },
+      { name: "Tareas", href: "/tasks", icon: CheckSquare },
+      { name: "Calendario", href: "/calendar", icon: Calendar },
+      { name: "Archivos", href: "/files", icon: FileText },
+      { name: "Mail", href: "/mail", icon: Mail },
+    ],
+  },
+  {
+    label: "Negocio",
+    items: [
+      { name: "Facturación", href: "/billing", icon: Receipt },
+    ],
+  },
+  {
+    label: "Sistema",
+    items: [
+      { name: "Configuración", href: "/settings", icon: Settings },
+    ],
+  },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -135,38 +153,53 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           {/* Navigation */}
           <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-            {navigation.map((item) => {
-              const isActive = pathname === item.href;
-              const linkContent = (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg text-sm font-medium transition-colors",
-                    collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2",
-                    isActive
-                      ? "bg-indigo-500 text-white dark:bg-indigo-600 dark:text-white"
-                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                  )}
-                >
-                  <item.icon className="h-5 w-5 flex-shrink-0" />
-                  {!collapsed && item.name}
-                </Link>
-              );
+            {sections.map((section, sIdx) => (
+              <div key={section.label}>
+                {sIdx > 0 && (
+                  <div className={cn(
+                    "my-2 border-t border-foreground/10",
+                    collapsed && "mx-1"
+                  )} />
+                )}
+                {!collapsed && (
+                  <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                    {section.label}
+                  </p>
+                )}
+                {section.items.map((item) => {
+                  const isActive = pathname === item.href;
+                  const linkContent = (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg text-sm font-medium transition-colors",
+                        collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2",
+                        isActive
+                          ? "bg-indigo-500 text-white dark:bg-indigo-600 dark:text-white"
+                          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      )}
+                    >
+                      <item.icon className="h-5 w-5 flex-shrink-0" />
+                      {!collapsed && item.name}
+                    </Link>
+                  );
 
-              if (collapsed) {
-                return (
-                  <Tooltip key={item.name}>
-                    <TooltipTrigger asChild>
-                      {linkContent}
-                    </TooltipTrigger>
-                    <TooltipContent side="right">{item.name}</TooltipContent>
-                  </Tooltip>
-                );
-              }
+                  if (collapsed) {
+                    return (
+                      <Tooltip key={item.name}>
+                        <TooltipTrigger asChild>
+                          {linkContent}
+                        </TooltipTrigger>
+                        <TooltipContent side="right">{item.name}</TooltipContent>
+                      </Tooltip>
+                    );
+                  }
 
-              return <div key={item.name}>{linkContent}</div>;
-            })}
+                  return <div key={item.name}>{linkContent}</div>;
+                })}
+              </div>
+            ))}
           </nav>
 
           {/* Theme toggle */}
