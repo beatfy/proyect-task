@@ -3,6 +3,8 @@ import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { notifyTaskWebhook } from "@/lib/webhook";
+import { put } from "@vercel/blob";
+import { cuid } from "@/lib/utils";
 
 // ---- Tool definitions for function calling ----
 const TOOLS = [
@@ -178,6 +180,23 @@ const TOOLS = [
           organizationId: { type: "string", description: "ID de la organización" },
         },
         required: ["name"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "task_attachment",
+      description: "Crear un archivo de texto y adjuntarlo a una tarea. Útil para guardar notas, resúmenes, contenido generado, etc. como archivo adjunto.",
+      parameters: {
+        type: "object",
+        properties: {
+          taskId: { type: "string", description: "ID de la tarea donde adjuntar el archivo" },
+          content: { type: "string", description: "Contenido de texto del archivo" },
+          filename: { type: "string", description: "Nombre del archivo (opcional, por defecto: nota-[taskId].txt)" },
+          mimeType: { type: "string", description: "Tipo MIME del archivo (opcional, por defecto: text/plain)" },
+        },
+        required: ["taskId", "content"],
       },
     },
   },
@@ -451,6 +470,45 @@ async function executeTool(
       }
     }
 
+    case "task_attachment": {
+      try {
+        const taskId = args.taskId as string;
+        const content = args.content as string;
+        const mimeType = (args.mimeType as string) || "text/plain";
+        const filename = (args.filename as string) || `nota-${taskId.slice(0, 8)}.txt`;
+
+        // Verify task exists
+        const task = await prisma.task.findUnique({ where: { id: taskId } });
+        if (!task) {
+          return { error: `Tarea ${taskId} no encontrada` };
+        }
+
+        // Create blob from text content
+        const blob = new Blob([content], { type: mimeType });
+        const timestamp = Date.now();
+        const safeName = filename.replace(/[^\w.\- ]/g, "").substring(0, 100);
+        const key = `task-attachments/${taskId}/${timestamp}-${Math.random().toString(36).slice(2)}-${safeName}`;
+
+        const uploaded = await put(key, blob, { access: "private" });
+
+        const attachment = await prisma.attachment.create({
+          data: {
+            id: cuid(),
+            name: safeName,
+            url: uploaded.url,
+            type: "document",
+            size: blob.size,
+            taskId,
+          },
+        });
+
+        return { success: true, attachment: { id: attachment.id, name: attachment.name, url: attachment.url } };
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { error: `Error al crear adjunto: ${msg}` };
+      }
+    }
+
     default:
       return { error: `Tool "${name}" no reconocida` };
   }
@@ -491,6 +549,7 @@ async function buildSystemPrompt(
 - Respuestas concisas. Máximo 3-4 líneas salvo que se pida detalle.
 - Para acciones destructivas (eliminar), confirma brevemente antes.
 - MUY IMPORTANTE: Para actualizar/mover/eliminar tareas, usa SIEMPRE el ID exacto del listado de tareas actual. NUNCA inventes IDs.
+- Si generas contenido largo (resúmenes, textos, notas), usa task_attachment para guardarlo como archivo adjunto en la tarea correspondiente.
 - ANTES DE CREAR CONTENIDO (posts, textos, imágenes, emails, copys) para un cliente, usa la tool client_context para obtener información del cliente. Siempre adapta el contenido al nicho, tono y estrategia del cliente.
 - Si el usuario menciona un cliente por nombre y no coincide con el proyecto activo, avísale.
 - Cuando el usuario proporcione información sobre un cliente (nicho, servicios, tono, web, etc.), usa client_context_update para guardarla.
