@@ -287,8 +287,8 @@ export default function CalendarPage() {
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-lg font-medium min-w-[150px] text-center text-foreground capitalize">
-            {format(currentDate, "MMMM yyyy", { locale: es })}
+          <span className="text-lg font-medium text-center text-foreground capitalize">
+            {format(currentDate, "MMMM", { locale: es })}
           </span>
           <Button
             variant="outline"
