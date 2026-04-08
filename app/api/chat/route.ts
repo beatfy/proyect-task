@@ -702,7 +702,7 @@ export async function POST(request: NextRequest) {
         messages,
         tools: TOOLS,
         tool_choice: "auto",
-        max_tokens: 1000,
+        max_tokens: 2000,
         temperature: 0.7,
       }),
     });
@@ -773,7 +773,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         model,
         messages: secondMessages,
-        max_tokens: 1000,
+        max_tokens: 2000,
         temperature: 0.7,
       }),
     });
