@@ -28,6 +28,8 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors, useDroppable, type DragStartEvent, type DragEndEvent, type DragOverEvent } from "@dnd-kit/core";
+import { useSortable } from "@dnd-kit/sortable";
 import { cn } from "@/lib/utils";
 
 interface Task {
@@ -134,6 +136,54 @@ function formatTimer(seconds: number): string {
   return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
 
+function DroppableColumn({ id, children }: { id: string; children: React.ReactNode }) {
+  const { setNodeRef } = useDroppable({ id });
+  return <div ref={setNodeRef}>{children}</div>;
+}
+
+function DraggableTaskCard({ task, onOpenDetail, onEdit, onDelete }: { task: Task; onOpenDetail: () => void; onEdit: () => void; onDelete: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id, data: { task } });
+  const style = { transform: transform ? `translate3d(${transform.x}px,${transform.y}px,0)` : undefined, transition, opacity: isDragging ? 0.5 : 1 };
+  return (
+    <Card ref={setNodeRef} style={style} {...attributes} {...listeners} onClick={onOpenDetail} className="cursor-pointer hover:shadow-md transition-shadow bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700">
+      <CardContent className="p-3">
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <h4 className="font-medium text-sm leading-tight text-slate-900 dark:text-slate-100">{task.title}</h4>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-slate-200 dark:hover:bg-slate-700">
+                <MoreHorizontal className="h-4 w-4 text-slate-400" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(); }} className="text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+                <Pencil className="h-4 w-4 mr-2" /> Editar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDelete(); }} className="text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+                <Trash2 className="h-4 w-4 mr-2" /> Eliminar
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        {task.description && <p className="text-xs text-slate-500 dark:text-slate-400 mb-3 line-clamp-2">{task.description}</p>}
+        <div className="flex items-center gap-2 flex-wrap mb-2">
+          {task.priority !== "NONE" && (
+            <Badge variant="secondary" className={cn("text-[10px] px-1.5 py-0 h-5 border", priorityColors[task.priority as keyof typeof priorityColors])}>
+              {priorityLabels[task.priority as keyof typeof priorityLabels]}
+            </Badge>
+          )}
+          {task.dueDate && (
+            <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+              <Calendar className="h-3 w-3" />
+              <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 import { Suspense } from "react";
 
 function TasksPageContent() {
@@ -147,6 +197,7 @@ function TasksPageContent() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [detailTask, setDetailTask] = useState<Task | null>(null);
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -623,23 +674,53 @@ function TasksPageContent() {
     }
   };
 
-  const handleDragStart = (task: Task) => setDraggedTask(task);
-  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
+  const dndHandleDragStart = (event: DragStartEvent) => {
+    const task = tasks.find(t => t.id === event.active.id);
+    if (task) setDraggedTask(task);
+  };
 
-  const handleDrop = async (newStatus: string) => {
-    if (!draggedTask) return;
-    setTasks(tasks.map(t => t.id === draggedTask.id ? { ...t, status: newStatus } : t));
-    try {
-      await fetch("/api/tasks", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: draggedTask.id, status: newStatus }),
-      });
-    } catch {
-      setTasks(tasks.map(t => t.id === draggedTask.id ? { ...t, status: draggedTask.status } : t));
-      toast.error("Error al mover tarea");
+  const dndHandleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+    const activeTask = tasks.find(t => t.id === active.id);
+    if (!activeTask) return;
+    // Find target column
+    let targetStatus: string | null = null;
+    for (const col of columns) {
+      if (col.id === over.id || tasks.some(t => t.id === over.id && t.status === col.id)) {
+        targetStatus = col.id;
+        break;
+      }
     }
+    if (targetStatus && activeTask.status !== targetStatus) {
+      setTasks(prev => prev.map(t => t.id === active.id ? { ...t, status: targetStatus! } : t));
+    }
+  };
+
+  const dndHandleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
     setDraggedTask(null);
+    if (!over || active.id === over.id) return;
+    const activeTask = tasks.find(t => t.id === active.id);
+    if (!activeTask) return;
+    let targetStatus: string | null = null;
+    for (const col of columns) {
+      if (col.id === over.id || tasks.some(t => t.id === over.id && t.status === col.id)) {
+        targetStatus = col.id;
+        break;
+      }
+    }
+    if (targetStatus) {
+      try {
+        await fetch("/api/tasks", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: active.id, status: targetStatus }),
+        });
+      } catch {
+        toast.error("Error al mover tarea");
+      }
+    }
   };
 
   const getTasksByStatus = (s: string) => tasks.filter(t => t.status === s);
@@ -1134,81 +1215,43 @@ function TasksPageContent() {
 
       {/* KANBAN VIEW */}
       {view === "kanban" && (
+        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={dndHandleDragStart} onDragOver={dndHandleDragOver} onDragEnd={dndHandleDragEnd}>
         <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-220px)]">
           {columns.map((column) => (
-            <div key={column.id} className="flex-1 min-w-[280px] max-w-[350px] flex flex-col" onDragOver={handleDragOver} onDrop={() => handleDrop(column.id)}>
+            <div key={column.id} id={column.id} className="flex-1 min-w-[280px] max-w-[350px] flex flex-col">
               <div className="flex items-center gap-2 mb-3 px-1">
                 <div className={cn("w-3 h-3 rounded-full", column.color)} />
                 <h3 className="font-medium text-sm text-slate-700 dark:text-slate-300">{column.title}</h3>
                 <span className="text-xs text-slate-400 ml-auto">{getTasksByStatus(column.id).length}</span>
               </div>
+              <DroppableColumn id={column.id}>
               <div className="flex-1 bg-white dark:bg-slate-900 rounded-lg p-2 space-y-2 overflow-y-auto border border-slate-200 dark:border-slate-700">
                 {getTasksByStatus(column.id).length === 0 ? (
                   <div className="text-center py-8 text-slate-400 dark:text-slate-500 text-sm">Sin tareas</div>
                 ) : (
                   getTasksByStatus(column.id).map((task) => (
-                    <Card
+                    <DraggableTaskCard
                       key={task.id}
-                      draggable
-                      onDragStart={() => handleDragStart(task)}
-                      onClick={() => handleOpenDetail(task)}
-                      className="cursor-pointer hover:shadow-md transition-shadow bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
-                    >
-                      <CardContent className="p-3">
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <h4 className="font-medium text-sm leading-tight text-slate-900 dark:text-slate-100">{task.title}</h4>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-slate-200 dark:hover:bg-slate-700">
-                                <MoreHorizontal className="h-4 w-4 text-slate-400" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEdit(task); }} className="text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
-                                <Pencil className="h-4 w-4 mr-2" /> Editar
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDelete(task.id); }} className="text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
-                                <Trash2 className="h-4 w-4 mr-2" /> Eliminar
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                        {task.description && <p className="text-xs text-slate-500 dark:text-slate-400 mb-3 line-clamp-2">{task.description}</p>}
-                        <div className="flex items-center gap-2 flex-wrap mb-2">
-                          {task.priority !== "NONE" && (
-                            <Badge variant="secondary" className={cn("text-[10px] px-1.5 py-0 h-5 border", priorityColors[task.priority])}>
-                              {priorityLabels[task.priority]}
-                            </Badge>
-                          )}
-                          {task.dueDate && (
-                            <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-                              <Calendar className="h-3 w-3" />
-                              <span>{new Date(task.dueDate).toLocaleDateString()}</span>
-                            </div>
-                          )}
-                        </div>
-                        {(task.project?.name || getProjectName(task.projectId)) && (
-                          <div className="flex items-center gap-1.5 mb-2">
-                            <FolderOpen className="h-3 w-3 text-slate-400" />
-                            <span className="text-xs text-slate-500 dark:text-slate-400">{task.project?.name || getProjectName(task.projectId)}</span>
-                          </div>
-                        )}
-                        {task.assignedTo && (
-                          <div className="flex items-center gap-1.5 pt-2 border-t border-slate-200 dark:border-slate-700">
-                            <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                              <User className="h-3 w-3 text-blue-500" />
-                            </div>
-                            <span className="text-xs text-slate-500 dark:text-slate-400 truncate">{task.assignedTo}</span>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
+                      task={task}
+                      onOpenDetail={() => handleOpenDetail(task)}
+                      onEdit={() => handleEdit(task)}
+                      onDelete={() => handleDelete(task.id)}
+                    />
                   ))
                 )}
               </div>
+              </DroppableColumn>
             </div>
           ))}
         </div>
+        <DragOverlay>
+          {draggedTask ? (
+            <div className="w-[280px] bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-300 dark:border-slate-600 p-3 opacity-90">
+              <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{draggedTask.title}</p>
+            </div>
+          ) : null}
+        </DragOverlay>
+        </DndContext>
       )}
 
       {/* TABLE VIEW */}
