@@ -14,11 +14,13 @@ export async function GET(request: NextRequest) {
     const projectId = searchParams.get("projectId");
     const status = searchParams.get("status");
     const year = searchParams.get("year");
+    const month = searchParams.get("month");
 
     const where: Record<string, unknown> = {};
     if (projectId) where.projectId = projectId;
     if (status) where.status = status;
     if (year) where.year = parseInt(year);
+    if (month) where.month = parseInt(month);
 
     // Only invoices for projects the user is member of
     where.project = { members: { some: { userId: authResult.userId } } };
