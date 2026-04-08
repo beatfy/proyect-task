@@ -307,7 +307,8 @@ export default function CalendarPage() {
             <CardHeader>
               <CardTitle className="text-foreground">Vista Mensual</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="overflow-x-auto -mx-6 px-6">
+              <div className="min-w-[600px]">
               <div className="grid grid-cols-7 gap-1 mb-2">
                 {weekDays.map((day) => (
                   <div
@@ -419,6 +420,7 @@ export default function CalendarPage() {
                     </DroppableDayCell>
                   );
                 })}
+              </div>
               </div>
             </CardContent>
           </Card>
