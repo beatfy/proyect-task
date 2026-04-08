@@ -227,7 +227,7 @@ export default function TemplatesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-foreground flex items-center gap-2">
-            <LayoutTemplate className="h-6 w-6 text-indigo-500" />
+            <LayoutTemplate className="h-6 w-6 text-neutral-900" />
             Plantillas
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
@@ -249,10 +249,10 @@ export default function TemplatesPage() {
             {defaults.map((t) => {
               const Icon = getTemplateIcon(t.name);
               return (
-                <Card key={t.id} className="bg-card border-border hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors">
+                <Card key={t.id} className="bg-card border-border hover:border-neutral-400 dark:hover:border-neutral-800 transition-colors">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base flex items-center gap-2">
-                      <Icon className="h-5 w-5 text-indigo-500" />
+                      <Icon className="h-5 w-5 text-neutral-900" />
                       <span className="text-foreground">{t.name}</span>
                     </CardTitle>
                   </CardHeader>
@@ -266,7 +266,7 @@ export default function TemplatesPage() {
                         {statusLabels[t.status]}
                       </span>
                       {t.tags?.map((tag) => (
-                        <span key={tag} className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
+                        <span key={tag} className="text-xs px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-800 dark:bg-neutral-900/10 dark:text-neutral-500">
                           {tag}
                         </span>
                       ))}
@@ -300,11 +300,11 @@ export default function TemplatesPage() {
             {custom.map((t) => {
               const Icon = getTemplateIcon(t.name);
               return (
-                <Card key={t.id} className="bg-card border-border hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors group">
+                <Card key={t.id} className="bg-card border-border hover:border-neutral-400 dark:hover:border-neutral-800 transition-colors group">
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <CardTitle className="text-base flex items-center gap-2">
-                        <Icon className="h-5 w-5 text-indigo-500" />
+                        <Icon className="h-5 w-5 text-neutral-900" />
                         <span className="text-foreground">{t.name}</span>
                       </CardTitle>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -333,7 +333,7 @@ export default function TemplatesPage() {
                         {statusLabels[t.status]}
                       </span>
                       {t.tags?.map((tag) => (
-                        <span key={tag} className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
+                        <span key={tag} className="text-xs px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-800 dark:bg-neutral-900/10 dark:text-neutral-500">
                           {tag}
                         </span>
                       ))}

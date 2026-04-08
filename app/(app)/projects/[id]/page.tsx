@@ -101,7 +101,7 @@ const roleLabels: Record<string, string> = {
 };
 
 const roleColors: Record<string, string> = {
-  OWNER: "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800",
+  OWNER: "bg-neutral-100 dark:bg-neutral-900/10 text-neutral-900 dark:text-neutral-500 border-indigo-200 dark:border-indigo-800",
   ADMIN: "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800",
   MEMBER: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700",
 };
@@ -119,7 +119,7 @@ function SortableTaskCard({ task, onEdit, onDelete }: { task: Task; onEdit: () =
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
       <Card
-        className={cn("bg-muted border-border hover:shadow-md cursor-pointer transition-shadow", isDragging && "shadow-lg ring-2 ring-indigo-400")}
+        className={cn("bg-muted border-border hover:shadow-md cursor-pointer transition-shadow", isDragging && "shadow-lg ring-2 ring-neutral-500")}
         onClick={(e) => { e.stopPropagation(); onEdit(); }}
       >
         <CardContent className="p-3">
@@ -156,7 +156,7 @@ function SortableTaskCard({ task, onEdit, onDelete }: { task: Task; onEdit: () =
             )}
             {taskAssignees.map((a, i) => (
               <div key={a.id + i} className="flex items-center gap-1">
-                <div className="w-5 h-5 rounded-full bg-indigo-500 text-white flex items-center justify-center text-[10px]" title={a.name || a.email}>
+                <div className="w-5 h-5 rounded-full bg-neutral-900 text-white flex items-center justify-center text-[10px]" title={a.name || a.email}>
                   {a.name?.[0]?.toUpperCase() || a.email[0].toUpperCase()}
                 </div>
                 <span className="text-xs text-muted-foreground">{a.name || a.email}</span>
@@ -289,7 +289,7 @@ function KanbanBoard({ tasks, setTasks, onTaskClick, handleDeleteTask, projectId
       </div>
       <DragOverlay>
         {activeTask ? (
-          <Card className="bg-muted border-border shadow-xl ring-2 ring-indigo-400 rotate-2">
+          <Card className="bg-muted border-border shadow-xl ring-2 ring-neutral-500 rotate-2">
             <CardContent className="p-3">
               <h4 className="font-medium text-sm text-foreground">{activeTask.title}</h4>
             </CardContent>
@@ -635,7 +635,7 @@ export default function ProjectDetailPage() {
             <div className="flex flex-wrap gap-2">
               {members.map((m) => (
                 <div key={m.id} className="flex items-center gap-2 px-2 py-1 rounded-full bg-muted">
-                  <div className="w-6 h-6 rounded-full bg-indigo-500 text-white flex items-center justify-center text-xs">
+                  <div className="w-6 h-6 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xs">
                     {m.user.name?.[0]?.toUpperCase() || m.user.email[0].toUpperCase()}
                   </div>
                   <span className="text-sm text-foreground">{m.user.name || m.user.email}</span>
@@ -744,7 +744,7 @@ export default function ProjectDetailPage() {
               {assigneeIds.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-1">
                   {assigneeIds.map(uid => (
-                    <Badge key={uid} variant="secondary" className="gap-1 pr-1 border bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-700">
+                    <Badge key={uid} variant="secondary" className="gap-1 pr-1 border bg-neutral-50 dark:bg-neutral-900/10 text-neutral-800 dark:text-neutral-400 border-indigo-200 dark:border-neutral-800">
                       {getMemberName(uid)}
                       <button
                         type="button"
@@ -772,9 +772,9 @@ export default function ProjectDetailPage() {
                           type="checkbox"
                           checked={assigneeIds.includes(m.user.id)}
                           onChange={() => toggleAssignee(m.user.id)}
-                          className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                          className="rounded border-gray-300 text-neutral-900 focus:ring-neutral-900"
                         />
-                        <div className="w-6 h-6 rounded-full bg-indigo-500 text-white flex items-center justify-center text-xs">
+                        <div className="w-6 h-6 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xs">
                           {m.user.name?.[0]?.toUpperCase() || m.user.email[0].toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -801,7 +801,7 @@ export default function ProjectDetailPage() {
         <DialogContent className="bg-card border-border max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle className="text-foreground flex items-center gap-2">
-              <Link2 className="h-5 w-5 text-indigo-500" /> Invitar con Link
+              <Link2 className="h-5 w-5 text-neutral-900" /> Invitar con Link
             </DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto space-y-5 pt-4">
@@ -855,15 +855,15 @@ export default function ProjectDetailPage() {
             </div>
 
             {inviteLink && (
-              <div className="bg-indigo-500/10 border border-indigo-300 dark:border-indigo-700 rounded-lg p-3 space-y-2">
-                <p className="text-xs font-medium text-indigo-700">✅ Link generado — compártelo:</p>
+              <div className="bg-neutral-900/10 border border-neutral-400 dark:border-neutral-800 rounded-lg p-3 space-y-2">
+                <p className="text-xs font-medium text-neutral-800">✅ Link generado — compártelo:</p>
                 <div className="flex gap-2">
                   <Input
                     value={inviteLink}
                     readOnly
-                    className="bg-card border-indigo-300 dark:border-indigo-700 text-foreground text-sm font-mono"
+                    className="bg-card border-neutral-400 dark:border-neutral-800 text-foreground text-sm font-mono"
                   />
-                  <Button variant="outline" size="icon" onClick={() => copyToClipboard(inviteLink)} className="shrink-0 border-indigo-300">
+                  <Button variant="outline" size="icon" onClick={() => copyToClipboard(inviteLink)} className="shrink-0 border-neutral-400">
                     {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
                   </Button>
                 </div>
@@ -936,7 +936,7 @@ export default function ProjectDetailPage() {
                 members.map((m) => (
                   <div key={m.id} className="flex items-center justify-between p-2 rounded-lg border border-border">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-indigo-500 text-white flex items-center justify-center text-sm">
+                      <div className="w-8 h-8 rounded-full bg-neutral-900 text-white flex items-center justify-center text-sm">
                         {m.user.name?.[0]?.toUpperCase() || m.user.email[0].toUpperCase()}
                       </div>
                       <div>

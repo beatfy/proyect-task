@@ -832,7 +832,7 @@ function TasksPageContent() {
                   {assigneeIds.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1">
                       {assigneeIds.map(uid => (
-                        <Badge key={uid} variant="secondary" className="gap-1 pr-1 border bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-700">
+                        <Badge key={uid} variant="secondary" className="gap-1 pr-1 border bg-neutral-50 dark:bg-neutral-900/10 text-neutral-800 dark:text-neutral-400 border-indigo-200 dark:border-neutral-800">
                           {getMemberName(uid)}
                           <button type="button" onClick={(e) => { e.stopPropagation(); toggleAssignee(uid); }} className="ml-1 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800 p-0.5">
                             <X className="h-3 w-3" />
@@ -849,9 +849,9 @@ function TasksPageContent() {
                             type="checkbox"
                             checked={assigneeIds.includes(m.user.id)}
                             onChange={() => toggleAssignee(m.user.id)}
-                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            className="rounded border-slate-300 text-neutral-900 focus:ring-neutral-900"
                           />
-                          <div className="w-6 h-6 rounded-full bg-indigo-500 text-white flex items-center justify-center text-xs">
+                          <div className="w-6 h-6 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xs">
                             {m.user.name?.[0]?.toUpperCase() || m.user.email[0].toUpperCase()}
                           </div>
                           <span className="text-sm text-slate-700 dark:text-slate-300">{m.user.name || m.user.email}</span>
@@ -1004,7 +1004,7 @@ function TasksPageContent() {
             </div>
 
             {/* Subtasks */}
-            <div className="space-y-3">
+            <div className="space-y-2">
               <div className="flex items-center justify-between cursor-pointer" onClick={() => setShowSubtasks(!showSubtasks)}>
                 <h3 className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
                   <ChevronDown className={`h-4 w-4 transition-transform ${showSubtasks ? "" : "-rotate-90"}`} />
@@ -1020,22 +1020,22 @@ function TasksPageContent() {
                 />
               </div>
               {showSubtasks && (
-                <div className="space-y-2 ml-4">
+                <div className="space-y-1">
                   {subtasks.length === 0 ? (
-                    <p className="text-slate-500 dark:text-slate-400 text-sm">No hay subtareas</p>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm pl-1">No hay subtareas</p>
                   ) : (
                     subtasks.map((st) => (
-                      <div key={st.id} className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">
+                      <div key={st.id} className="flex items-center gap-2 py-1">
                         <input
                           type="checkbox"
                           checked={st.status === "DONE"}
                           onChange={() => handleToggleSubtask(st)}
-                          className="rounded border-slate-300 dark:border-slate-600"
+                          className="rounded-sm border-slate-300 dark:border-slate-600"
                         />
                         <span className={cn("text-sm", st.status === "DONE" && "text-slate-400 line-through dark:text-slate-500")}>
                           {st.title}
                         </span>
-                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 ml-auto" onClick={async () => {
+                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 ml-auto opacity-0 group-hover:opacity-100 hover:opacity-100" onClick={async () => {
                           await fetch(`/api/tasks?id=${st.id}`, { method: "DELETE" });
                           setSubtasks(subtasks.filter(s => s.id !== st.id));
                         }}>
@@ -1045,7 +1045,7 @@ function TasksPageContent() {
                     ))
                   )}
                   {subtaskTitle.trim() && (
-                    <Button size="sm" onClick={handleCreateSubtask}>Añadir</Button>
+                    <Button size="sm" variant="ghost" onClick={handleCreateSubtask}>Añadir</Button>
                   )}
                 </div>
               )}
@@ -1061,7 +1061,7 @@ function TasksPageContent() {
                 {comments.map((c) => (
                   <div key={c.id} className="p-3 bg-slate-50 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">
                     <div className="flex items-center gap-2 mb-1">
-                      <div className="w-6 h-6 rounded-full bg-indigo-500 text-white flex items-center justify-center text-xs">
+                      <div className="w-6 h-6 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xs">
                         {c.author.name?.[0]?.toUpperCase() || c.author.email[0].toUpperCase()}
                       </div>
                       <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{c.author.name || c.author.email}</span>

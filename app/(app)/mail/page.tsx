@@ -188,7 +188,7 @@ export default function MailPage() {
   const setupForm = (
     <div className="max-w-md mx-auto space-y-4">
       <div className="text-center mb-6">
-        <Mail className="h-12 w-12 mx-auto text-indigo-500 mb-3" />
+        <Mail className="h-12 w-12 mx-auto text-neutral-900 mb-3" />
         <h2 className="text-2xl font-bold text-foreground">Configurar Email</h2>
         <p className="text-muted-foreground mt-1">
           Conecta tu cuenta de email vía IMAP
@@ -359,7 +359,7 @@ export default function MailPage() {
                   className={cn(
                     "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                     activeFolder === folder.name
-                      ? "bg-indigo-500 text-white dark:bg-indigo-600"
+                      ? "bg-neutral-900 text-white dark:bg-neutral-900"
                       : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                   )}
                 >

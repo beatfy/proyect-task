@@ -94,7 +94,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <button onClick={() => setMobileMenuOpen(true)} className="p-2 -ml-2">
             <Menu className="h-5 w-5" />
           </button>
-          <Link href="/dashboard" className="text-lg font-bold text-indigo-600">TaskX</Link>
+          <Link href="/dashboard" className="text-lg font-bold text-neutral-900">TaskX</Link>
           <NotificationCenter compact />
         </header>
         {/* Sidebar */}
@@ -112,12 +112,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             collapsed ? "justify-center px-2" : "justify-between px-4"
           )}>
             {!collapsed && (
-              <Link href="/dashboard" className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
+              <Link href="/dashboard" className="text-xl font-bold text-neutral-900 dark:text-neutral-500">
                 TaskX
               </Link>
             )}
             {collapsed && (
-              <Link href="/dashboard" className="text-lg font-bold text-indigo-600 dark:text-indigo-400">
+              <Link href="/dashboard" className="text-lg font-bold text-neutral-900 dark:text-neutral-500">
                 T
               </Link>
             )}
@@ -176,7 +176,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                         "flex items-center gap-3 rounded-lg text-sm font-medium transition-colors",
                         collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2",
                         isActive
-                          ? "bg-indigo-500 text-white dark:bg-indigo-600 dark:text-white"
+                          ? "bg-neutral-900 text-white dark:bg-neutral-900 dark:text-white"
                           : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                       )}
                     >
@@ -239,7 +239,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <div className="flex flex-col items-center gap-2 py-1">
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="w-8 h-8 rounded-full bg-indigo-500 text-white flex items-center justify-center text-sm font-medium cursor-default">
+                    <div className="w-8 h-8 rounded-full bg-neutral-900 text-white flex items-center justify-center text-sm font-medium cursor-default">
                       {session.user?.name?.[0]?.toUpperCase() || "U"}
                     </div>
                   </TooltipTrigger>
@@ -264,7 +264,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             ) : (
               <div className="px-2">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-indigo-500 text-white flex items-center justify-center text-sm font-medium">
+                  <div className="w-8 h-8 rounded-full bg-neutral-900 text-white flex items-center justify-center text-sm font-medium">
                     {session.user?.name?.[0]?.toUpperCase() || "U"}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -304,7 +304,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {/* Tasky Chat Button */}
         <button
           onClick={() => setChatOpen(true)}
-          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center"
+          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-neutral-900 hover:bg-neutral-800 active:bg-indigo-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center"
           title="Chat con Tasky"
         >
           <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6" />

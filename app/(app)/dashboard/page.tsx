@@ -150,7 +150,7 @@ export default function DashboardPage() {
 
   const statCards = [
     { name: "Completadas esta semana", value: stats.completedThisWeek, icon: CheckCircle, color: "text-green-500", bg: "bg-green-50 dark:bg-green-900/20" },
-    { name: "Completadas este mes", value: stats.completedThisMonth, icon: TrendingUp, color: "text-indigo-500", bg: "bg-indigo-50 dark:bg-indigo-900/20", change: monthChange },
+    { name: "Completadas este mes", value: stats.completedThisMonth, icon: TrendingUp, color: "text-neutral-900", bg: "bg-neutral-50 dark:bg-indigo-900/20", change: monthChange },
     { name: "Tiempo trabajado (mes)", value: formatDuration(stats.totalTimeThisMonth), icon: Timer, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-900/20" },
     { name: "Tiempo trabajado (semana)", value: formatDuration(stats.totalTimeThisWeek), icon: Clock, color: "text-cyan-500", bg: "bg-cyan-50 dark:bg-cyan-900/20" },
     { name: "Proyectos activos", value: stats.activeProjects, icon: FolderOpen, color: "text-violet-500", bg: "bg-violet-50 dark:bg-violet-900/20" },
@@ -218,7 +218,7 @@ export default function DashboardPage() {
         <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="text-foreground flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-indigo-500" />
+              <BarChart3 className="h-5 w-5 text-neutral-900" />
               Tareas por Estado
             </CardTitle>
           </CardHeader>
@@ -253,7 +253,7 @@ export default function DashboardPage() {
         <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="text-foreground flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-indigo-500" />
+              <BarChart3 className="h-5 w-5 text-neutral-900" />
               Tareas por Prioridad
             </CardTitle>
           </CardHeader>

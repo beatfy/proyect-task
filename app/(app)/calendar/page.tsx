@@ -122,7 +122,7 @@ function DraggableTaskChip({ task }: { task: Task }) {
           ? "bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 font-semibold"
           : task.priority === "HIGH"
           ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
-          : "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400",
+          : "bg-neutral-100 dark:bg-neutral-900/10 text-neutral-800 dark:text-neutral-500",
         isDragging && "opacity-40"
       )}
     >
@@ -141,7 +141,7 @@ function DroppableDayCell({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: day });
   return (
-    <div ref={setNodeRef} className={cn(isOver && "bg-indigo-500/10")}>
+    <div ref={setNodeRef} className={cn(isOver && "bg-neutral-900/10")}>
       {children}
     </div>
   );
@@ -337,9 +337,9 @@ export default function CalendarPage() {
                       <div
                         className={cn(
                           "aspect-[1.2] min-h-[80px] p-1 rounded-lg transition-colors border border-transparent flex flex-col",
-                          isToday(day) && "ring-2 ring-indigo-500 ring-offset-1 ring-offset-card",
+                          isToday(day) && "ring-2 ring-neutral-900 ring-offset-1 ring-offset-card",
                           isSelected
-                            ? "bg-indigo-500/10 border-indigo-500/40"
+                            ? "bg-neutral-900/10 border-neutral-900/40"
                             : "hover:bg-accent",
                           hasUrgent && !isSelected && "border-purple-300 dark:border-purple-700 bg-purple-50/50 dark:bg-purple-950/20"
                         )}
@@ -348,8 +348,8 @@ export default function CalendarPage() {
                           <button
                             onClick={() => setSelectedDay(day)}
                             className={cn(
-                              "text-xs font-medium leading-none px-1 py-0.5 rounded hover:bg-indigo-500/20",
-                              isSelected && "bg-indigo-500 text-white hover:bg-indigo-600"
+                              "text-xs font-medium leading-none px-1 py-0.5 rounded hover:bg-neutral-900/20",
+                              isSelected && "bg-neutral-900 text-white hover:bg-neutral-900"
                             )}
                           >
                             {format(day, "d")}
@@ -403,7 +403,7 @@ export default function CalendarPage() {
                               <button
                                 onClick={handleCreateTask}
                                 disabled={creating}
-                                className="h-5 px-1.5 text-[10px] bg-indigo-500 text-white rounded hover:bg-indigo-600 disabled:opacity-50"
+                                className="h-5 px-1.5 text-[10px] bg-neutral-900 text-white rounded hover:bg-neutral-900 disabled:opacity-50"
                               >
                                 {creating ? "..." : "OK"}
                               </button>
@@ -542,7 +542,7 @@ export default function CalendarPage() {
         {/* Drag overlay */}
         <DragOverlay>
           {activeTask ? (
-            <div className="bg-indigo-500 text-white px-3 py-1.5 rounded-lg shadow-lg text-sm font-medium max-w-[200px] truncate">
+            <div className="bg-neutral-900 text-white px-3 py-1.5 rounded-lg shadow-lg text-sm font-medium max-w-[200px] truncate">
               {activeTask.title}
             </div>
           ) : null}

@@ -60,7 +60,7 @@ const roleLabels: Record<string, string> = {
 };
 
 const roleColors: Record<string, string> = {
-  OWNER: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
+  OWNER: "bg-neutral-100 text-neutral-800 dark:bg-neutral-900/10 dark:text-neutral-400",
   ADMIN: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
   MEMBER: "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300",
 };
@@ -275,8 +275,8 @@ export default function OrganizationDetailPage() {
           <Button variant="ghost" size="icon" onClick={() => router.push("/organizations")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div className="w-12 h-12 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
-            <Building2 className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+          <div className="w-12 h-12 rounded-lg bg-neutral-100 dark:bg-neutral-900/10 flex items-center justify-center">
+            <Building2 className="h-6 w-6 text-neutral-900 dark:text-neutral-500" />
           </div>
           <div>
             <h1 className="text-3xl font-bold text-foreground">{org.name}</h1>
@@ -307,7 +307,7 @@ export default function OrganizationDetailPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card className="bg-card border-border">
           <CardContent className="flex items-center gap-3 pt-6">
-            <Users className="h-8 w-8 text-indigo-500" />
+            <Users className="h-8 w-8 text-neutral-900" />
             <div>
               <p className="text-2xl font-bold text-foreground">{members.length}</p>
               <p className="text-sm text-muted-foreground">Miembros</p>
@@ -316,7 +316,7 @@ export default function OrganizationDetailPage() {
         </Card>
         <Card className="bg-card border-border">
           <CardContent className="flex items-center gap-3 pt-6">
-            <FolderOpen className="h-8 w-8 text-indigo-500" />
+            <FolderOpen className="h-8 w-8 text-neutral-900" />
             <div>
               <p className="text-2xl font-bold text-foreground">{projects.length}</p>
               <p className="text-sm text-muted-foreground">Proyectos</p>
@@ -369,7 +369,7 @@ export default function OrganizationDetailPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {projects.map((project) => (
                 <Link key={project.id} href={`/projects/${project.id}`}>
-                  <Card className="bg-card border-border hover:border-indigo-500/50 transition-colors cursor-pointer">
+                  <Card className="bg-card border-border hover:border-neutral-900/50 transition-colors cursor-pointer">
                     <CardHeader className="pb-2">
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded-full" style={{ backgroundColor: project.color }} />
@@ -410,7 +410,7 @@ export default function OrganizationDetailPage() {
                   {members.map((member) => (
                     <div key={member.id} className="flex items-center justify-between px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-indigo-500 text-white flex items-center justify-center text-sm font-medium">
+                        <div className="w-8 h-8 rounded-full bg-neutral-900 text-white flex items-center justify-center text-sm font-medium">
                           {(member.user.name || member.user.email)[0].toUpperCase()}
                         </div>
                         <div>

@@ -163,7 +163,7 @@ export default function NotificationCenter({ compact = false }: Props) {
                   size="sm"
                   onClick={markAllAsRead}
                   disabled={loading}
-                  className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
+                  className="text-xs text-neutral-900 dark:text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-400"
                 >
                   Marcar todas leídas
                 </Button>
@@ -185,11 +185,11 @@ export default function NotificationCenter({ compact = false }: Props) {
                       key={notification.id}
                       className={cn(
                         "p-3 border-b border-border last:border-0",
-                        !notification.read && "bg-indigo-50 dark:bg-indigo-900/20"
+                        !notification.read && "bg-neutral-50 dark:bg-indigo-900/20"
                       )}
                     >
                       <div className="flex items-start gap-2">
-                        <Icon className="h-4 w-4 text-indigo-500 mt-0.5" />
+                        <Icon className="h-4 w-4 text-neutral-900 mt-0.5" />
                         <div className="flex-1 min-w-0">
                           {link ? (
                             <Link
@@ -198,7 +198,7 @@ export default function NotificationCenter({ compact = false }: Props) {
                                 markAsRead(notification.id);
                                 setOpen(false);
                               }}
-                              className="text-sm font-medium hover:text-indigo-600 dark:hover:text-indigo-400"
+                              className="text-sm font-medium hover:text-neutral-900 dark:hover:text-neutral-500"
                             >
                               {notification.title}
                             </Link>
@@ -246,7 +246,7 @@ export default function NotificationCenter({ compact = false }: Props) {
             <Link
               href="/notifications"
               onClick={() => setOpen(false)}
-              className="block p-2 text-center text-sm text-indigo-600 dark:text-indigo-400 hover:bg-accent"
+              className="block p-2 text-center text-sm text-neutral-900 dark:text-neutral-500 hover:bg-accent"
             >
               Ver todas
             </Link>
@@ -286,16 +286,16 @@ export default function NotificationCenter({ compact = false }: Props) {
                   key={notification.id}
                   className={cn(
                     "p-4 flex items-start gap-3",
-                    !notification.read && "bg-indigo-50 dark:bg-indigo-900/20"
+                    !notification.read && "bg-neutral-50 dark:bg-indigo-900/20"
                   )}
                 >
-                  <Icon className="h-5 w-5 text-indigo-500 mt-0.5" />
+                  <Icon className="h-5 w-5 text-neutral-900 mt-0.5" />
                   <div className="flex-1">
                     {link ? (
                       <Link
                         href={link}
                         onClick={() => markAsRead(notification.id)}
-                        className="font-medium text-foreground hover:text-indigo-600 dark:hover:text-indigo-400"
+                        className="font-medium text-foreground hover:text-neutral-900 dark:hover:text-neutral-500"
                       >
                         {notification.title}
                       </Link>

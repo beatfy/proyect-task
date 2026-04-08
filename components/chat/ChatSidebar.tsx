@@ -193,7 +193,7 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full bg-neutral-900/10 flex items-center justify-center">
               <span className="text-sm">🤖</span>
             </div>
             <div>
@@ -221,7 +221,7 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-indigo-500/10 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-full bg-neutral-900/10 flex items-center justify-center">
                 <span className="text-2xl">🤖</span>
               </div>
               <div>
@@ -258,14 +258,14 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
               }`}
             >
               {msg.role === "assistant" && (
-                <div className="w-6 h-6 rounded-full bg-indigo-500/10 flex items-center justify-center flex-shrink-0 mt-1">
+                <div className="w-6 h-6 rounded-full bg-neutral-900/10 flex items-center justify-center flex-shrink-0 mt-1">
                   <span className="text-xs">🤖</span>
                 </div>
               )}
               <div
                 className={`max-w-[80%] rounded-xl px-3 py-2 text-sm ${
                   msg.role === "user"
-                    ? "bg-indigo-600 text-white"
+                    ? "bg-neutral-900 text-white"
                     : "bg-muted"
                 }`}
               >
@@ -288,7 +288,7 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
 
           {isLoading && (
             <div className="flex gap-2 items-start">
-              <div className="w-6 h-6 rounded-full bg-indigo-500/10 flex items-center justify-center flex-shrink-0">
+              <div className="w-6 h-6 rounded-full bg-neutral-900/10 flex items-center justify-center flex-shrink-0">
                 <span className="text-xs">🤖</span>
               </div>
               <div className="bg-muted rounded-xl px-3 py-2">
@@ -316,7 +316,7 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
                 projectId ? "Escribe un mensaje..." : "Navega a un proyecto primero"
               }
               rows={1}
-              className="flex-1 resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 max-h-32"
+              className="flex-1 resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-neutral-900 max-h-32"
               style={{ height: "auto", minHeight: "38px" }}
               onInput={(e) => {
                 const target = e.target as HTMLTextAreaElement;
@@ -327,7 +327,7 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
             <button
               onClick={() => sendMessage()}
               disabled={!input.trim() || isLoading}
-              className="p-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="p-2 rounded-lg bg-neutral-900 text-white hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />

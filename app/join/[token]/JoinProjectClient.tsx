@@ -89,7 +89,7 @@ export default function JoinProjectClient({ project, inviter, token }: Props) {
         <button
           onClick={handleJoin}
           disabled={loading}
-          className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-medium rounded-lg transition-colors"
+          className="w-full py-3 px-4 bg-neutral-900 hover:bg-neutral-800 disabled:bg-neutral-500 text-white font-medium rounded-lg transition-colors"
         >
           {loading ? "Uniéndose..." : "Unirse al proyecto"}
         </button>

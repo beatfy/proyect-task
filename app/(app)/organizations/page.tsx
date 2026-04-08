@@ -35,7 +35,7 @@ const roleLabels: Record<string, string> = {
 };
 
 const roleColors: Record<string, string> = {
-  OWNER: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
+  OWNER: "bg-neutral-100 text-neutral-800 dark:bg-neutral-900/10 dark:text-neutral-400",
   ADMIN: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
   MEMBER: "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300",
 };
@@ -196,12 +196,12 @@ export default function OrganizationsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {organizations.map((org) => (
             <Link key={org.id} href={`/organizations/${org.id}`}>
-              <Card className="bg-card border-border hover:border-indigo-500/50 transition-colors cursor-pointer h-full">
+              <Card className="bg-card border-border hover:border-neutral-900/50 transition-colors cursor-pointer h-full">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
-                        <Building2 className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                      <div className="w-10 h-10 rounded-lg bg-neutral-100 dark:bg-neutral-900/10 flex items-center justify-center">
+                        <Building2 className="h-5 w-5 text-neutral-900 dark:text-neutral-500" />
                       </div>
                       <div>
                         <CardTitle className="text-foreground text-base">
