@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckSquare, Clock, CheckCircle, AlertCircle, Loader2, FolderOpen, TrendingUp, Timer, BarChart3, Building2, Bot, Wrench, Zap } from "lucide-react";
+import { CheckSquare, CheckCircle, AlertCircle, Loader2, FolderOpen, TrendingUp, BarChart3, Building2, Bot, Wrench, Zap } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -151,8 +151,6 @@ export default function DashboardPage() {
   const statCards = [
     { name: "Completadas esta semana", value: stats.completedThisWeek, icon: CheckCircle, color: "text-green-500", bg: "bg-green-50 dark:bg-green-900/20" },
     { name: "Completadas este mes", value: stats.completedThisMonth, icon: TrendingUp, color: "text-neutral-900", bg: "bg-neutral-50 dark:bg-indigo-900/20", change: monthChange },
-    { name: "Tiempo trabajado (mes)", value: formatDuration(stats.totalTimeThisMonth), icon: Timer, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-900/20" },
-    { name: "Tiempo trabajado (semana)", value: formatDuration(stats.totalTimeThisWeek), icon: Clock, color: "text-cyan-500", bg: "bg-cyan-50 dark:bg-cyan-900/20" },
     { name: "Proyectos activos", value: stats.activeProjects, icon: FolderOpen, color: "text-violet-500", bg: "bg-violet-50 dark:bg-violet-900/20" },
     { name: "Tareas vencidas", value: stats.overdueTasks, icon: AlertCircle, color: "text-red-500", bg: "bg-red-50 dark:bg-red-900/20" },
     { name: "Total tareas", value: stats.totalTasks, icon: CheckSquare, color: "text-muted-foreground", bg: "bg-muted" },
