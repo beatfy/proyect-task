@@ -176,7 +176,7 @@ export default function NotificationCenter({ compact = false }: Props) {
                   No hay notificaciones
                 </div>
               ) : (
-                notifications.slice(0, 5).map((notification) => {
+                notifications.slice(0, 10).map((notification) => {
                   const Icon = typeIcons[notification.type] || Bell;
                   const link = getLink(notification);
 

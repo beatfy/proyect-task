@@ -50,6 +50,7 @@ model Project {
   monthlyFee     Float           @default(0)
   clientContext  String?
   invoices       Invoice[]
+  labels        ProjectLabel[]
 }
 
 model ProjectMember {
@@ -244,6 +245,7 @@ model Organization {
   members      OrganizationMember[]
   projects     Project[]
   invitations  Invitation[]
+  labels       Label[]
 }
 
 model OrganizationMember {
@@ -315,6 +317,30 @@ model RateLimit {
   key       String   @unique
   count     Int      @default(1)
   updatedAt DateTime @updatedAt
+}
+
+// ========== LABELS / TAGS ==========
+
+model Label {
+  id             String         @id @default(cuid())
+  name           String
+  color          String         @default("#6366f1")
+  organizationId String?
+  organization   Organization?  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  projects       ProjectLabel[]
+  createdAt      DateTime       @default(now())
+
+  @@unique([name, organizationId])
+}
+
+model ProjectLabel {
+  id         String @id @default(cuid())
+  projectId  String
+  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  labelId    String
+  label      Label   @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, labelId])
 }
 
 model EmailConfig {
