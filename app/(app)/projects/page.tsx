@@ -128,9 +128,6 @@ export default function ProjectsPage() {
     }
   }, [selectedOrg, fetchProjects, fetchLabels]);
 
-  useEffect(() => {
-    if (selectedOrg) fetchProjects();
-  }, [fetchProjects, selectedOrg]);
 
   const handleCreate = async () => {
     if (!name.trim()) {
