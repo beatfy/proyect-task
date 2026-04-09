@@ -523,7 +523,8 @@ async function buildSystemPrompt(
   orgName?: string,
   orgId?: string,
   taskList?: string,
-  memberList?: string
+  memberList?: string,
+  knowledgeBase?: string
 ): Promise<string> {
   const currentDate = new Date().toISOString().split("T")[0];
   return `Eres Tasky, el asistente de IA de TaskX-2. Ayudas a gestionar proyectos, tareas y equipos de forma directa y eficiente.
@@ -558,7 +559,10 @@ async function buildSystemPrompt(
 ${taskList || "Sin proyecto activo."}
 
 ## Miembros del proyecto
-${memberList || "Sin proyecto activo."}`;
+${memberList || "Sin proyecto activo."}
+
+${knowledgeBase ? `## Base de conocimiento de la organización
+${knowledgeBase}` : ""}`;
 }
 
 // ---- GET: chat history ----
@@ -651,6 +655,17 @@ export async function POST(request: NextRequest) {
       memberList = members.map(m => `- [${m.userId}] ${m.user?.name || m.user?.email} (${m.role})`).join("\n") || "No hay miembros.";
     }
 
+    // Fetch organization knowledge base
+    let knowledgeBase: string | undefined;
+    if (organizationId) {
+      const kb = await prisma.knowledgeBase.findUnique({
+        where: { organizationId },
+      });
+      if (kb?.content) {
+        knowledgeBase = kb.content;
+      }
+    }
+
     const systemPrompt = await buildSystemPrompt(
       user?.name || "Usuario",
       authResult.userId,
@@ -659,7 +674,8 @@ export async function POST(request: NextRequest) {
       orgName,
       organizationId,
       taskList,
-      memberList
+      memberList,
+      knowledgeBase
     );
 
     // Build messages for OpenAI

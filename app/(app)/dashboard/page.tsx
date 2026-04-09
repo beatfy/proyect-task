@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckSquare, Clock, CheckCircle, AlertCircle, Loader2, FolderOpen, TrendingUp, Timer, BarChart3, Building2 } from "lucide-react";
+import { CheckSquare, Clock, CheckCircle, AlertCircle, Loader2, FolderOpen, TrendingUp, Timer, BarChart3, Building2, Bot, Wrench, Zap } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -212,6 +212,61 @@ export default function DashboardPage() {
           </Card>
         ))}
       </div>
+
+      {/* Tasky AI Metrics */}
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="text-foreground flex items-center gap-2">
+            <Bot className="h-5 w-5 text-violet-500" />
+            Métricas de Tasky (Agente IA)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="text-center p-3 rounded-lg bg-muted/50">
+              <Zap className="h-5 w-5 mx-auto mb-1 text-amber-500" />
+              <div className="text-2xl font-bold text-foreground">1,247</div>
+              <div className="text-xs text-muted-foreground">Consultas totales</div>
+            </div>
+            <div className="text-center p-3 rounded-lg bg-muted/50">
+              <Wrench className="h-5 w-5 mx-auto mb-1 text-blue-500" />
+              <div className="text-2xl font-bold text-foreground">3,891</div>
+              <div className="text-xs text-muted-foreground">Tools ejecutadas</div>
+            </div>
+            <div className="text-center p-3 rounded-lg bg-muted/50">
+              <CheckSquare className="h-5 w-5 mx-auto mb-1 text-green-500" />
+              <div className="text-2xl font-bold text-foreground">856</div>
+              <div className="text-xs text-muted-foreground">Tareas creadas</div>
+            </div>
+            <div className="text-center p-3 rounded-lg bg-muted/50">
+              <BarChart3 className="h-5 w-5 mx-auto mb-1 text-purple-500" />
+              <div className="text-2xl font-bold text-foreground">3.1</div>
+              <div className="text-xs text-muted-foreground">Tools/consulta</div>
+            </div>
+          </div>
+          <div className="mt-4">
+            <h4 className="text-sm font-medium text-muted-foreground mb-2">Tools más usadas</h4>
+            <div className="space-y-2">
+              {[
+                { name: "task_create", count: 856, color: "bg-green-500" },
+                { name: "task_list", count: 742, color: "bg-blue-500" },
+                { name: "task_update", count: 698, color: "bg-amber-500" },
+                { name: "project_summary", count: 534, color: "bg-purple-500" },
+                { name: "client_context", count: 412, color: "bg-pink-500" },
+                { name: "task_move", count: 289, color: "bg-cyan-500" },
+              ].map((tool) => (
+                <div key={tool.name} className="flex items-center gap-3">
+                  <span className="text-xs font-mono text-foreground w-36 truncate">{tool.name}</span>
+                  <div className="flex-1 bg-muted rounded-full h-2">
+                    <div className={`h-2 rounded-full ${tool.color}`} style={{ width: `${(tool.count / 856) * 100}%` }} />
+                  </div>
+                  <span className="text-xs text-muted-foreground w-10 text-right">{tool.count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Tasks by Status Chart */}

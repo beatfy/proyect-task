@@ -65,6 +65,71 @@ const roleColors: Record<string, string> = {
   MEMBER: "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300",
 };
 
+function KnowledgeBaseSection({ orgId }: { orgId: string }) {
+  const [content, setContent] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (!orgId) return;
+    setLoading(true);
+    fetch(`/api/organizations/${orgId}/knowledge-base`)
+      .then((r) => r.json())
+      .then((data) => setContent(data.content || ""))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [orgId]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaved(false);
+    try {
+      const res = await fetch(`/api/organizations/${orgId}/knowledge-base`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      });
+      if (res.ok) {
+        setSaved(true);
+        toast.success("Base de conocimiento guardada");
+      }
+    } catch {
+      toast.error("Error al guardar");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">Base de conocimiento</h2>
+          <p className="text-sm text-muted-foreground">Información que Tasky usará como contexto para esta organización. Usa markdown.</p>
+        </div>
+        <Button onClick={handleSave} disabled={saving} size="sm">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+          {saved ? "✓ Guardado" : "Guardar"}
+        </Button>
+      </div>
+      <Card className="bg-card border-border">
+        <CardContent className="pt-6">
+          <Textarea
+            value={content}
+            onChange={(e) => { setContent(e.target.value); setSaved(false); }}
+            placeholder="# Mi empresa\n\n- Nicho: ...\n- Servicios: ...\n- Tono de comunicación: ...\n- Clientes objetivo: ..."
+            className="bg-card border-border text-foreground font-mono text-sm min-h-[300px]"
+            rows={16}
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function OrganizationDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -74,7 +139,7 @@ export default function OrganizationDetailPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"projects" | "members">("projects");
+  const [activeTab, setActiveTab] = useState<"projects" | "members" | "knowledge">("projects");
 
   const [editOpen, setEditOpen] = useState(false);
   const [editName, setEditName] = useState("");
@@ -343,6 +408,14 @@ export default function OrganizationDetailPage() {
           <Users className="h-4 w-4 mr-2" />
           Miembros
         </Button>
+        <Button
+          variant={activeTab === "knowledge" ? "default" : "ghost"}
+          size="sm"
+          onClick={() => setActiveTab("knowledge")}
+        >
+          <Settings className="h-4 w-4 mr-2" />
+          Base de conocimiento
+        </Button>
       </div>
 
       {/* Projects Tab */}
@@ -445,6 +518,9 @@ export default function OrganizationDetailPage() {
           </Card>
         </div>
       )}
+
+      {/* Knowledge Base Tab */}
+      {activeTab === "knowledge" && <KnowledgeBaseSection orgId={org?.id || ""} />}
 
       {/* Edit Org Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>

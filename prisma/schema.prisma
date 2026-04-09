@@ -246,6 +246,7 @@ model Organization {
   projects     Project[]
   invitations  Invitation[]
   labels       Label[]
+  knowledgeBase KnowledgeBase?
 }
 
 model OrganizationMember {
@@ -341,6 +342,14 @@ model ProjectLabel {
   label      Label   @relation(fields: [labelId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, labelId])
+}
+
+model KnowledgeBase {
+  id             String   @id @default(cuid())
+  content        String   @default("")
+  organizationId String   @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  updatedAt      DateTime @updatedAt
 }
 
 model EmailConfig {

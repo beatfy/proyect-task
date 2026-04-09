@@ -1058,32 +1058,15 @@ function TasksPageContent() {
               <div className="text-slate-600 dark:text-slate-400">{detailTask.description}</div>
             )}
 
-            {/* Timer Section */}
+            {/* Time Entries Section */}
             <div className="space-y-3">
               <h3 className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
                 <Timer className="h-4 w-4" />
-                Timer
+                Tiempo registrado
               </h3>
-              <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-                <div className="font-mono text-2xl font-bold text-slate-900 dark:text-slate-100 tabular-nums">
-                  {activeTimer && activeTimer.taskId === detailTask?.id ? formatTimer(timerSeconds) : "00:00:00"}
-                </div>
-                {activeTimer && activeTimer.taskId === detailTask?.id ? (
-                  <Button variant="destructive" size="sm" onClick={handleStopTimer}>
-                    <Square className="h-4 w-4 mr-1" /> Detener
-                  </Button>
-                ) : (
-                  <Button size="sm" onClick={() => detailTask && handleStartTimer(detailTask.id)} disabled={!!activeTimer}>
-                    <Play className="h-4 w-4 mr-1" /> Iniciar
-                  </Button>
-                )}
-                {activeTimer && activeTimer.taskId !== detailTask?.id && (
-                  <p className="text-xs text-orange-500 ml-2">Timer activo en otra tarea</p>
-                )}
-              </div>
               {totalTaskTime > 0 && (
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Tiempo total registrado: {formatTimer(totalTaskTime)}
+                  Tiempo total: {formatTimer(totalTaskTime)}
                 </p>
               )}
               {timeEntries.filter((e) => detailTask && e.taskId === detailTask.id).length > 0 && (

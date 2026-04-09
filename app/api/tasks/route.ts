@@ -6,12 +6,13 @@ import { canAccessTask, canModifyTask } from "@/lib/authz";
 import { taskCreateSchema, taskUpdateSchema } from "@/lib/validations/task";
 import { notifyTaskWebhook } from "@/lib/webhook";
 import { put } from "@vercel/blob";
+import { jsPDF } from "jspdf";
 
 const LONG_DESC_THRESHOLD = 200;
 const SHORT_DESC_LENGTH = 100;
 
 /**
- * If description is long, upload it as a text attachment and return a short summary.
+ * If description is long, generate a PDF and upload as attachment.
  * Returns the (possibly shortened) description.
  */
 async function maybeConvertLongDescription(
@@ -21,24 +22,80 @@ async function maybeConvertLongDescription(
   if (description.length <= LONG_DESC_THRESHOLD) return description;
 
   const shortDesc = description.slice(0, SHORT_DESC_LENGTH) + "... [ver archivo adjunto]";
-  const filename = `descripcion-${taskId}.txt`;
+  const filename = `descripcion-${taskId}.pdf`;
   const key = `task-attachments/${taskId}/${filename}`;
 
   try {
-    const blob = await put(key, description, { access: "private" });
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 20;
+    const maxWidth = pageWidth - margin * 2;
+    let y = margin;
+
+    const lines = description.split("\n");
+    for (const line of lines) {
+      // Handle headings (# ## ###)
+      const headingMatch = line.match(/^(#{1,3})\s+(.*)/);
+      if (headingMatch) {
+        const level = headingMatch[1].length;
+        const text = headingMatch[2];
+        const fontSize = level === 1 ? 18 : level === 2 ? 15 : 13;
+        doc.setFontSize(fontSize);
+        doc.setFont("helvetica", "bold");
+        const wrapped = doc.splitTextToSize(text, maxWidth);
+        if (y + fontSize > doc.internal.pageSize.getHeight() - margin) {
+          doc.addPage();
+          y = margin;
+        }
+        doc.text(wrapped, margin, y);
+        y += fontSize * wrapped.length * 0.5 + 4;
+      } else {
+        // Process inline **bold**
+        doc.setFontSize(11);
+        let x = margin;
+        const parts = line.split(/(\*\*[^*]+\*\*)/g);
+        for (const part of parts) {
+          const boldMatch = part.match(/^\*\*(.+)\*\*$/);
+          if (boldMatch) {
+            doc.setFont("helvetica", "bold");
+            const wrapped = doc.splitTextToSize(boldMatch[1], maxWidth - (x - margin));
+            for (const wline of wrapped) {
+              if (y > doc.internal.pageSize.getHeight() - margin) { doc.addPage(); y = margin; x = margin; }
+              doc.text(wline, x, y);
+              x += doc.getTextWidth(wline);
+            }
+          } else if (part) {
+            doc.setFont("helvetica", "normal");
+            const wrapped = doc.splitTextToSize(part, maxWidth - (x - margin));
+            for (let i = 0; i < wrapped.length; i++) {
+              if (y > doc.internal.pageSize.getHeight() - margin) { doc.addPage(); y = margin; x = margin; }
+              if (i > 0) x = margin;
+              doc.text(wrapped[i], x, y);
+              x += doc.getTextWidth(wrapped[i]);
+            }
+          }
+        }
+        y += 6;
+      }
+    }
+
+    const pdfBytes = doc.output("arraybuffer");
+    const blob = await put(key, Buffer.from(pdfBytes), {
+      access: "private",
+    });
     await prisma.attachment.create({
       data: {
         id: cuid(),
         name: filename,
         url: blob.url,
-        type: "document",
-        size: Buffer.byteLength(description, "utf-8"),
+        type: "pdf",
+        size: pdfBytes.byteLength,
         taskId,
       },
     });
   } catch (error) {
-    console.error("Failed to convert long description to attachment:", error);
-    return description; // fallback: keep original
+    console.error("Failed to convert long description to PDF:", error);
+    return description;
   }
 
   return shortDesc;
