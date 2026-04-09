@@ -122,6 +122,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(project);
   } catch (error) {
     console.error("Create project error:", error);
-    return NextResponse.json({ error: "Error interno" }, { status: 500 });
+    return NextResponse.json({ error: "Error interno", detail: String(error) }, { status: 500 });
   }
 }
