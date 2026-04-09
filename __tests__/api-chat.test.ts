@@ -28,6 +28,7 @@ const mockPrisma = {
     delete: jest.fn().mockResolvedValue({}),
     findMany: jest.fn().mockResolvedValue([]),
     findUnique: jest.fn().mockResolvedValue({ id: "task-1" }),
+    count: jest.fn().mockResolvedValue(0),
   },
   chatMessage: {
     create: jest.fn().mockResolvedValue({}),
@@ -300,7 +301,9 @@ describe("POST /api/chat", () => {
     mockPrisma.organization.findUnique.mockResolvedValue({ id: "org-1", name: "Test Org" });
     mockPrisma.task.findMany.mockResolvedValue([]);
     mockPrisma.projectMember.findMany.mockResolvedValue([]);
+    process.env.GLM_API_KEY = "test-key";
   });
+  afterAll(() => { delete process.env.GLM_API_KEY; });
 
   it("returns 200 with a plain text reply from LLM", async () => {
     mockLLMResponse({ content: "¡Hola! ¿En qué puedo ayudarte?" });
@@ -553,6 +556,10 @@ describe("POST /api/chat", () => {
       }),
     });
 
+    mockPrisma.projectMember.findMany.mockResolvedValueOnce([
+      { id: "pm-1", userId: "user-1", role: "ADMIN", user: { id: "user-1", name: "Test", email: "test@test.com" } },
+    ]);
+
     const res = await POST(makeRequest({ message: "lista los miembros", projectId: "proj-1" }));
     const data = await res.json();
 
@@ -594,6 +601,13 @@ describe("POST /api/chat", () => {
   });
 
   it("handles client_context tool call", async () => {
+    // First call: POST handler context loading (uses organizationId)
+    mockPrisma.project.findUnique.mockResolvedValueOnce({
+      id: "proj-1",
+      name: "Test Project",
+      organizationId: "org-1",
+    });
+    // Second call: inside client_context tool (needs clientContext)
     mockPrisma.project.findUnique.mockResolvedValueOnce({
       id: "proj-1",
       name: "Test Project",
