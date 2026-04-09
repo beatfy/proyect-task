@@ -5,6 +5,44 @@ import { cuid } from "@/lib/utils";
 import { canAccessTask, canModifyTask } from "@/lib/authz";
 import { taskCreateSchema, taskUpdateSchema } from "@/lib/validations/task";
 import { notifyTaskWebhook } from "@/lib/webhook";
+import { put } from "@vercel/blob";
+
+const LONG_DESC_THRESHOLD = 200;
+const SHORT_DESC_LENGTH = 100;
+
+/**
+ * If description is long, upload it as a text attachment and return a short summary.
+ * Returns the (possibly shortened) description.
+ */
+async function maybeConvertLongDescription(
+  description: string,
+  taskId: string
+): Promise<string> {
+  if (description.length <= LONG_DESC_THRESHOLD) return description;
+
+  const shortDesc = description.slice(0, SHORT_DESC_LENGTH) + "... [ver archivo adjunto]";
+  const filename = `descripcion-${taskId}.txt`;
+  const key = `task-attachments/${taskId}/${filename}`;
+
+  try {
+    const blob = await put(key, description, { access: "private" });
+    await prisma.attachment.create({
+      data: {
+        id: cuid(),
+        name: filename,
+        url: blob.url,
+        type: "document",
+        size: Buffer.byteLength(description, "utf-8"),
+        taskId,
+      },
+    });
+  } catch (error) {
+    console.error("Failed to convert long description to attachment:", error);
+    return description; // fallback: keep original
+  }
+
+  return shortDesc;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -165,7 +203,14 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    await notifyTaskWebhook({ id: task.id, title, description, priority, dueDate: dueDate ? new Date(dueDate).toISOString() : null, assigneeId: finalAssigneeId, creatorId: authResult.userId });
+    // Auto-convert long descriptions to attachments
+    if (task.description && task.description.length > LONG_DESC_THRESHOLD) {
+      const shortDesc = await maybeConvertLongDescription(task.description, task.id);
+      await prisma.task.update({ where: { id: task.id }, data: { description: shortDesc } });
+      task.description = shortDesc;
+    }
+
+    await notifyTaskWebhook({ id: task.id, title, description: task.description, priority, dueDate: dueDate ? new Date(dueDate).toISOString() : null, assigneeId: finalAssigneeId, creatorId: authResult.userId });
 
     return NextResponse.json({
       ...task,
@@ -275,6 +320,15 @@ export async function PATCH(request: NextRequest) {
         },
       },
     });
+
+    // Auto-convert long descriptions to attachments on update
+    if (description !== undefined && description !== null && description.length > LONG_DESC_THRESHOLD) {
+      const shortDesc = await maybeConvertLongDescription(description, id);
+      updateData.description = shortDesc;
+      // Re-fetch with updated description
+      const updated = await prisma.task.findUnique({ where: { id } });
+      if (updated) task.description = shortDesc;
+    }
 
     if (status === "DONE" && currentTask?.status !== "DONE") {
       const notifyUserId = currentTask?.creatorId;
