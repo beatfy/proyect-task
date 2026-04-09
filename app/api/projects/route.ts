@@ -24,6 +24,11 @@ export async function GET(request: NextRequest) {
       whereClause.organizationId = organizationId;
     }
 
+    const labelId = searchParams.get("labelId");
+    if (labelId) {
+      whereClause.labels = { some: { labelId } };
+    }
+
     const projects = await prisma.project.findMany({
       where: whereClause,
       include: {
@@ -31,6 +36,9 @@ export async function GET(request: NextRequest) {
         tasks: true,
         organization: {
           select: { id: true, name: true, slug: true },
+        },
+        labels: {
+          include: { label: true },
         },
       },
       orderBy: { createdAt: "desc" },
@@ -118,6 +126,12 @@ export async function POST(request: NextRequest) {
         members: {
           create: membersCreate,
         },
+        labels: body.labelIds ? {
+          create: (body.labelIds as string[]).map((labelId: string) => ({ labelId })),
+        } : undefined,
+      },
+      include: {
+        labels: { include: { label: true } },
       },
     });
 

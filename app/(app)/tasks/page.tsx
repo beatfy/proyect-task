@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { Plus, MoreHorizontal, User, Pencil, Trash2, FolderOpen, LayoutGrid, List, Table, Calendar, MessageSquare, Paperclip, ChevronDown, ChevronUp, X, Upload, File, Image, FileText, Timer, Play, Square, LayoutTemplate } from "lucide-react";
+import { Plus, MoreHorizontal, User, Pencil, Trash2, FolderOpen, LayoutGrid, List, Table, Calendar, MessageSquare, Paperclip, ChevronDown, ChevronUp, X, Upload, File, Image, FileText, Timer, Play, Square, LayoutTemplate, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -807,6 +807,22 @@ function TasksPageContent() {
                   </DropdownMenuItem>
                 ))
               )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="border-slate-200 dark:border-slate-700 dark:text-slate-300" disabled={!projectId || projectId === "none"}>
+                <Download className="h-4 w-4 mr-2" /> Exportar
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+              <DropdownMenuItem onClick={() => window.open(`/api/tasks/export?projectId=${projectId}&format=csv`)} className="cursor-pointer text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
+                Exportar CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => window.open(`/api/tasks/export?projectId=${projectId}&format=pdf`)} className="cursor-pointer text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
+                Exportar PDF
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 

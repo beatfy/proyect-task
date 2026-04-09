@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Plus, Users, Trash2, MoreHorizontal, Pencil, Calendar, User, Loader2, Link2, Copy, Check, Mail, ChevronDown, X } from "lucide-react";
+import { Plus, Users, Trash2, MoreHorizontal, Pencil, Calendar, User, Loader2, Link2, Copy, Check, Mail, ChevronDown, X, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -633,6 +633,21 @@ export default function ProjectDetailPage() {
           <Button variant="outline" size="sm" onClick={() => setMemberOpen(true)}>
             <Users className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Miembros</span>
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Download className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Exportar</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+              <DropdownMenuItem onClick={() => window.open(`/api/tasks/export?projectId=${projectId}&format=csv`)} className="cursor-pointer text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
+                Exportar CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => window.open(`/api/tasks/export?projectId=${projectId}&format=pdf`)} className="cursor-pointer text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
+                Exportar PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button size="sm" onClick={() => { resetTaskForm(); setTaskOpen(true); }}>
             <Plus className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Nueva Tarea</span>
           </Button>
