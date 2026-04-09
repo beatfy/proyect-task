@@ -10,8 +10,9 @@ const labelUpdateSchema = z.object({
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const authResult = await authenticateRequest(request);
     if (!authResult) {
@@ -25,7 +26,7 @@ export async function PATCH(
     }
 
     const label = await prisma.label.update({
-      where: { id: params.id },
+      where: { id },
       data: parsed.data,
     });
 
@@ -41,15 +42,16 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const authResult = await authenticateRequest(request);
     if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    await prisma.label.delete({ where: { id: params.id } });
+    await prisma.label.delete({ where: { id } });
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

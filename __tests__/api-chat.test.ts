@@ -102,9 +102,18 @@ function mockLLMResponse(message: { content?: string; tool_calls?: Array<{ id: s
 // ============================================================
 
 describe("Tasky tool definitions", () => {
-  // We can't directly import TOOLS since it's not exported,
-  // but we can verify behavior through the LLM API call.
-  // Instead, let's test that the route sends tools to the LLM.
+  beforeEach(() => {
+    jest.clearAllMocks();
+    const { authenticateRequest } = require("@/lib/api-auth");
+    authenticateRequest.mockResolvedValue({ userId: "user-1", permissions: "full" });
+    mockPrisma.user.findUnique.mockResolvedValue({ id: "user-1", name: "Test User" });
+    mockPrisma.project.findUnique.mockResolvedValue({ id: "proj-1", name: "Test Project", organizationId: "org-1" });
+    mockPrisma.organization.findUnique.mockResolvedValue({ id: "org-1", name: "Test Org" });
+    mockPrisma.task.findMany.mockResolvedValue([]);
+    mockPrisma.projectMember.findMany.mockResolvedValue([]);
+    process.env.GLM_API_KEY = "test-key";
+  });
+  afterAll(() => { delete process.env.GLM_API_KEY; });
 
   it("sends tools array to the LLM API", async () => {
     // LLM responds with plain text (no tool calls)
@@ -736,6 +745,8 @@ describe("POST /api/chat", () => {
   });
 
   it("handles unknown tool gracefully", async () => {
+    // unknown_tool returns { error: ... } which gets stringified and sent back.
+    // The route should still return 200 since it processes tool results.
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -766,7 +777,13 @@ describe("POST /api/chat", () => {
   });
 
   it("includes history messages when provided", async () => {
-    mockLLMResponse({ content: "ok" });
+    // Need 2 mock responses since tool calls trigger second LLM call
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { role: "assistant", content: "ok" } }],
+      }),
+    });
 
     await POST(makeRequest({
       message: "siguiente",
