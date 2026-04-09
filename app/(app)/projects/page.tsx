@@ -85,9 +85,12 @@ export default function ProjectsPage() {
       const response = await fetch("/api/organizations");
       if (response.ok) {
         const data = await response.json();
+        console.log("[DEBUG] fetchOrganizations received:", data.length, data);
         setOrganizations(data);
         if (data.length > 0) setSelectedOrg(data[0].id);
         else setLoading(false);
+      } else {
+        console.log("[DEBUG] fetchOrganizations failed:", response.status);
       }
     } catch {
       toast.error("Error al cargar organizaciones");
@@ -97,12 +100,18 @@ export default function ProjectsPage() {
 
   const fetchProjects = useCallback(async () => {
     if (!selectedOrg) return;
+    console.log("[DEBUG] fetchProjects triggered, selectedOrg:", selectedOrg, "filterLabel:", filterLabel);
     setLoading(true);
     try {
       const params = new URLSearchParams({ organizationId: selectedOrg });
       if (filterLabel !== "all") params.set("labelId", filterLabel);
       const response = await fetch(`/api/projects?${params}`);
-      if (response.ok) setProjects(await response.json());
+      console.log("[DEBUG] fetchProjects response status:", response.status);
+      if (response.ok) {
+        const data = await response.json();
+        console.log("[DEBUG] fetchProjects received:", data.length, data);
+        setProjects(data);
+      }
     } catch {
       toast.error("Error al cargar proyectos");
     } finally {
@@ -122,6 +131,7 @@ export default function ProjectsPage() {
   }, [fetchOrganizations]);
 
   useEffect(() => {
+    console.log("[DEBUG] useEffect selectedOrg changed:", selectedOrg);
     if (selectedOrg) {
       fetchProjects();
       fetchLabels(selectedOrg);
@@ -224,7 +234,7 @@ export default function ProjectsPage() {
         {organizations.length > 0 && (
           <div className="flex items-center gap-2">
             <Building2 className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-            <Select value={selectedOrg} onValueChange={(v) => { setSelectedOrg(v); setFilterLabel("all"); }}>
+            <Select value={selectedOrg} onValueChange={(v) => { console.log("[DEBUG] Select onValueChange:", v); setSelectedOrg(v); setFilterLabel("all"); }}>
               <SelectTrigger className="w-[280px] bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100">
                 <SelectValue placeholder="Selecciona organización" />
               </SelectTrigger>
