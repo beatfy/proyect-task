@@ -402,161 +402,96 @@ export default function CalendarPage() {
       </div>
 
       <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        {/* ========== MOBILE AGENDA VIEW (< md) ========== */}
-        <div className="md:hidden space-y-1">
-          {days.map((day) => {
-            const dayTasks = getTasksForDay(day);
-            const dayStr = format(day, "yyyy-MM-dd");
-            const hasTasks = dayTasks.length > 0;
-            const isCreating = creatingOnDay && isSameDay(day, creatingOnDay);
+        {/* ========== MOBILE COMPACT GRID (< md) ========== */}
+        <div className="md:hidden">
+          <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden border border-border">
+            {/* Day-of-week headers — 1 letter */}
+            {["L", "M", "X", "J", "V", "S", "D"].map((d) => (
+              <div
+                key={d}
+                className="bg-card text-center text-[11px] font-semibold text-muted-foreground py-1.5"
+              >
+                {d}
+              </div>
+            ))}
 
-            return (
-              <DroppableDayCell key={dayStr} day={dayStr}>
-                <div
-                  onClick={() => setSelectedDay(day)}
-                  className={cn(
-                    "rounded-lg border transition-colors cursor-pointer",
-                    isToday(day) && "border-primary bg-primary/5",
-                    !isToday(day) && hasTasks && "bg-accent/40 border-border",
-                    !isToday(day) && !hasTasks && "border-transparent"
-                  )}
-                >
-                  <div className="flex items-center justify-between px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={cn(
-                          "text-sm font-semibold w-7 h-7 flex items-center justify-center rounded-full",
-                          isToday(day) &&
-                            "bg-primary text-primary-foreground",
-                          !isToday(day) && "text-muted-foreground"
-                        )}
-                      >
-                        {format(day, "d")}
-                      </span>
-                      <span
-                        className={cn(
-                          "text-sm capitalize",
-                          isToday(day)
-                            ? "text-foreground font-medium"
-                            : "text-muted-foreground"
-                        )}
-                      >
-                        {format(day, "EEEE", { locale: es })}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {hasTasks && (
-                        <span className="text-xs text-muted-foreground">
-                          {dayTasks.length} tarea
-                          {dayTasks.length !== 1 ? "s" : ""}
-                        </span>
+            {/* Empty cells before month starts */}
+            {Array.from({ length: (monthStart.getDay() + 6) % 7 }).map((_, i) => (
+              <div key={`e-${i}`} className="bg-card min-h-[48px]" />
+            ))}
+
+            {/* Day cells */}
+            {days.map((day) => {
+              const dayTasks = getTasksForDay(day);
+              const dayStr = format(day, "yyyy-MM-dd");
+              const today = isToday(day);
+
+              return (
+                <DroppableDayCell key={dayStr} day={dayStr}>
+                  <button
+                    onClick={() => setSelectedDay(day)}
+                    className={cn(
+                      "bg-card min-h-[48px] w-full flex flex-col items-start p-1 relative transition-colors active:bg-accent",
+                      today && "bg-accent"
+                    )}
+                  >
+                    {/* Day number */}
+                    <span
+                      className={cn(
+                        "text-[11px] font-medium leading-none",
+                        today
+                          ? "bg-foreground text-background w-5 h-5 rounded-full flex items-center justify-center"
+                          : "text-foreground"
                       )}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleStartCreate(day);
-                        }}
-                        className="p-1 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
+                    >
+                      {format(day, "d")}
+                    </span>
 
-                  {/* Preview tasks (max 2) */}
-                  {hasTasks && (
-                    <div className="px-3 pb-2 space-y-1">
-                      {dayTasks.slice(0, 2).map((task) => {
-                        const StatusIcon =
-                          statusIcons[task.status] || Circle;
-                        return (
-                          <div
-                            key={task.id}
-                            className="flex items-center gap-2 text-sm"
-                          >
-                            <StatusIcon
-                              className={cn(
-                                "h-3.5 w-3.5 flex-shrink-0",
-                                statusColors[task.status]
-                              )}
-                            />
+                    {/* Dot indicators */}
+                    {dayTasks.length > 0 && (
+                      <div className="flex gap-0.5 mt-0.5 flex-wrap">
+                        {dayTasks.slice(0, 3).map((task) => {
+                          const dotColor =
+                            task.priority === "URGENT"
+                              ? "bg-orange-500"
+                              : task.priority === "HIGH"
+                              ? "bg-red-500"
+                              : task.priority === "MEDIUM"
+                              ? "bg-yellow-500"
+                              : task.priority === "LOW"
+                              ? "bg-green-500"
+                              : task.project?.color
+                              ? undefined // handled below
+                              : "bg-muted-foreground/40";
+                          return (
                             <span
+                              key={task.id}
                               className={cn(
-                                "truncate",
-                                task.status === "DONE"
-                                  ? "line-through text-muted-foreground"
-                                  : "text-foreground"
+                                "w-1.5 h-1.5 rounded-full flex-shrink-0",
+                                dotColor,
+                                !dotColor &&
+                                  "bg-muted-foreground/40"
                               )}
-                            >
-                              {task.title}
-                            </span>
-                            {task.priority === "URGENT" && (
-                              <Flame className="h-3 w-3 flex-shrink-0 text-purple-500" />
-                            )}
-                          </div>
-                        );
-                      })}
-                      {dayTasks.length > 2 && (
-                        <span className="text-xs text-muted-foreground">
-                          +{dayTasks.length - 2} más...
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Inline create form (mobile) */}
-                  {isCreating && (
-                    <div className="px-3 pb-3 space-y-2">
-                      <Input
-                        autoFocus
-                        placeholder="Título de la tarea..."
-                        value={newTitle}
-                        onChange={(e) => setNewTitle(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleCreateTask();
-                          if (e.key === "Escape") setCreatingOnDay(null);
-                        }}
-                        className="h-9 text-sm"
-                      />
-                      <div className="flex gap-2">
-                        <select
-                          value={newPriority}
-                          onChange={(e) => setNewPriority(e.target.value)}
-                          className="flex-1 h-8 text-xs bg-background border border-border rounded-md px-2"
-                        >
-                          {Object.entries(priorityLabels).map(([v, l]) => (
-                            <option key={v} value={v}>
-                              {l}
-                            </option>
-                          ))}
-                        </select>
-                        <Button
-                          size="sm"
-                          onClick={handleCreateTask}
-                          disabled={creating}
-                          className="h-8"
-                        >
-                          {creating ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            "Crear"
-                          )}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setCreatingOnDay(null)}
-                          className="h-8"
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
+                              style={
+                                !dotColor && task.project?.color
+                                  ? { backgroundColor: task.project.color }
+                                  : undefined
+                              }
+                            />
+                          );
+                        })}
+                        {dayTasks.length > 3 && (
+                          <span className="text-[7px] text-muted-foreground leading-none">
+                            +{dayTasks.length - 3}
+                          </span>
+                        )}
                       </div>
-                    </div>
-                  )}
-                </div>
-              </DroppableDayCell>
-            );
-          })}
+                    )}
+                  </button>
+                </DroppableDayCell>
+              );
+            })}
+          </div>
         </div>
 
         {/* ========== DESKTOP/TABLET GRID VIEW (>= md) ========== */}
