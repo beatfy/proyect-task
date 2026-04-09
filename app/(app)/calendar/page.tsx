@@ -307,8 +307,8 @@ export default function CalendarPage() {
             <CardHeader>
               <CardTitle className="text-foreground">Vista Mensual</CardTitle>
             </CardHeader>
-            <CardContent className="overflow-x-auto -mx-6 px-6">
-              <div className="min-w-[500px]">
+            <CardContent className="overflow-hidden -mx-6 px-6">
+              <div className="min-w-0">
               <div className="grid grid-cols-7 gap-1 mb-2">
                 {weekDays.map((day) => (
                   <div
@@ -335,8 +335,9 @@ export default function CalendarPage() {
                   return (
                     <DroppableDayCell key={dayStr} day={dayStr}>
                       <div
+                        onClick={() => setSelectedDay(day)}
                         className={cn(
-                          "aspect-[1.2] min-h-[80px] p-1 rounded-lg transition-colors border border-transparent flex flex-col",
+                          "aspect-[1.2] min-h-[60px] sm:min-h-[80px] p-0.5 sm:p-1 rounded-lg transition-colors border border-transparent flex flex-col cursor-pointer",
                           isToday(day) && "ring-2 ring-neutral-900 ring-offset-1 ring-offset-card",
                           isSelected
                             ? "bg-neutral-900/10 border-neutral-900/40"

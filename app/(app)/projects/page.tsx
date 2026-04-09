@@ -80,25 +80,7 @@ export default function ProjectsPage() {
   const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
 
-  const fetchLabels = useCallback(async (orgId: string) => {
-    try {
-      const res = await fetch(`/api/labels?organizationId=${orgId}`);
-      if (res.ok) setLabels(await res.json());
-    } catch { /* ignore */ }
-  }, []);
-
-  useEffect(() => {
-    fetchOrganizations();
-  }, []);
-
-  useEffect(() => {
-    if (selectedOrg) {
-      fetchProjects();
-      fetchLabels(selectedOrg);
-    }
-  }, [selectedOrg, fetchLabels]);
-
-  const fetchOrganizations = async () => {
+  const fetchOrganizations = useCallback(async () => {
     try {
       const response = await fetch("/api/organizations");
       if (response.ok) {
@@ -111,9 +93,9 @@ export default function ProjectsPage() {
       toast.error("Error al cargar organizaciones");
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     if (!selectedOrg) return;
     setLoading(true);
     try {
@@ -126,12 +108,29 @@ export default function ProjectsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedOrg, filterLabel]);
+
+  const fetchLabels = useCallback(async (orgId: string) => {
+    try {
+      const res = await fetch(`/api/labels?organizationId=${orgId}`);
+      if (res.ok) setLabels(await res.json());
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    fetchOrganizations();
+  }, [fetchOrganizations]);
+
+  useEffect(() => {
+    if (selectedOrg) {
+      fetchProjects();
+      fetchLabels(selectedOrg);
+    }
+  }, [selectedOrg, fetchProjects, fetchLabels]);
 
   useEffect(() => {
     if (selectedOrg) fetchProjects();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterLabel]);
+  }, [fetchProjects, selectedOrg]);
 
   const handleCreate = async () => {
     if (!name.trim()) {
