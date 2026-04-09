@@ -27,6 +27,12 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   format,
   startOfMonth,
   endOfMonth,
@@ -426,8 +432,8 @@ export default function CalendarPage() {
             </CardContent>
           </Card>
 
-          {/* Day detail panel */}
-          <Card className="bg-card border-border">
+          {/* Day detail panel - Desktop only */}
+          <Card className="bg-card border-border hidden lg:block">
             <CardHeader className="pb-3">
               <CardTitle className="text-foreground">
                 {selectedDay
@@ -539,6 +545,68 @@ export default function CalendarPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Mobile day detail modal */}
+        <Dialog open={!!selectedDay} onOpenChange={(open) => { if (!open) setSelectedDay(null); }}>
+          <DialogContent className="lg:hidden bg-card border-border max-w-md max-h-[80vh] overflow-hidden flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="text-foreground capitalize">
+                {selectedDay
+                  ? format(selectedDay, "EEEE, d 'de' MMMM", { locale: es })
+                  : ""}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto">
+              {loading && (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              )}
+              {!loading && selectedDayTasks.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                  <Circle className="h-8 w-8 mb-2 opacity-30" />
+                  <p className="text-sm">Sin tareas para este día</p>
+                  <Button variant="ghost" size="sm" className="mt-2" onClick={() => { if (selectedDay) handleStartCreate(selectedDay); }}>
+                    <Plus className="h-4 w-4 mr-1" /> Crear tarea
+                  </Button>
+                </div>
+              )}
+              {!loading && selectedDayTasks.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-xs text-muted-foreground mb-2">
+                    {selectedDayTasks.length} tarea{selectedDayTasks.length !== 1 ? "s" : ""}
+                  </p>
+                  {selectedDayTasks.map((task) => {
+                    const StatusIcon = statusIcons[task.status] || Circle;
+                    return (
+                      <div key={task.id} className={cn("p-3 rounded-lg border border-border bg-background border-l-4", priorityColors[task.priority], priorityBgColors[task.priority])}>
+                        <div className="flex items-start gap-2">
+                          <StatusIcon className={cn("h-4 w-4 mt-0.5 flex-shrink-0", statusColors[task.status])} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className={cn("text-sm font-medium truncate", task.status === "DONE" ? "line-through text-muted-foreground" : "text-foreground")}>{task.title}</p>
+                              {(task.priority === "URGENT" || task.priority === "HIGH") && (
+                                <Flame className={cn("h-3.5 w-3.5 flex-shrink-0", task.priority === "URGENT" ? "text-purple-500 animate-pulse" : "text-red-500")} />
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              <span className="text-xs text-muted-foreground">{statusLabels[task.status]}</span>
+                              {task.priority !== "NONE" && (
+                                <span className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium", task.priority === "URGENT" ? "bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300" : task.priority === "HIGH" ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400" : task.priority === "MEDIUM" ? "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400")}>{priorityLabels[task.priority]}</span>
+                              )}
+                              {task.project && <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{task.project.name}</span>}
+                              {task.assignee && <span className="text-xs text-muted-foreground">→ {task.assignee.name || task.assignee.email}</span>}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Drag overlay */}
         <DragOverlay>

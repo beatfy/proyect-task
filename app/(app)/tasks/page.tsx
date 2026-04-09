@@ -750,12 +750,17 @@ function TasksPageContent() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Tareas</h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Gestiona todas tus tareas</p>
+      <div className="flex flex-col gap-4 mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Tareas</h1>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Gestiona todas tus tareas</p>
+          </div>
+          <Button onClick={() => { resetForm(); setOpen(true); }}>
+            <Plus className="h-4 w-4 mr-2" /> <span className="hidden sm:inline">Nueva Tarea</span><span className="sm:hidden">+</span>
+          </Button>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Mobile view selector - dropdown */}
           <Select value={view} onValueChange={(v: ViewType) => setView(v)}>
             <SelectTrigger className="w-[140px] md:hidden">
@@ -812,8 +817,8 @@ function TasksPageContent() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="border-slate-200 dark:border-slate-700 dark:text-slate-300" disabled={!projectId || projectId === "none"}>
-                <Download className="h-4 w-4 mr-2" /> Exportar
+              <Button variant="outline" className="border-slate-200 dark:border-slate-700 dark:text-slate-300 hidden sm:flex" disabled={!projectId || projectId === "none"}>
+                <Download className="h-4 w-4 mr-2" /> <span className="hidden md:inline">Exportar</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
@@ -826,9 +831,6 @@ function TasksPageContent() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button onClick={() => { resetForm(); setOpen(true); }}>
-            <Plus className="h-4 w-4 mr-2" /> Nueva Tarea
-          </Button>
         </div>
       </div>
 
@@ -1220,9 +1222,9 @@ function TasksPageContent() {
       {/* KANBAN VIEW */}
       {view === "kanban" && (
         <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={dndHandleDragStart} onDragOver={dndHandleDragOver} onDragEnd={dndHandleDragEnd}>
-        <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-220px)]">
+        <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory md:h-[calc(100vh-220px)]">
           {columns.map((column) => (
-            <div key={column.id} id={column.id} className="flex-1 min-w-[280px] max-w-[350px] flex flex-col">
+            <div key={column.id} id={column.id} className="flex-1 min-w-[280px] max-w-[350px] flex flex-col snap-start">
               <div className="flex items-center gap-2 mb-3 px-1">
                 <div className={cn("w-3 h-3 rounded-full", column.color)} />
                 <h3 className="font-medium text-sm text-slate-700 dark:text-slate-300">{column.title}</h3>
