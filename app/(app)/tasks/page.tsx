@@ -1113,9 +1113,14 @@ function TasksPageContent() {
                           onChange={() => handleToggleSubtask(st)}
                           className="rounded-sm border-slate-300 dark:border-slate-600"
                         />
-                        <span className={cn("text-sm", st.status === "DONE" && "text-slate-400 line-through dark:text-slate-500")}>
-                          {st.title}
-                        </span>
+                        <div className="min-w-0 flex-1">
+                          <span className={cn("text-sm", st.status === "DONE" && "text-slate-400 line-through dark:text-slate-500")}>
+                            {st.title}
+                          </span>
+                          {st.description && (
+                            <p className={cn("text-xs text-slate-500 dark:text-slate-400 mt-0.5", st.status === "DONE" && "line-through")}>{st.description}</p>
+                          )}
+                        </div>
                         <Button variant="ghost" size="sm" className="h-6 w-6 p-0 ml-auto opacity-0 group-hover:opacity-100 hover:opacity-100" onClick={async () => {
                           await fetch(`/api/tasks?id=${st.id}`, { method: "DELETE" });
                           setSubtasks(subtasks.filter(s => s.id !== st.id));
