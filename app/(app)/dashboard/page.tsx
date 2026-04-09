@@ -222,49 +222,7 @@ export default function DashboardPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="text-center p-3 rounded-lg bg-muted/50">
-              <Zap className="h-5 w-5 mx-auto mb-1 text-amber-500" />
-              <div className="text-2xl font-bold text-foreground">1,247</div>
-              <div className="text-xs text-muted-foreground">Consultas totales</div>
-            </div>
-            <div className="text-center p-3 rounded-lg bg-muted/50">
-              <Wrench className="h-5 w-5 mx-auto mb-1 text-blue-500" />
-              <div className="text-2xl font-bold text-foreground">3,891</div>
-              <div className="text-xs text-muted-foreground">Tools ejecutadas</div>
-            </div>
-            <div className="text-center p-3 rounded-lg bg-muted/50">
-              <CheckSquare className="h-5 w-5 mx-auto mb-1 text-green-500" />
-              <div className="text-2xl font-bold text-foreground">856</div>
-              <div className="text-xs text-muted-foreground">Tareas creadas</div>
-            </div>
-            <div className="text-center p-3 rounded-lg bg-muted/50">
-              <BarChart3 className="h-5 w-5 mx-auto mb-1 text-purple-500" />
-              <div className="text-2xl font-bold text-foreground">3.1</div>
-              <div className="text-xs text-muted-foreground">Tools/consulta</div>
-            </div>
-          </div>
-          <div className="mt-4">
-            <h4 className="text-sm font-medium text-muted-foreground mb-2">Tools más usadas</h4>
-            <div className="space-y-2">
-              {[
-                { name: "task_create", count: 856, color: "bg-green-500" },
-                { name: "task_list", count: 742, color: "bg-blue-500" },
-                { name: "task_update", count: 698, color: "bg-amber-500" },
-                { name: "project_summary", count: 534, color: "bg-purple-500" },
-                { name: "client_context", count: 412, color: "bg-pink-500" },
-                { name: "task_move", count: 289, color: "bg-cyan-500" },
-              ].map((tool) => (
-                <div key={tool.name} className="flex items-center gap-3">
-                  <span className="text-xs font-mono text-foreground w-36 truncate">{tool.name}</span>
-                  <div className="flex-1 bg-muted rounded-full h-2">
-                    <div className={`h-2 rounded-full ${tool.color}`} style={{ width: `${(tool.count / 856) * 100}%` }} />
-                  </div>
-                  <span className="text-xs text-muted-foreground w-10 text-right">{tool.count}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          <TaskyMetrics organizationId={selectedOrg === "all" ? null : selectedOrg} />
         </CardContent>
       </Card>
 
@@ -341,5 +299,70 @@ export default function DashboardPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+const TOOL_COLORS = ["bg-green-500", "bg-blue-500", "bg-amber-500", "bg-purple-500", "bg-pink-500"];
+
+function TaskyMetrics({ organizationId }: { organizationId: string | null }) {
+  const [data, setData] = useState<{ totalQueries: number; totalTools: number; queriesByDay: Record<string, number>; topTools: { name: string; count: number }[] } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const params = organizationId ? `?organizationId=${organizationId}` : "";
+    fetch(`/api/tasky-usage${params}`)
+      .then((r) => r.json())
+      .then((d) => setData(d))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [organizationId]);
+
+  if (loading) {
+    return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+  }
+
+  if (!data || data.totalQueries === 0) {
+    return <div className="text-center py-8 text-muted-foreground">Sin datos aún. Usa Tasky para empezar a generar métricas.</div>;
+  }
+
+  const toolsPerQuery = data.totalQueries > 0 ? (data.totalTools / data.totalQueries).toFixed(1) : "0";
+  const maxToolCount = data.topTools[0]?.count || 1;
+
+  return (
+    <>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <div className="text-center p-3 rounded-lg bg-muted/50">
+          <Zap className="h-5 w-5 mx-auto mb-1 text-amber-500" />
+          <div className="text-2xl font-bold text-foreground">{data.totalQueries.toLocaleString()}</div>
+          <div className="text-xs text-muted-foreground">Consultas totales</div>
+        </div>
+        <div className="text-center p-3 rounded-lg bg-muted/50">
+          <Wrench className="h-5 w-5 mx-auto mb-1 text-blue-500" />
+          <div className="text-2xl font-bold text-foreground">{data.totalTools.toLocaleString()}</div>
+          <div className="text-xs text-muted-foreground">Tools ejecutadas</div>
+        </div>
+        <div className="text-center p-3 rounded-lg bg-muted/50">
+          <BarChart3 className="h-5 w-5 mx-auto mb-1 text-purple-500" />
+          <div className="text-2xl font-bold text-foreground">{toolsPerQuery}</div>
+          <div className="text-xs text-muted-foreground">Tools/consulta</div>
+        </div>
+      </div>
+      {data.topTools.length > 0 && (
+        <div className="mt-4">
+          <h4 className="text-sm font-medium text-muted-foreground mb-2">Tools más usadas</h4>
+          <div className="space-y-2">
+            {data.topTools.map((tool, i) => (
+              <div key={tool.name} className="flex items-center gap-3">
+                <span className="text-xs font-mono text-foreground w-36 truncate">{tool.name}</span>
+                <div className="flex-1 bg-muted rounded-full h-2">
+                  <div className={`h-2 rounded-full ${TOOL_COLORS[i % TOOL_COLORS.length]}`} style={{ width: `${(tool.count / maxToolCount) * 100}%` }} />
+                </div>
+                <span className="text-xs text-muted-foreground w-10 text-right">{tool.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
   );
 }

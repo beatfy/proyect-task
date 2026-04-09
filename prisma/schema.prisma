@@ -352,6 +352,18 @@ model KnowledgeBase {
   updatedAt      DateTime @updatedAt
 }
 
+model TaskyUsage {
+  id             String   @id @default(cuid())
+  organizationId String?
+  projectId      String?
+  userId         String
+  prompt         String
+  toolsUsed      String[]
+  responseTokens Int?
+  duration       Int      // milliseconds
+  createdAt      DateTime @default(now())
+}
+
 model EmailConfig {
   id               String   @id
   userId           String   @unique

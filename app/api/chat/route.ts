@@ -694,6 +694,8 @@ export async function POST(request: NextRequest) {
     // Save user message
     await prisma.chatMessage.create({ data: { userId: authResult.userId, projectId: projectId || null, role: "user", content: message } });
 
+    const startTime = Date.now();
+
     // Call LLM (GLM via OpenAI-compatible API)
     const apiKey = process.env.GLM_API_KEY || process.env.OPENAI_API_KEY;
     if (!apiKey) {
@@ -738,6 +740,19 @@ export async function POST(request: NextRequest) {
     if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
       const reply = assistantMessage.content || "";
       await prisma.chatMessage.create({ data: { userId: authResult.userId, projectId: projectId || null, role: "assistant", content: reply } });
+      // Track usage
+      const duration = Date.now() - startTime;
+      await prisma.taskyUsage.create({
+        data: {
+          userId: authResult.userId,
+          organizationId: organizationId || null,
+          projectId: projectId || null,
+          prompt: message,
+          toolsUsed: [],
+          responseTokens: firstData.usage?.completion_tokens || null,
+          duration,
+        },
+      }).catch(() => {});
       return NextResponse.json({ reply, actions: [] });
     }
 
@@ -806,6 +821,21 @@ export async function POST(request: NextRequest) {
     const finalReply = secondData.choices[0]?.message?.content || "Acción completada.";
 
     await prisma.chatMessage.create({ data: { userId: authResult.userId, projectId: projectId || null, role: "assistant", content: finalReply } });
+
+    // Track usage
+    const duration = Date.now() - startTime;
+    const toolsUsed = actions.map(a => a.tool);
+    await prisma.taskyUsage.create({
+      data: {
+        userId: authResult.userId,
+        organizationId: organizationId || null,
+        projectId: projectId || null,
+        prompt: message,
+        toolsUsed,
+        responseTokens: (firstData.usage?.completion_tokens || 0) + (secondData.usage?.completion_tokens || 0),
+        duration,
+      },
+    }).catch(() => {});
 
     return NextResponse.json({ reply: finalReply, actions });
   } catch (error) {
