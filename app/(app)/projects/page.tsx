@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, FolderOpen, Loader2, MoreHorizontal, Trash2, Copy } from "lucide-react";
+import { Plus, FolderOpen, Loader2, MoreHorizontal, Trash2, Copy, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -19,6 +19,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import Link from "next/link";
 
@@ -30,8 +37,16 @@ interface Project {
   status: string;
 }
 
+interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [selectedOrg, setSelectedOrg] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -40,12 +55,38 @@ export default function ProjectsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
 
   useEffect(() => {
-    fetchProjects();
+    fetchOrganizations();
   }, []);
 
-  const fetchProjects = async () => {
+  useEffect(() => {
+    if (selectedOrg) {
+      fetchProjects();
+    }
+  }, [selectedOrg]);
+
+  const fetchOrganizations = async () => {
     try {
-      const response = await fetch("/api/projects");
+      const response = await fetch("/api/organizations");
+      if (response.ok) {
+        const data = await response.json();
+        setOrganizations(data);
+        if (data.length > 0) {
+          setSelectedOrg(data[0].id);
+        } else {
+          setLoading(false);
+        }
+      }
+    } catch {
+      toast.error("Error al cargar organizaciones");
+      setLoading(false);
+    }
+  };
+
+  const fetchProjects = async () => {
+    if (!selectedOrg) return;
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/projects?organizationId=${selectedOrg}`);
       if (response.ok) {
         const data = await response.json();
         setProjects(data);
@@ -67,7 +108,7 @@ export default function ProjectsPage() {
       const response = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description, color }),
+        body: JSON.stringify({ name, description, color, organizationId: selectedOrg }),
       });
 
       if (response.ok) {
@@ -143,6 +184,25 @@ export default function ProjectsPage() {
           Nuevo Proyecto
         </Button>
       </div>
+
+      {/* Organization Selector */}
+      {organizations.length > 0 && (
+        <div className="flex items-center gap-3">
+          <Building2 className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+          <Select value={selectedOrg} onValueChange={setSelectedOrg}>
+            <SelectTrigger className="w-[280px] bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100">
+              <SelectValue placeholder="Selecciona organización" />
+            </SelectTrigger>
+            <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+              {organizations.map((org) => (
+                <SelectItem key={org.id} value={org.id} className="text-slate-900 dark:text-slate-100 focus:bg-slate-100 dark:focus:bg-slate-800">
+                  {org.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {/* Create Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
