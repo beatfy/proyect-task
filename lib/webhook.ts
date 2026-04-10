@@ -37,13 +37,14 @@ export async function notifyTaskWebhook(task: {
   creatorId?: string;
   taskAssignees?: Array<{ id?: string; email?: string; userId?: string }> | null;
 }): Promise<void> {
+  console.log("[Webhook] notifyTaskWebhook called. isScytale:", isScytale(task.assigneeId, task.assigneeEmail, task.taskAssignees));
   if (!isScytale(task.assigneeId, task.assigneeEmail, task.taskAssignees)) return;
 
   const priorityLabel = task.priority || "NONE";
 
   // OpenClaw system event
   try {
-    await fetch(OPENCLAW_WEBHOOK_URL, {
+    const response = await fetch(OPENCLAW_WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": OPENCLAW_AUTH_TOKEN },
       body: JSON.stringify({
@@ -51,8 +52,11 @@ export async function notifyTaskWebhook(task: {
         mode: "now",
       }),
     });
+    console.log("[OpenClaw Webhook] Status:", response.status, "OK:", response.ok);
+    const body = await response.text();
+    console.log("[OpenClaw Webhook] Response body:", body);
   } catch (error) {
-    console.error("OpenClaw webhook notification failed:", error);
+    console.error("[OpenClaw Webhook] FAILED:", error.message || error);
   }
 
   // Telegram fallback
