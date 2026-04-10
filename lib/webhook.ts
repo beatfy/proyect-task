@@ -5,7 +5,7 @@
  */
 const SCYTALE_USER_ID = "scytale-admin-beatfy";
 const SCYTALE_EMAIL = "scytale@beatfy.app";
-const OPENCLAW_WEBHOOK_URL = process.env.OPENCLAW_WEBHOOK_URL || "http://localhost:18789/api/webhook/openclaw";
+const OPENCLAW_WEBHOOK_URL = process.env.OPENCLAW_WEBHOOK_URL || "https://clawd.beatfy.net/api/webhook/openclaw";
 const TELEGRAM_BOT_TOKEN = process.env.WEBHOOK_TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.WEBHOOK_TELEGRAM_CHAT_ID;
 
