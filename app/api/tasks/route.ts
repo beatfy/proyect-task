@@ -267,7 +267,13 @@ export async function POST(request: NextRequest) {
       task.description = shortDesc;
     }
 
-    await notifyTaskWebhook({ id: task.id, title, description: task.description, priority, dueDate: dueDate ? new Date(dueDate).toISOString() : null, assigneeId: finalAssigneeId, assigneeEmail: assignedTo || null, creatorId: authResult.userId });
+    await notifyTaskWebhook({
+      id: task.id, title, description: task.description, priority,
+      dueDate: dueDate ? new Date(dueDate).toISOString() : null,
+      assigneeId: finalAssigneeId, assigneeEmail: assignedTo || null,
+      creatorId: authResult.userId,
+      taskAssignees: task.taskAssignees?.map(ta => ({ id: ta.user?.id, email: ta.user?.email, userId: ta.userId })),
+    });
 
     return NextResponse.json({
       ...task,
@@ -418,8 +424,18 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    if (assigneeId !== undefined && assigneeId) {
-      await notifyTaskWebhook({ id, title: task.title, description: task.description, priority: priority || null, dueDate: dueDate ? new Date(dueDate).toISOString() : null, assigneeId, assigneeEmail: assignedTo || null, creatorId: authResult.userId });
+    // Webhook: check both legacy assigneeId and multi-assignees
+    const webhookAssignees = task.taskAssignees?.map(ta => ({ id: ta.user?.id, email: ta.user?.email, userId: ta.userId }));
+    const hasAssigneeChanges = (assigneeId !== undefined && assigneeId) || (assigneeIds !== undefined);
+    if (hasAssigneeChanges) {
+      await notifyTaskWebhook({
+        id, title: task.title, description: task.description,
+        priority: priority || null, dueDate: dueDate ? new Date(dueDate).toISOString() : null,
+        assigneeId: assigneeId || task.assignee?.id || null,
+        assigneeEmail: assignedTo || task.assignee?.email || null,
+        creatorId: authResult.userId,
+        taskAssignees: webhookAssignees,
+      });
     }
 
     return NextResponse.json({

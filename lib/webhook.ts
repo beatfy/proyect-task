@@ -10,9 +10,19 @@ const OPENCLAW_AUTH_TOKEN = process.env.OPENCLAW_AUTH_TOKEN || "Bearer bc570c424
 const TELEGRAM_BOT_TOKEN = process.env.WEBHOOK_TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.WEBHOOK_TELEGRAM_CHAT_ID;
 
-function isScytale(assigneeId?: string | null, assigneeEmail?: string | null): boolean {
+function isScytale(
+  assigneeId?: string | null,
+  assigneeEmail?: string | null,
+  taskAssignees?: Array<{ id?: string; email?: string; userId?: string }> | null
+): boolean {
   if (assigneeId === SCYTALE_USER_ID) return true;
   if (assigneeEmail === SCYTALE_EMAIL) return true;
+  if (taskAssignees && Array.isArray(taskAssignees)) {
+    for (const a of taskAssignees) {
+      if (a.userId === SCYTALE_USER_ID || a.id === SCYTALE_USER_ID) return true;
+      if (a.email === SCYTALE_EMAIL) return true;
+    }
+  }
   return false;
 }
 
@@ -25,8 +35,9 @@ export async function notifyTaskWebhook(task: {
   assigneeId?: string | null;
   assigneeEmail?: string | null;
   creatorId?: string;
+  taskAssignees?: Array<{ id?: string; email?: string; userId?: string }> | null;
 }): Promise<void> {
-  if (!isScytale(task.assigneeId, task.assigneeEmail)) return;
+  if (!isScytale(task.assigneeId, task.assigneeEmail, task.taskAssignees)) return;
 
   const priorityLabel = task.priority || "NONE";
 
