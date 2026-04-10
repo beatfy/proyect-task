@@ -5,7 +5,8 @@
  */
 const SCYTALE_USER_ID = "scytale-admin-beatfy";
 const SCYTALE_EMAIL = "scytale@beatfy.app";
-const OPENCLAW_WEBHOOK_URL = process.env.OPENCLAW_WEBHOOK_URL || "https://clawd.beatfy.net/api/webhook/openclaw";
+const OPENCLAW_WEBHOOK_URL = process.env.OPENCLAW_WEBHOOK_URL || "https://clawd.beatfy.net/hooks/wake";
+const OPENCLAW_AUTH_TOKEN = process.env.OPENCLAW_AUTH_TOKEN || "Bearer bc570c4242e94e3079f7c9855c7ab0ff547ad95b3d95ad03";
 const TELEGRAM_BOT_TOKEN = process.env.WEBHOOK_TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.WEBHOOK_TELEGRAM_CHAT_ID;
 
@@ -33,9 +34,10 @@ export async function notifyTaskWebhook(task: {
   try {
     await fetch(OPENCLAW_WEBHOOK_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "Authorization": OPENCLAW_AUTH_TOKEN },
       body: JSON.stringify({
         text: `Nueva tarea asignada a Scytale: ${task.title} (${priorityLabel})`,
+        mode: "now",
       }),
     });
   } catch (error) {
