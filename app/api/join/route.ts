@@ -63,7 +63,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Crear membresía y actualizar contador de usos
+    // Crear membresía, auto-añadir a organización y actualizar contador
+    const project = inviteToken.project;
+    const orgMemberCreate = project.organizationId
+      ? [
+          prisma.organizationMember.upsert({
+            where: {
+              organizationId_userId: {
+                organizationId: project.organizationId,
+                userId: authResult.userId,
+              },
+            },
+            create: {
+              id: cuid(),
+              organizationId: project.organizationId,
+              userId: authResult.userId,
+              role: "MEMBER",
+            },
+            update: {},
+          }),
+        ]
+      : [];
+
     await prisma.$transaction([
       prisma.projectMember.create({
         data: {
@@ -73,6 +94,7 @@ export async function POST(request: NextRequest) {
           role: inviteToken.role,
         },
       }),
+      ...orgMemberCreate,
       prisma.projectInviteToken.update({
         where: { id: inviteToken.id },
         data: { uses: { increment: 1 } },
