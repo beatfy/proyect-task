@@ -69,9 +69,9 @@ export async function POST(request: NextRequest) {
       ? [
           prisma.organizationMember.upsert({
             where: {
-              organizationId_userId: {
-                organizationId: project.organizationId,
+              userId_organizationId: {
                 userId: authResult.userId,
+                organizationId: project.organizationId,
               },
             },
             create: {
