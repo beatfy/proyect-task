@@ -267,7 +267,7 @@ export async function POST(request: NextRequest) {
       task.description = shortDesc;
     }
 
-    await notifyTaskWebhook({ id: task.id, title, description: task.description, priority, dueDate: dueDate ? new Date(dueDate).toISOString() : null, assigneeId: finalAssigneeId, creatorId: authResult.userId });
+    await notifyTaskWebhook({ id: task.id, title, description: task.description, priority, dueDate: dueDate ? new Date(dueDate).toISOString() : null, assigneeId: finalAssigneeId, assigneeEmail: assignedTo || null, creatorId: authResult.userId });
 
     return NextResponse.json({
       ...task,
@@ -419,7 +419,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (assigneeId !== undefined && assigneeId) {
-      await notifyTaskWebhook({ id, title: task.title, description: task.description, priority: priority || null, dueDate: dueDate ? new Date(dueDate).toISOString() : null, assigneeId, creatorId: authResult.userId });
+      await notifyTaskWebhook({ id, title: task.title, description: task.description, priority: priority || null, dueDate: dueDate ? new Date(dueDate).toISOString() : null, assigneeId, assigneeEmail: assignedTo || null, creatorId: authResult.userId });
     }
 
     return NextResponse.json({
