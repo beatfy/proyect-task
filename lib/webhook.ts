@@ -51,6 +51,7 @@ export async function notifyTaskWebhook(task: {
         text: `Nueva tarea asignada a Scytale: ${task.title} (${priorityLabel})`,
         mode: "now",
       }),
+      signal: AbortSignal.timeout(5000),
     });
     console.log("[OpenClaw Webhook] Status:", response.status, "OK:", response.ok);
     const body = await response.text();
