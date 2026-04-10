@@ -56,7 +56,7 @@ export async function notifyTaskWebhook(task: {
     const body = await response.text();
     console.log("[OpenClaw Webhook] Response body:", body);
   } catch (error) {
-    console.error("[OpenClaw Webhook] FAILED:", error.message || error);
+    console.error("[OpenClaw Webhook] FAILED:", (error as Error).message || String(error));
   }
 
   // Telegram fallback
