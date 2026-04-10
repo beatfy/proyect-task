@@ -21,11 +21,14 @@ const QUICK_SUGGESTIONS = [
   "¿Qué deadlines tengo esta semana?",
 ];
 
+type ChatMode = "glm" | "openclaw";
+
 export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
   const pathname = usePathname();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [chatMode, setChatMode] = useState<ChatMode>("glm");
   const [projectName, setProjectName] = useState<string>();
   const [projectId, setProjectId] = useState<string>();
   const [organizationId, setOrganizationId] = useState<string>();
@@ -106,24 +109,64 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
         content: m.content,
       }));
 
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: messageText,
-          projectId,
-          organizationId,
-          history,
-        }),
-      });
+      if (chatMode === "openclaw") {
+        // OpenClaw proxy mode
+        const res = await fetch("/api/chat/openclaw", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: messageText,
+            userId: organizationId || projectId || "anonymous",
+          }),
+        });
 
-      const data = await res.json();
+        const data = await res.json();
 
-      if (data.error) {
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: `⚠️ Error: ${data.error}` },
-        ]);
+        if (data.error) {
+          setMessages((prev) => [
+            ...prev,
+            { role: "assistant", content: `⚠️ Error: ${data.error}` },
+          ]);
+        } else {
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: data.response || "✅ Mensaje enviado a OpenClaw",
+            },
+          ]);
+        }
+      } else {
+        // Original GLM mode
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: messageText,
+            projectId,
+            organizationId,
+            history,
+          }),
+        });
+
+        const data = await res.json();
+
+        if (data.error) {
+          setMessages((prev) => [
+            ...prev,
+            { role: "assistant", content: `⚠️ Error: ${data.error}` },
+          ]);
+        } else {
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: data.reply,
+              actions: data.actions || [],
+            },
+          ]);
+        }
+      }
       } else {
         setMessages((prev) => [
           ...prev,
@@ -209,6 +252,17 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
               )}
             </div>
           </div>
+          <button
+            onClick={() => setChatMode((m) => m === "glm" ? "openclaw" : "glm")}
+            className={`text-xs px-2 py-1 rounded-md border transition-colors ${
+              chatMode === "openclaw"
+                ? "bg-neutral-900 text-white border-neutral-900"
+                : "border-border hover:bg-muted"
+            }`}
+            title={chatMode === "glm" ? "Cambiar a OpenClaw" : "Cambiar a GLM"}
+          >
+            {chatMode === "glm" ? "GLM" : "🐙"}
+          </button>
           <button
             onClick={onClose}
             className="p-1.5 hover:bg-muted rounded-md transition-colors"
