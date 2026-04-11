@@ -112,16 +112,19 @@ export async function GET(request: NextRequest) {
     const projectId = searchParams.get("projectId");
     const organizationId = searchParams.get("organizationId");
 
-    const whereClause: Record<string, unknown> = {
-      OR: [
+    const whereClause: Record<string, unknown> = {};
+
+    if (projectId) {
+      // When viewing a specific project, show ALL tasks in it
+      // (user is authenticated and presumably a project member)
+      whereClause.projectId = projectId;
+    } else {
+      // No project filter: only show tasks where user is involved
+      whereClause.OR = [
         { creatorId: authResult.userId },
         { assigneeId: authResult.userId },
         { taskAssignees: { some: { userId: authResult.userId } } },
-      ],
-    };
-
-    if (projectId) {
-      whereClause.projectId = projectId;
+      ];
     }
 
     if (organizationId) {
