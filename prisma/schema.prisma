@@ -87,6 +87,7 @@ model Task {
   attachments   Attachment[]
   timeEntries   TimeEntry[]
   taskAssignees TaskAssignee[]
+  organizationId String?
 }
 
 model TaskAssignee {
