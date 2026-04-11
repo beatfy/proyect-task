@@ -687,7 +687,7 @@ export default function ProjectDetailPage() {
       <KanbanBoard
         tasks={tasks}
         setTasks={setTasks}
-        onTaskClick={(task) => { router.push(`/tasks?openTask=${task.id}`); }}
+        onTaskClick={(task) => { openEditTask(task); setTaskOpen(true); }}
         handleDeleteTask={handleDeleteTask}
         projectId={projectId}
       />

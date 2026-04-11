@@ -206,6 +206,7 @@ function TasksPageContent() {
   const [dueDate, setDueDate] = useState("");
   const [assignedTo, setAssignedTo] = useState("");
   const [projectId, setProjectId] = useState("none");
+  const [filterProject, setFilterProject] = useState<string>("all");
   const [projectMembers, setProjectMembers] = useState<{id:string; role:string; user:{id:string; name:string|null; email:string; image:string|null}}[]>([]);
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [assigneeDropdownOpen, setAssigneeDropdownOpen] = useState(false);
@@ -243,9 +244,11 @@ function TasksPageContent() {
     fetchActiveTimer();
   }, []);
 
-  // Auto-open task from URL param
+  // Auto-open task from URL param & set project filter from URL
   useEffect(() => {
     const openTaskId = searchParams.get('openTask');
+    const projectFilter = searchParams.get('project');
+    if (projectFilter) setFilterProject(projectFilter);
     if (openTaskId && tasks.length > 0 && !detailOpen) {
       const task = tasks.find(t => t.id === openTaskId);
       if (task) handleOpenDetail(task);
@@ -723,7 +726,8 @@ function TasksPageContent() {
     }
   };
 
-  const getTasksByStatus = (s: string) => tasks.filter(t => t.status === s);
+  const filteredTasks = filterProject === "all" ? tasks : tasks.filter(t => t.projectId === filterProject);
+  const getTasksByStatus = (s: string) => filteredTasks.filter(t => t.status === s);
   const getProjectName = (id: string | null) => {
     if (!id) return null;
     return projects.find(p => p.id === id)?.name || null;
@@ -814,6 +818,18 @@ function TasksPageContent() {
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <Select value={filterProject} onValueChange={setFilterProject}>
+            <SelectTrigger className="w-[180px] border-slate-200 dark:border-slate-700 dark:text-slate-300">
+              <SelectValue placeholder="Todos los proyectos" />
+            </SelectTrigger>
+            <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+              <SelectItem value="all">Todos los proyectos</SelectItem>
+              {projects.map((p) => (
+                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -1277,10 +1293,10 @@ function TasksPageContent() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-              {tasks.length === 0 ? (
+              {filteredTasks.length === 0 ? (
                 <tr><td colSpan={7} className="text-center py-12 text-slate-500 dark:text-slate-400">No hay tareas</td></tr>
               ) : (
-                tasks.map((task) => (
+                filteredTasks.map((task) => (
                   <tr key={task.id} className="hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer" onClick={() => handleOpenDetail(task)}>
                     <td className="p-3">
                       <div>
@@ -1328,12 +1344,12 @@ function TasksPageContent() {
       {/* LIST VIEW */}
       {view === "list" && (
         <div className="space-y-2">
-          {tasks.length === 0 ? (
+          {filteredTasks.length === 0 ? (
             <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
               <CardContent className="py-12 text-center text-slate-500 dark:text-slate-400">No hay tareas</CardContent>
             </Card>
           ) : (
-            tasks.map((task) => (
+            filteredTasks.map((task) => (
               <Card key={task.id} className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 transition-colors cursor-pointer" onClick={() => handleOpenDetail(task)}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
