@@ -3,7 +3,9 @@ const OPENCLAW_TOKEN = process.env.OPENCLAW_AUTH_TOKEN || "";
 
 export async function sendToTasky(
   message: string,
-  userId: string
+  userId: string,
+  projectId?: string,
+  organizationId?: string
 ): Promise<string> {
   const authToken = OPENCLAW_TOKEN.startsWith("Bearer ")
     ? OPENCLAW_TOKEN
@@ -16,9 +18,10 @@ export async function sendToTasky(
       Authorization: authToken,
     },
     body: JSON.stringify({
-      text: message,
+      text: `[Contexto: Proyecto ${projectId || "unknown"}, Org ${organizationId || "unknown"}]
+${message}`,
       mode: "now",
-      sessionKey: `taskx2-${userId}`,
+      sessionKey: `taskx2-${userId}-${projectId || "none"}`,
     }),
     signal: AbortSignal.timeout(30000),
   });

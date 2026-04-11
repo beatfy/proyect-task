@@ -3,7 +3,7 @@ import { sendToTasky } from "@/lib/openclaw-proxy";
 
 export async function POST(req: NextRequest) {
   try {
-    const { message, userId } = await req.json();
+    const { message, userId, projectId, organizationId } = await req.json();
 
     if (!message || typeof message !== "string") {
       return NextResponse.json(
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const response = await sendToTasky(message, userId || "anonymous");
+    const response = await sendToTasky(message, userId || "anonymous", projectId, organizationId);
 
     return NextResponse.json({ response });
   } catch (err) {

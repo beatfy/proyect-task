@@ -117,6 +117,8 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
           body: JSON.stringify({
             message: messageText,
             userId: organizationId || projectId || "anonymous",
+            projectId,
+            organizationId,
           }),
         });
 
