@@ -167,16 +167,6 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
           ]);
         }
       }
-      } else {
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: data.reply,
-            actions: data.actions || [],
-          },
-        ]);
-      }
     } catch {
       setMessages((prev) => [
         ...prev,
