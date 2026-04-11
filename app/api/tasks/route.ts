@@ -188,7 +188,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: errors }, { status: 400 });
     }
 
-    const { title, description, status, priority, dueDate, projectId, assignedTo, assigneeId, assigneeIds, parentId } = parsed.data;
+    const { title, description, status, priority, dueDate, projectId, assignedTo, assigneeId, assigneeIds, parentId, organizationId } = parsed.data;
 
     const userExists = await prisma.user.findUnique({ where: { id: authResult.userId }, select: { id: true } });
     if (!userExists) {
@@ -216,6 +216,7 @@ export async function POST(request: NextRequest) {
         projectId: projectId || null,
         creatorId: authResult.userId,
         assigneeId: finalAssigneeId,
+        organizationId: organizationId || null,
         parentId: parentId || null,
         taskAssignees: finalAssigneeIds.length > 0 ? {
           create: finalAssigneeIds.map(uid => ({ id: cuid(), userId: uid }))
@@ -302,7 +303,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: errors }, { status: 400 });
     }
 
-    const { id, status, priority, title, description, projectId, assignedTo, assigneeId, assigneeIds, dueDate } = parsed.data;
+    const { id, status, priority, title, description, projectId, assignedTo, assigneeId, assigneeIds, dueDate, organizationId } = parsed.data;
 
     const authorized = await canModifyTask(authResult.userId, id);
     if (!authorized) {
@@ -316,6 +317,7 @@ export async function PATCH(request: NextRequest) {
     if (description !== undefined) updateData.description = description;
     if (projectId !== undefined) updateData.projectId = projectId || null;
     if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null;
+    if (organizationId !== undefined) updateData.organizationId = organizationId || null;
 
     if (assigneeId !== undefined) {
       updateData.assigneeId = assigneeId || null;
