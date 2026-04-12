@@ -45,6 +45,10 @@ export async function notifyTaskWebhook(task: {
 
   // OpenClaw system event
   try {
+    if (!OPENCLAW_AUTH_TOKEN) {
+      console.warn("[OpenClaw Webhook] Skipping: OPENCLAW_AUTH_TOKEN not set");
+      return;
+    }
     const response = await fetch(OPENCLAW_WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `${OPENCLAW_AUTH_TOKEN.startsWith("Bearer ") ? OPENCLAW_AUTH_TOKEN : `Bearer ${OPENCLAW_AUTH_TOKEN}`}` },
