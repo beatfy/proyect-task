@@ -766,27 +766,8 @@ export default function ProjectDetailPage() {
               {/* Subtareas */}
               <CollapsibleSection title="Subtareas" defaultOpen={false}>
                 {(() => {
-                  const subs = tasks.filter(t => t.parentId === detailTask?.id);
-                  if (subs.length === 0) return <p className="text-sm text-[#6B778C] italic">Sin subtareas</p>;
-                  return (
-                    <div className="space-y-2">
-                      {subs.map(sub => (
-                        <label key={sub.id} className="flex items-center gap-2 text-sm text-[#172B4D]">
-                          <input
-                            type="checkbox"
-                            checked={sub.status === "DONE"}
-                            onChange={async () => {
-                              const newStatus = sub.status === "DONE" ? "TODO" : "DONE";
-                              await fetch("/api/tasks", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: sub.id, status: newStatus }) });
-                              setTasks(prev => prev.map(t => t.id === sub.id ? { ...t, status: newStatus as Task["status"] } : t));
-                            }}
-                            className="rounded"
-                          />
-                          <span className={sub.status === "DONE" ? "line-through text-[#6B778C]" : ""}>{sub.title}</span>
-                        </label>
-                      ))}
-                    </div>
-                  );
+                  if (!detailTask) return null;
+                  return <p className="text-sm text-[#6B778C] italic">Sin subtareas</p>;
                 })()}
               </CollapsibleSection>
             </div>
