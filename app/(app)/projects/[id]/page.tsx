@@ -718,16 +718,16 @@ export default function ProjectDetailPage() {
 
       {/* Task Detail Dialog - Jira Style */}
       <Dialog open={detailOpen} onOpenChange={(v) => { setDetailOpen(v); if (!v) { setDetailTask(null); setDetailAttachments([]); } }}>
-        <DialogContent className="bg-card border-border p-0 gap-0 overflow-hidden" style={{ width: "85vw", maxWidth: "85vw", height: "85vh", maxHeight: "85vh" }}>
+        <DialogContent className="bg-card border-border p-0 gap-0 overflow-hidden w-[95vw] md:w-[85vw] max-w-[95vw] md:max-w-[85vw] h-[90vh] md:h-[85vh] max-h-[90vh] md:max-h-[85vh]">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-[#DFE1E6]">
             <DialogTitle className="text-xl font-bold text-[#172B4D]">{detailTask?.title}</DialogTitle>
             <button onClick={() => { setDetailOpen(false); setDetailTask(null); }} className="p-1 rounded hover:bg-muted"><X className="h-5 w-5 text-[#6B778C]" /></button>
           </div>
           {/* Two columns */}
-          <div className="flex flex-1 overflow-hidden" style={{ height: "calc(85vh - 65px)" }}>
+          <div className="flex flex-col md:flex-row flex-1 overflow-hidden" style={{ height: "calc(85vh - 65px)" }}>
             {/* Left column 70% */}
-            <div className="flex-[7] overflow-y-auto p-6 space-y-5">
+            <div className="flex-1 md:flex-[7] overflow-y-auto p-4 md:p-6 space-y-5">
               {/* Descripción */}
               <CollapsibleSection title="Descripción" defaultOpen>
                 {detailTask?.description ? (
@@ -773,7 +773,7 @@ export default function ProjectDetailPage() {
             </div>
 
             {/* Right sidebar 30% */}
-            <div className="flex-[3] bg-[#F4F5F7] border-l border-[#DFE1E6] p-5 space-y-5 overflow-y-auto">
+            <div className="flex-[3] bg-[#F4F5F7] border-l-0 md:border-l border-t md:border-t-0 border-[#DFE1E6] p-4 md:p-5 space-y-5 overflow-y-auto">
               {/* Status pill */}
               <div>
                 <DropdownMenu>
