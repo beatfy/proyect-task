@@ -902,7 +902,7 @@ export default function ProjectDetailPage() {
                 {/* Fecha inicio */}
                 <div>
                   <p className="text-[11px] text-[#6B778C] mb-1">Fecha inicio</p>
-                  <p className="text-sm text-[#172B4D]">{detailTask?.startDate ? new Date(detailTask.startDate).toLocaleDateString("es-ES") : <span className="text-[#6B778C]">Ninguno</span>}</p>
+                  <p className="text-sm text-[#6B778C]">Ninguno</p>
                 </div>
               </div>
 
