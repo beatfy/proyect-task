@@ -746,17 +746,17 @@ export default function ProjectDetailPage() {
                     {detailAttachments.map((att) => {
                       const isImage = /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(att.name);
                       return (
-                        <div key={att.id} className="rounded-lg border border-[#DFE1E6] overflow-hidden">
+                        <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-[#DFE1E6] overflow-hidden hover:shadow-md transition-shadow cursor-pointer block">
                           {isImage ? (
                             <img src={att.url} alt={att.name} className="w-full h-24 object-cover" />
                           ) : (
-                            <div className="w-full h-24 flex items-center justify-center bg-muted/50"><Download className="h-8 w-8 text-[#6B778C]" /></div>
+                            <div className="w-full h-24 flex flex-col items-center justify-center bg-muted/50 gap-1"><Download className="h-8 w-8 text-[#6B778C]" /><span className="text-[10px] text-[#6B778C]">Descargar</span></div>
                           )}
                           <div className="p-2">
                             <p className="text-xs text-[#172B4D] truncate">{att.name}</p>
                             <p className="text-[10px] text-[#6B778C]">{new Date(att.createdAt).toLocaleDateString("es-ES")}</p>
                           </div>
-                        </div>
+                        </a>
                       );
                     })}
                   </div>
