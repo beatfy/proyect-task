@@ -722,7 +722,7 @@ export default function ProjectDetailPage() {
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-[#DFE1E6]">
             <DialogTitle className="text-xl font-bold text-[#172B4D]">{detailTask?.title}</DialogTitle>
-            <button onClick={() => { setDetailOpen(false); setDetailTask(null); }} className="p-1 rounded hover:bg-muted"><X className="h-5 w-5 text-[#6B778C]" /></button>
+
           </div>
           {/* Two columns */}
           <div className="flex flex-col md:flex-row flex-1 overflow-hidden" style={{ height: "calc(85vh - 65px)" }}>
