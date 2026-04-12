@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { Plus, MoreHorizontal, User, Pencil, Trash2, FolderOpen, LayoutGrid, List, Table, Calendar, MessageSquare, Paperclip, ChevronDown, ChevronUp, X, Upload, File, Image, FileText, Timer, Play, Square, LayoutTemplate, Download } from "lucide-react";
+import { Plus, MoreHorizontal, User, Pencil, Trash2, FolderOpen, LayoutGrid, List, Table, Calendar, MessageSquare, Paperclip, ChevronDown, ChevronUp, X, Upload, File, Image, FileText, Timer, Play, Square, LayoutTemplate, Download, Share2, Maximize2, Clock, CheckCircle2, Circle, AlertCircle, Copy, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -42,10 +42,13 @@ interface Task {
   priority: string;
   dueDate: string | null;
   assignedTo: string | null;
-  assignee?: { id: string; name: string | null; email: string } | null;
+  assignee?: { id: string; name: string | null; email: string; image?: string | null } | null;
   projectId: string | null;
   project?: { id: string; name: string } | null;
   parentId?: string | null;
+  createdAt?: string | null;
+  creatorId?: string | null;
+  creator?: { id: string; name: string | null; email: string; image?: string | null } | null;
 }
 
 interface Subtask extends Task {}
@@ -219,6 +222,17 @@ function TasksPageContent() {
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [subtaskTitle, setSubtaskTitle] = useState("");
   const [showSubtasks, setShowSubtasks] = useState(true);
+
+  // Detail panel states
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [detailTitle, setDetailTitle] = useState("");
+  const [detailDescription, setDetailDescription] = useState("");
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  const [activeField, setActiveField] = useState<string | null>(null);
+  const [detailProjectMembers, setDetailProjectMembers] = useState<{id:string; role:string; user:{id:string; name:string|null; email:string; image:string|null}}[]>([]);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const descInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Comments
   const [comments, setComments] = useState<Comment[]>([]);
@@ -503,7 +517,22 @@ function TasksPageContent() {
   const handleOpenDetail = (task: Task) => {
     setDetailTask(task);
     setDetailOpen(true);
+    setDetailTitle(task.title);
+    setDetailDescription(task.description || "");
+    setEditingTitle(false);
+    setEditingDescription(false);
+    setCollapsedSections({});
+    setActiveField(null);
     fetchTaskDetails(task.id);
+    // Fetch project members for assignee selection
+    if (task.projectId) {
+      fetch(`/api/projects/${task.projectId}/members`)
+        .then(r => r.ok ? r.json() : [])
+        .then(setDetailProjectMembers)
+        .catch(() => setDetailProjectMembers([]));
+    } else {
+      setDetailProjectMembers([]);
+    }
   };
 
   const handleUpdate = async () => {
@@ -750,6 +779,39 @@ function TasksPageContent() {
   const totalTaskTime = timeEntries
     .filter((e) => detailTask && e.taskId === detailTask.id)
     .reduce((sum, e) => sum + (e.duration || 0), 0);
+
+  const autoSaveField = async (field: string, value: string | null) => {
+    if (!detailTask) return;
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: detailTask.id, [field]: value }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setDetailTask(updated);
+        setTasks(tasks.map(t => t.id === updated.id ? updated : t));
+        toast.success("Guardado");
+      }
+    } catch {
+      toast.error("Error al guardar");
+    }
+  };
+
+  const toggleSection = (section: string) => {
+    setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const getTaskIdentifier = (task: Task | null) => {
+    if (!task) return "";
+    if (task.project?.name) {
+      const prefix = task.project.name.substring(0, 4).toUpperCase().replace(/\s/g, "");
+      const num = task.id.substring(0, 4).toUpperCase();
+      return `${prefix}-${num}`;
+    }
+    return `TASK-${task.id.substring(0, 4).toUpperCase()}`;
+  };
 
   if (loading) {
     return (
@@ -1088,172 +1150,265 @@ function TasksPageContent() {
         </DialogContent>
       </Dialog>
 
-      {/* Detail Dialog */}
+      {/* Detail Dialog - Jira/Linear Style */}
       <Dialog open={detailOpen} onOpenChange={(v) => { setDetailOpen(v); if (!v) { setDetailTask(null); setActiveTimer(null); setTimerSeconds(0); }}}>
-        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle className="text-slate-900 dark:text-slate-100">{detailTask?.title}</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto space-y-6 pt-4">
-            {/* Description */}
-            {detailTask?.description && (
-              <div className="text-slate-600 dark:text-slate-400">{detailTask.description}</div>
-            )}
-
-            {/* Time Entries Section */}
-            <div className="space-y-3">
-              <h3 className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                <Timer className="h-4 w-4" />
-                Tiempo registrado
-              </h3>
-              {totalTaskTime > 0 && (
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Tiempo total: {formatTimer(totalTaskTime)}
-                </p>
-              )}
-              {timeEntries.filter((e) => detailTask && e.taskId === detailTask.id).length > 0 && (
-                <div className="space-y-1 max-h-32 overflow-y-auto">
-                  {timeEntries.filter((e) => detailTask && e.taskId === detailTask.id).map((entry) => (
-                    <div key={entry.id} className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                      <span>{new Date(entry.startTime).toLocaleString()}</span>
-                      <span>→</span>
-                      <span>{entry.endTime ? new Date(entry.endTime).toLocaleTimeString() : "..."}</span>
-                      <Badge variant="secondary" className="text-[10px] border dark:border-slate-600">{formatTimer(entry.duration || 0)}</Badge>
-                    </div>
-                  ))}
-                </div>
-              )}
+        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 w-[90vw] max-w-[1200px] max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0">
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-3 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-mono text-slate-500 dark:text-slate-400">TASK-{detailTask?.id?.slice(-5).toUpperCase()}</span>
+              <Badge variant="secondary" className="text-[10px] border dark:border-slate-600">Tarea</Badge>
             </div>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => { setDetailOpen(false); setDetailTask(null); setActiveTimer(null); setTimerSeconds(0); }}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
 
-            {/* Subtasks */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between cursor-pointer" onClick={() => setShowSubtasks(!showSubtasks)}>
-                <h3 className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                  <ChevronDown className={`h-4 w-4 transition-transform ${showSubtasks ? "" : "-rotate-90"}`} />
-                  Subtareas ({subtasks.length})
-                </h3>
-                <Input
-                  placeholder="Añadir subtarea..."
-                  value={subtaskTitle}
-                  onChange={(e) => setSubtaskTitle(e.target.value)}
-                  className="w-64 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
-                  onKeyDown={(e) => { if (e.key === "Enter") handleCreateSubtask(); }}
-                  onClick={(e) => e.stopPropagation()}
+          {/* Two Column Layout */}
+          <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+            {/* Left Column - Content (70%) */}
+            <div className="flex-1 md:w-[70%] overflow-y-auto p-6 space-y-6">
+              {/* Title - Inline Editable */}
+              <h1
+                contentEditable
+                suppressContentEditableWarning
+                className="text-2xl font-semibold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 focus:rounded px-1 -ml-1"
+                onBlur={(e) => {
+                  const newTitle = e.currentTarget.textContent?.trim() || "";
+                  if (newTitle && newTitle !== detailTask?.title) {
+                    autoSaveField("title", newTitle);
+                  }
+                }}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLElement).blur(); } }}
+              >{detailTitle}</h1>
+
+              {/* Description */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Descripción</label>
+                <textarea
+                  placeholder="Añadir descripción..."
+                  value={detailDescription}
+                  onChange={(e) => setDetailDescription(e.target.value)}
+                  onBlur={() => {
+                    if (detailDescription !== (detailTask?.description || "")) {
+                      autoSaveField("description", detailDescription);
+                    }
+                  }}
+                  rows={5}
+                  className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 />
               </div>
-              {showSubtasks && (
-                <div className="space-y-1">
-                  {subtasks.length === 0 ? (
-                    <p className="text-slate-500 dark:text-slate-400 text-sm pl-1">No hay subtareas</p>
-                  ) : (
-                    subtasks.map((st) => (
-                      <div key={st.id} className="flex items-center gap-2 py-1">
-                        <input
-                          type="checkbox"
-                          checked={st.status === "DONE"}
-                          onChange={() => handleToggleSubtask(st)}
-                          className="rounded-sm border-slate-300 dark:border-slate-600"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <span className={cn("text-sm", st.status === "DONE" && "text-slate-400 line-through dark:text-slate-500")}>
-                            {st.title}
-                          </span>
-                          {st.description && (
-                            <p className={cn("text-xs text-slate-500 dark:text-slate-400 mt-0.5", st.status === "DONE" && "line-through")}>{st.description}</p>
-                          )}
-                        </div>
-                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 ml-auto opacity-0 group-hover:opacity-100 hover:opacity-100" onClick={async () => {
+
+              {/* Subtasks */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between cursor-pointer" onClick={() => setShowSubtasks(!showSubtasks)}>
+                  <h3 className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                    <ChevronDown className={cn("h-4 w-4 transition-transform", !showSubtasks && "-rotate-90")} />
+                    Subtareas ({subtasks.length}){subtasks.length > 0 && (
+                      <span className="text-xs text-slate-400">· {subtasks.filter(s => s.status === "DONE").length}/{subtasks.length} completadas</span>
+                    )}
+                  </h3>
+                </div>
+                {subtasks.length > 0 && (
+                  <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5">
+                    <div className="bg-blue-500 h-1.5 rounded-full transition-all" style={{ width: `${subtasks.length > 0 ? (subtasks.filter(s => s.status === "DONE").length / subtasks.length * 100) : 0}%` }} />
+                  </div>
+                )}
+                {showSubtasks && (
+                  <div className="space-y-1">
+                    {subtasks.map((st) => (
+                      <div key={st.id} className="flex items-center gap-2 py-1 group">
+                        <input type="checkbox" checked={st.status === "DONE"} onChange={() => handleToggleSubtask(st)} className="rounded-sm border-slate-300 dark:border-slate-600" />
+                        <span className={cn("text-sm flex-1", st.status === "DONE" && "text-slate-400 line-through dark:text-slate-500")}>{st.title}</span>
+                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100" onClick={async () => {
                           await fetch(`/api/tasks?id=${st.id}`, { method: "DELETE" });
                           setSubtasks(subtasks.filter(s => s.id !== st.id));
                         }}>
                           <Trash2 className="h-3 w-3 text-slate-400" />
                         </Button>
                       </div>
-                    ))
-                  )}
-                  {subtaskTitle.trim() && (
-                    <Button size="sm" variant="ghost" onClick={handleCreateSubtask}>Añadir</Button>
-                  )}
+                    ))}
+                    <div className="flex gap-2 pt-1">
+                      <Input placeholder="Añadir subtarea..." value={subtaskTitle} onChange={(e) => setSubtaskTitle(e.target.value)} className="flex-1 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 h-8 text-sm" onKeyDown={(e) => { if (e.key === "Enter") handleCreateSubtask(); }} />
+                      {subtaskTitle.trim() && <Button size="sm" variant="ghost" onClick={handleCreateSubtask}>Añadir</Button>}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Comments */}
+              <div className="space-y-3">
+                <h3 className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  Comentarios ({comments.length})
+                </h3>
+                <div className="space-y-2">
+                  {comments.map((c) => (
+                    <div key={c.id} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-6 h-6 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xs">
+                          {c.author.name?.[0]?.toUpperCase() || c.author.email[0].toUpperCase()}
+                        </div>
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{c.author.name || c.author.email}</span>
+                        <span className="text-xs text-slate-400">{new Date(c.createdAt).toLocaleDateString()}</span>
+                      </div>
+                      <p className="text-sm text-slate-600 dark:text-slate-400 pl-8">{c.content}</p>
+                    </div>
+                  ))}
+                  <div className="flex flex-col gap-2">
+                    <textarea placeholder="Añadir comentario..." value={newComment} onChange={(e) => setNewComment(e.target.value)} rows={3} className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+                    <Button size="sm" onClick={handleAddComment} className="self-end">Enviar</Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Attachments */}
+              <div className="space-y-3">
+                <h3 className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                  <Paperclip className="h-4 w-4" />
+                  Archivos ({attachments.length})
+                </h3>
+                {attachments.length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {attachments.map((a) => (
+                      a.type === "image" ? (
+                        <a key={a.id} href={`/api/attachments/${a.id}`} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 hover:opacity-80 transition-opacity">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={`/api/attachments/${a.id}`} alt={a.name} className="w-full h-24 object-cover" />
+                          <div className="p-1.5 text-xs text-slate-600 dark:text-slate-400 truncate">{a.name}</div>
+                        </a>
+                      ) : (
+                        <div key={a.id} className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                          {a.type === "pdf" ? <FileText className="h-4 w-4 text-red-500" /> : <File className="h-4 w-4 text-slate-500" />}
+                          <a href={`/api/attachments/${a.id}`} target="_blank" rel="noopener noreferrer" className="text-xs text-slate-700 dark:text-slate-300 hover:underline truncate flex-1">{a.name}</a>
+                          <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => handleDeleteAttachment(a.id)}><Trash2 className="h-3 w-3 text-slate-400" /></Button>
+                        </div>
+                      )
+                    ))}
+                  </div>
+                )}
+                <label className="cursor-pointer">
+                  <input type="file" className="hidden" onChange={handleUpload} disabled={uploading} accept="image/jpeg,image/png,image/gif,image/webp,application/pdf" />
+                  <Button variant="outline" size="sm" asChild disabled={uploading}>
+                    <span><Upload className="h-4 w-4 mr-2" />{uploading ? "Subiendo..." : "Subir archivo"}</span>
+                  </Button>
+                </label>
+              </div>
+
+              {/* Time Entries */}
+              <div className="space-y-2">
+                <h3 className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                  <Timer className="h-4 w-4" />
+                  Tiempo{totalTaskTime > 0 && <span className="text-xs text-slate-400 ml-1">· {formatTimer(totalTaskTime)}</span>}
+                </h3>
+                {timeEntries.filter((e) => detailTask && e.taskId === detailTask.id).length > 0 && (
+                  <div className="space-y-1">
+                    {timeEntries.filter((e) => detailTask && e.taskId === detailTask.id).map((entry) => (
+                      <div key={entry.id} className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                        <span>{new Date(entry.startTime).toLocaleString()}</span>
+                        <span>→</span>
+                        <span>{entry.endTime ? new Date(entry.endTime).toLocaleTimeString() : "..."}</span>
+                        <Badge variant="secondary" className="text-[10px] border dark:border-slate-600">{formatTimer(entry.duration || 0)}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right Column - Sidebar (30%) */}
+            <div className="md:w-[30%] md:min-w-[250px] bg-slate-50 dark:bg-slate-800/50 border-t md:border-t-0 md:border-l border-slate-200 dark:border-slate-700 p-5 space-y-5 overflow-y-auto">
+              {/* Status */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Estado</label>
+                <Select value={detailTask?.status || "TODO"} onValueChange={(v) => autoSaveField("status", v)}>
+                  <SelectTrigger className="w-full h-9 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(statusLabels).map(([v, l]) => (
+                      <SelectItem key={v} value={v}>{l}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Priority */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Prioridad</label>
+                <Select value={detailTask?.priority || "NONE"} onValueChange={(v) => autoSaveField("priority", v)}>
+                  <SelectTrigger className="w-full h-9 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(priorityLabels).map(([v, l]) => (
+                      <SelectItem key={v} value={v}>{l}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Assignee */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Asignado</label>
+                <Select value={detailTask?.assignedTo || "_none"} onValueChange={(v) => autoSaveField("assignedTo", v === "_none" ? null : v)}>
+                  <SelectTrigger className="w-full h-9 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">Sin asignar</SelectItem>
+                    {detailProjectMembers.map((m) => (
+                      <SelectItem key={m.user.id} value={m.user.id}>
+                        <div className="flex items-center gap-2">
+                          <div className="w-5 h-5 rounded-full bg-neutral-700 text-white flex items-center justify-center text-[10px]">
+                            {m.user.name?.[0]?.toUpperCase() || m.user.email[0].toUpperCase()}
+                          </div>
+                          {m.user.name || m.user.email}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Due Date */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Fecha límite</label>
+                <Input
+                  type="date"
+                  value={detailTask?.dueDate ? new Date(detailTask.dueDate).toISOString().split("T")[0] : ""}
+                  onChange={(e) => autoSaveField("dueDate", e.target.value || null)}
+                  className="w-full h-9 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
+                />
+              </div>
+
+              {/* Project */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Proyecto</label>
+                <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-700 dark:text-slate-300">
+                  <FolderOpen className="h-4 w-4 text-slate-400" />
+                  {detailTask?.project?.name || "Sin proyecto"}
+                </div>
+              </div>
+
+              {/* Creator */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Creador</label>
+                <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                  <div className="w-6 h-6 rounded-full bg-neutral-700 text-white flex items-center justify-center text-[10px]">
+                    {detailTask?.creator?.name?.[0]?.toUpperCase() || detailTask?.creator?.email?.[0]?.toUpperCase() || "?"}
+                  </div>
+                  {detailTask?.creator?.name || detailTask?.creator?.email || "Desconocido"}
+                </div>
+              </div>
+
+              {/* Created At */}
+              {detailTask?.createdAt && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Creado</label>
+                  <p className="text-sm text-slate-700 dark:text-slate-300">{new Date(detailTask.createdAt).toLocaleDateString()}</p>
                 </div>
               )}
-            </div>
-
-            {/* Comments */}
-            <div className="space-y-3">
-              <h3 className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                <MessageSquare className="h-4 w-4" />
-                Comentarios ({comments.length})
-              </h3>
-              <div className="space-y-2">
-                {comments.map((c) => (
-                  <div key={c.id} className="p-3 bg-slate-50 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="w-6 h-6 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xs">
-                        {c.author.name?.[0]?.toUpperCase() || c.author.email[0].toUpperCase()}
-                      </div>
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{c.author.name || c.author.email}</span>
-                      <span className="text-xs text-slate-400">{new Date(c.createdAt).toLocaleDateString()}</span>
-                    </div>
-                    <p className="text-sm text-slate-600 dark:text-slate-400">{c.content}</p>
-                  </div>
-                ))}
-                <div className="flex flex-col gap-2">
-                  <textarea
-                    placeholder="Añadir comentario..."
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    rows={3}
-                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 resize-none"
-                  />
-                  <Button size="sm" onClick={handleAddComment} className="self-end">Enviar</Button>
-                </div>
-              </div>
-            </div>
-
-            {/* Attachments */}
-            <div className="space-y-3">
-              <h3 className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                <Paperclip className="h-4 w-4" />
-                Archivos ({attachments.length})
-              </h3>
-              <div className="space-y-2">
-                {attachments.map((a) => (
-                  <div key={a.id} className="flex items-center gap-3 p-2 bg-slate-50 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">
-                    {a.type === "image" ? (
-                      <a href={`/api/attachments/${a.id}`} target="_blank" rel="noopener noreferrer" className="shrink-0">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={`/api/attachments/${a.id}`}
-                          alt={a.name}
-                          className="h-10 w-10 rounded object-cover border border-slate-200 dark:border-slate-700"
-                        />
-                      </a>
-                    ) : a.type === "pdf" ? (
-                      <FileText className="h-5 w-5 text-red-500 shrink-0" />
-                    ) : (
-                      <File className="h-5 w-5 text-slate-500 dark:text-slate-400 shrink-0" />
-                    )}
-                    <a href={`/api/attachments/${a.id}`} target="_blank" rel="noopener noreferrer" className="text-sm text-slate-700 dark:text-slate-300 hover:underline truncate min-w-0">
-                      {a.name}
-                    </a>
-                    <span className="text-xs text-slate-400 shrink-0">{formatBytes(a.size)}</span>
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 ml-auto shrink-0" onClick={() => handleDeleteAttachment(a.id)}>
-                      <Trash2 className="h-3 w-3 text-slate-400" />
-                    </Button>
-                  </div>
-                ))}
-                <div className="flex items-center gap-2">
-                  <label className="cursor-pointer">
-                    <input type="file" className="hidden" onChange={handleUpload} disabled={uploading} accept="image/jpeg,image/png,image/gif,image/webp,application/pdf" />
-                    <Button variant="outline" size="sm" asChild disabled={uploading}>
-                      <span>
-                        <Upload className="h-4 w-4 mr-2" />
-                        {uploading ? "Subiendo..." : "Subir archivo"}
-                      </span>
-                    </Button>
-                  </label>
-                </div>
-              </div>
             </div>
           </div>
         </DialogContent>
