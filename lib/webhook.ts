@@ -47,7 +47,7 @@ export async function notifyTaskWebhook(task: {
   try {
     const response = await fetch(OPENCLAW_WEBHOOK_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": OPENCLAW_AUTH_TOKEN.startsWith("Bearer ") ? OPENCLAW_AUTH_TOKEN : `Bearer ${OPENCLAW_AUTH_TOKEN}` },
+      headers: { "Content-Type": "application/json", Authorization: `${OPENCLAW_AUTH_TOKEN.startsWith("Bearer ") ? OPENCLAW_AUTH_TOKEN : `Bearer ${OPENCLAW_AUTH_TOKEN}`}` },
       body: JSON.stringify({
         text: `Nueva tarea asignada a Scytale: ${task.title} (${priorityLabel})`,
         mode: "now",
