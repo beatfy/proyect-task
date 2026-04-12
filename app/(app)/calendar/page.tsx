@@ -26,6 +26,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useOrganization } from "@/lib/organization-context";
+import { Building2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -232,6 +241,7 @@ function TaskCard({ task }: { task: Task }) {
 }
 
 export default function CalendarPage() {
+  const { organizations, selectedOrg, setSelectedOrg, loading: orgLoading } = useOrganization();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -247,28 +257,30 @@ export default function CalendarPage() {
 
   const fetchTasks = useCallback(async () => {
     try {
-      const res = await fetch("/api/tasks");
+      const params = new URLSearchParams();
+      if (selectedOrg && selectedOrg !== "all") params.set("organizationId", selectedOrg);
+      const res = await fetch(`/api/tasks?${params}`);
       if (res.ok) setTasks(await res.json());
     } catch {
       console.error("Error loading tasks");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedOrg]);
 
   const fetchProjects = useCallback(async () => {
     try {
-      const res = await fetch("/api/projects");
+      const params = new URLSearchParams();
+      if (selectedOrg && selectedOrg !== "all") params.set("organizationId", selectedOrg);
+      const res = await fetch(`/api/projects?${params}`);
       if (res.ok) setProjects(await res.json());
     } catch {}
-  }, []);
+  }, [selectedOrg]);
 
   useEffect(() => {
     fetchTasks();
     fetchProjects();
-  }, [fetchTasks, fetchProjects]);
-
-  const monthStart = startOfMonth(currentDate);
+  }, [fetchTasks, fetchProjects]);  const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
   const weekDays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
@@ -399,6 +411,25 @@ export default function CalendarPage() {
             <Plus className="h-4 w-4" />
           </Button>
         </div>
+      </div>
+
+      <div className="flex items-center gap-2 flex-wrap">
+        {organizations.length > 0 && (
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-muted-foreground" />
+            <Select value={selectedOrg} onValueChange={setSelectedOrg}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Filtrar por organización" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas</SelectItem>
+                {organizations.map((org) => (
+                  <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>

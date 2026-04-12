@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useOrganization } from "@/lib/organization-context";
 
 interface ReportStats {
   completedThisWeek: number;
@@ -63,45 +64,15 @@ function formatDuration(seconds: number): string {
   return `${minutes}m`;
 }
 
-interface OrgOption {
-  id: string;
-  name: string;
-  slug: string;
-  role: string;
-}
-
 export default function DashboardPage() {
   const { data: session } = useSession();
   const [stats, setStats] = useState<ReportStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [organizations, setOrganizations] = useState<OrgOption[]>([]);
-  const [selectedOrg, setSelectedOrg] = useState<string>("all");
+  const { organizations, selectedOrg, setSelectedOrg, loading: orgLoading } = useOrganization();
 
   useEffect(() => {
-    fetchOrganizations();
-  }, []);
-
-  useEffect(() => {
-    // Load saved org from localStorage
-    const saved = localStorage.getItem("selectedOrg");
-    if (saved) setSelectedOrg(saved);
-  }, []);
-
-  useEffect(() => {
-    fetchStats();
-  }, [selectedOrg]);
-
-  const fetchOrganizations = async () => {
-    try {
-      const res = await fetch("/api/organizations");
-      if (res.ok) {
-        const data = await res.json();
-        setOrganizations(data);
-      }
-    } catch (err) {
-      console.error("Error fetching organizations:", err);
-    }
-  };
+    if (!orgLoading) fetchStats();
+  }, [selectedOrg, orgLoading]);
 
   const fetchStats = async () => {
     try {
@@ -123,7 +94,6 @@ export default function DashboardPage() {
 
   const handleOrgChange = (value: string) => {
     setSelectedOrg(value);
-    localStorage.setItem("selectedOrg", value);
   };
 
   if (loading) {
@@ -171,7 +141,7 @@ export default function DashboardPage() {
           {organizations.length > 0 && (
             <div className="flex items-center gap-2">
               <Building2 className="h-4 w-4 text-muted-foreground" />
-              <Select value={selectedOrg} onValueChange={handleOrgChange}>
+              <Select value={selectedOrg} onValueChange={setSelectedOrg}>
                 <SelectTrigger className="w-[200px]">
                   <SelectValue placeholder="Filtrar por organización" />
                 </SelectTrigger>

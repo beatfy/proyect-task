@@ -31,6 +31,8 @@ import { toast } from "sonner";
 import { DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors, useDroppable, type DragStartEvent, type DragEndEvent, type DragOverEvent } from "@dnd-kit/core";
 import { useSortable } from "@dnd-kit/sortable";
 import { cn } from "@/lib/utils";
+import { useOrganization } from "@/lib/organization-context";
+import { Building2 } from "lucide-react";
 
 interface Task {
   id: string;
@@ -187,6 +189,7 @@ function DraggableTaskCard({ task, onOpenDetail, onEdit, onDelete }: { task: Tas
 import { Suspense } from "react";
 
 function TasksPageContent() {
+  const { organizations, selectedOrg, setSelectedOrg, loading: orgLoading } = useOrganization();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -242,7 +245,7 @@ function TasksPageContent() {
     fetchProjects();
     fetchTemplates();
     fetchActiveTimer();
-  }, []);
+  }, [selectedOrg]);
 
   // Auto-open task from URL param & set project filter from URL
   useEffect(() => {
@@ -373,7 +376,9 @@ function TasksPageContent() {
 
   const fetchTasks = async () => {
     try {
-      const response = await fetch("/api/tasks");
+      const params = new URLSearchParams();
+      if (selectedOrg && selectedOrg !== "all") params.set("organizationId", selectedOrg);
+      const response = await fetch(`/api/tasks?${params}`);
       if (response.status === 401) {
         setTasks([]);
         return;
@@ -391,7 +396,9 @@ function TasksPageContent() {
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch("/api/projects");
+      const params = new URLSearchParams();
+      if (selectedOrg && selectedOrg !== "all") params.set("organizationId", selectedOrg);
+      const response = await fetch(`/api/projects?${params}`);
       if (response.ok) {
         const data = await response.json();
         setProjects(data);
@@ -830,6 +837,23 @@ function TasksPageContent() {
               ))}
             </SelectContent>
           </Select>
+
+          {organizations.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+              <Select value={selectedOrg} onValueChange={setSelectedOrg}>
+                <SelectTrigger className="w-[200px] border-slate-200 dark:border-slate-700 dark:text-slate-300">
+                  <SelectValue placeholder="Filtrar por organización" />
+                </SelectTrigger>
+                <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                  <SelectItem value="all">Todas</SelectItem>
+                  {organizations.map((org) => (
+                    <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

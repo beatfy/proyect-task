@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import Link from "next/link";
+import { useOrganization } from "@/lib/organization-context";
 
 interface LabelItem {
   id: string;
@@ -51,11 +52,6 @@ interface Project {
   labels?: ProjectLabel[];
 }
 
-interface Organization {
-  id: string;
-  name: string;
-  slug: string;
-}
 
 const PRESET_LABELS = [
   { name: "Ads", color: "#f59e0b" },
@@ -68,9 +64,8 @@ const PRESET_LABELS = [
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const { organizations, selectedOrg, setSelectedOrg, loading: orgLoading } = useOrganization();
   const [labels, setLabels] = useState<LabelItem[]>([]);
-  const [selectedOrg, setSelectedOrg] = useState<string>("");
   const [filterLabel, setFilterLabel] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -80,36 +75,15 @@ export default function ProjectsPage() {
   const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
 
-  const fetchOrganizations = useCallback(async () => {
-    try {
-      const response = await fetch("/api/organizations");
-      if (response.ok) {
-        const data = await response.json();
-        console.log("[DEBUG] fetchOrganizations received:", data.length, data);
-        setOrganizations(data);
-        if (data.length > 0) setSelectedOrg(data[0].id);
-        else setLoading(false);
-      } else {
-        console.log("[DEBUG] fetchOrganizations failed:", response.status);
-      }
-    } catch {
-      toast.error("Error al cargar organizaciones");
-      setLoading(false);
-    }
-  }, []);
-
   const fetchProjects = useCallback(async () => {
-    if (!selectedOrg) return;
-    console.log("[DEBUG] fetchProjects triggered, selectedOrg:", selectedOrg, "filterLabel:", filterLabel);
+    if (!selectedOrg || selectedOrg === "all") { setProjects([]); setLoading(false); return; }
     setLoading(true);
     try {
       const params = new URLSearchParams({ organizationId: selectedOrg });
       if (filterLabel !== "all") params.set("labelId", filterLabel);
       const response = await fetch(`/api/projects?${params}`);
-      console.log("[DEBUG] fetchProjects response status:", response.status);
       if (response.ok) {
         const data = await response.json();
-        console.log("[DEBUG] fetchProjects received:", data.length, data);
         setProjects(data);
       }
     } catch {
@@ -127,14 +101,12 @@ export default function ProjectsPage() {
   }, []);
 
   useEffect(() => {
-    fetchOrganizations();
-  }, [fetchOrganizations]);
-
-  useEffect(() => {
-    console.log("[DEBUG] useEffect selectedOrg changed:", selectedOrg);
-    if (selectedOrg) {
+    if (selectedOrg && selectedOrg !== "all") {
       fetchProjects();
       fetchLabels(selectedOrg);
+    } else {
+      setProjects([]);
+      setLoading(false);
     }
   }, [selectedOrg, fetchProjects, fetchLabels]);
 
@@ -234,11 +206,12 @@ export default function ProjectsPage() {
         {organizations.length > 0 && (
           <div className="flex items-center gap-2">
             <Building2 className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-            <Select value={selectedOrg} onValueChange={(v) => { console.log("[DEBUG] Select onValueChange:", v); setSelectedOrg(v); setFilterLabel("all"); }}>
+            <Select value={selectedOrg} onValueChange={(v) => { setSelectedOrg(v); setFilterLabel("all"); }}>
               <SelectTrigger className="w-[280px] bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100">
                 <SelectValue placeholder="Selecciona organización" />
               </SelectTrigger>
               <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                <SelectItem value="all" className="text-slate-900 dark:text-slate-100">Todas</SelectItem>
                 {organizations.map((org) => (
                   <SelectItem key={org.id} value={org.id} className="text-slate-900 dark:text-slate-100">
                     {org.name}
