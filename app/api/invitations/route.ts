@@ -11,9 +11,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    const user = await prisma.user.findUnique({
+      where: { id: authResult.userId },
+      select: { email: true },
+    });
+
     const invitations = await prisma.invitation.findMany({
       where: {
-        // TODO: lookup user email from authResult.userId,
+        email: user?.email,
         status: "PENDING",
         expiresAt: { gt: new Date() },
       },

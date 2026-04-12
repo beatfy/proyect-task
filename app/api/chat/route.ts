@@ -210,6 +210,21 @@ async function executeTool(
   projectId?: string,
   organizationId?: string
 ): Promise<unknown> {
+  // Helper: verify user is project member with write access
+  const canModify = async (taskId?: string): Promise<string | null> => {
+    if (!projectId) return "No hay proyecto activo";
+    const membership = await prisma.projectMember.findFirst({
+      where: { projectId, userId },
+    });
+    if (!membership) return "No eres miembro de este proyecto";
+    // For task-specific ops, verify task belongs to this project
+    if (taskId) {
+      const task = await prisma.task.findUnique({ where: { id: taskId }, select: { projectId: true } });
+      if (!task || task.projectId !== projectId) return "Tarea no encontrada en este proyecto";
+    }
+    return null; // no error = allowed
+  };
+
   switch (name) {
     case "task_create": {
       try {
@@ -240,6 +255,8 @@ async function executeTool(
 
     case "task_update": {
       try {
+        const permErr = await canModify(args.id as string);
+        if (permErr) return { error: permErr };
         const { id, ...updates } = args;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const data: any = {};
@@ -265,6 +282,8 @@ async function executeTool(
 
     case "task_delete": {
       try {
+        const permErr = await canModify(args.id as string);
+        if (permErr) return { error: permErr };
         await prisma.task.delete({ where: { id: args.id as string } });
         return { success: true };
       } catch (e: unknown) {
@@ -353,6 +372,8 @@ async function executeTool(
 
     case "task_move": {
       try {
+        const permErr = await canModify(args.id as string);
+        if (permErr) return { error: permErr };
         const task = await prisma.task.update({
           where: { id: args.id as string },
           data: { status: args.status as string },
@@ -405,6 +426,8 @@ async function executeTool(
     // BUG 3 FIX: resolve memberId — accept both userId and ProjectMember ID
     case "member_assign": {
       try {
+        const permErr = await canModify(args.taskId as string);
+        if (permErr) return { error: permErr };
         let resolvedUserId = args.memberId as string;
         // If the LLM passed a ProjectMember ID instead of a userId, resolve it
         const pm = await prisma.projectMember.findUnique({ where: { id: resolvedUserId } });

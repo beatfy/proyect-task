@@ -7,9 +7,9 @@ export async function rateLimit(key: string): Promise<{ allowed: boolean; remain
   const now = new Date(Date.now() - WINDOW_MS);
 
   // Clean old entries
-  await prisma.$executeRawUnsafe(
-    `DELETE FROM "RateLimit" WHERE "updatedAt" < '${now.toISOString()}' AND "key" = '${key.replace(/'/g, "''")}'`
-  );
+  await prisma.$executeRaw`
+    DELETE FROM "RateLimit" WHERE "updatedAt" < ${now} AND "key" = ${key}
+  `;
 
   // Get current count
   const row = await prisma.rateLimit.findUnique({ where: { key } }) as { count: number; updatedAt: Date } | null;

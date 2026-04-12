@@ -56,8 +56,8 @@ export async function PUT(
     const membership = await prisma.organizationMember.findFirst({
       where: { userId: authResult.userId, organizationId: id },
     });
-    if (!membership) {
-      return NextResponse.json({ error: "Sin acceso" }, { status: 403 });
+    if (!membership || !['OWNER', 'ADMIN'].includes(membership.role)) {
+      return NextResponse.json({ error: "Solo OWNER o ADMIN pueden editar la knowledge base" }, { status: 403 });
     }
 
     const body = await request.json();

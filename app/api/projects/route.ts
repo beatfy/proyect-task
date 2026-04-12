@@ -14,7 +14,6 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const organizationId = searchParams.get("organizationId");
 
-    console.log("[DEBUG] GET /api/projects", { organizationId, userId: authResult.userId });
 
     const whereClause: Record<string, unknown> = {
       members: {
@@ -46,7 +45,6 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    console.log("[DEBUG] Found projects:", projects.length, projects.map(p => ({ id: p.id, name: p.name, memberIds: p.members?.map(m => m.userId) })));
 
     return NextResponse.json(projects);
   } catch (error) {

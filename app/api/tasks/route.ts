@@ -300,7 +300,6 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
 
     const parsed = taskUpdateSchema.safeParse(body);
-    console.log(`[PATCH /api/tasks] body=`, body, `parsed=`, parsed.success ? 'OK' : parsed.error?.issues);
     if (!parsed.success) {
       const errors = parsed.error.issues.map(i => i.message).join(", ");
       return NextResponse.json({ error: errors }, { status: 400 });

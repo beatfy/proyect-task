@@ -70,6 +70,15 @@ export async function POST(
       return NextResponse.json({ error: "No tienes permisos para invitar miembros" }, { status: 403 });
     }
 
+    // Role escalation prevention: only OWNER can assign OWNER role
+    if (role === "OWNER" && membership.role !== "OWNER") {
+      return NextResponse.json({ error: "Solo un OWNER puede asignar el rol OWNER" }, { status: 403 });
+    }
+    // ADMIN can only assign MEMBER or ADMIN
+    if (membership.role === "ADMIN" && !["MEMBER", "ADMIN"].includes(role)) {
+      return NextResponse.json({ error: "Un ADMIN solo puede asignar roles MEMBER o ADMIN" }, { status: 403 });
+    }
+
     const body = await request.json();
     const { email, role = "MEMBER" } = body;
 
