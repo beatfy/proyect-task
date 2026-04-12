@@ -846,12 +846,7 @@ export default function ProjectDetailPage() {
                 <div>
                   <p className="text-[11px] text-[#6B778C] mb-1">Informador</p>
                   <div className="flex items-center gap-2 text-sm text-[#172B4D]">
-                    {detailTask?.creator ? (
-                      <>
-                        <div className="w-6 h-6 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xs shrink-0">{(detailTask.creator.name || detailTask.creator.email)[0].toUpperCase()}</div>
-                        <span>{detailTask.creator.name || detailTask.creator.email}</span>
-                      </>
-                    ) : <span className="text-[#6B778C]">—</span>}
+                    <span className="text-[#6B778C]">—</span>
                   </div>
                 </div>
 
