@@ -85,8 +85,6 @@ export async function POST(
     if (membership.role === "ADMIN" && !["MEMBER", "ADMIN"].includes(role)) {
       return NextResponse.json({ error: "Un ADMIN solo puede asignar roles MEMBER o ADMIN" }, { status: 403 });
     }
-      return NextResponse.json({ error: "Email requerido" }, { status: 400 });
-    }
 
     // Get org info for email
     const org = await prisma.organization.findUnique({
