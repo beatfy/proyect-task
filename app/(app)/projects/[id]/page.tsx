@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Plus, Users, Trash2, MoreHorizontal, Pencil, Calendar, User, Loader2, Link2, Copy, Check, Mail, ChevronDown, X, Download } from "lucide-react";
+import { Plus, Users, Trash2, MoreHorizontal, Pencil, Calendar, User, Loader2, Link2, Copy, Check, Mail, ChevronDown, X, Download, Clock, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -332,6 +332,8 @@ export default function ProjectDetailPage() {
   const [taskOpen, setTaskOpen] = useState(false);
   const [memberOpen, setMemberOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailTask, setDetailTask] = useState<Task | null>(null);
   const [editTask, setEditTask] = useState<Task | null>(null);
 
   const [title, setTitle] = useState("");
@@ -687,10 +689,115 @@ export default function ProjectDetailPage() {
       <KanbanBoard
         tasks={tasks}
         setTasks={setTasks}
-        onTaskClick={(task) => { openEditTask(task); setTaskOpen(true); }}
+        onTaskClick={(task) => { setDetailTask(task); setDetailOpen(true); }}
         handleDeleteTask={handleDeleteTask}
         projectId={projectId}
       />
+
+      {/* Task Detail Dialog */}
+      <Dialog open={detailOpen} onOpenChange={(v) => { setDetailOpen(v); if (!v) setDetailTask(null); }}>
+        <DialogContent className="bg-card border-border max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle className="text-foreground text-lg">{detailTask?.title}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto space-y-6 pt-2">
+            {/* Main content */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Left column - Description & details */}
+              <div className="md:col-span-2 space-y-4">
+                {detailTask?.description ? (
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Descripción</h4>
+                    <p className="text-sm text-foreground whitespace-pre-wrap bg-muted/50 rounded-lg p-3 border border-border">{detailTask.description}</p>
+                  </div>
+                ) : (
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Descripción</h4>
+                    <p className="text-sm text-muted-foreground italic">Sin descripción</p>
+                  </div>
+                )}
+              </div>
+              {/* Right column - Metadata sidebar */}
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Estado</h4>
+                  <Badge variant="secondary" className={cn("text-xs border", detailTask?.status === "TODO" ? "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300" : detailTask?.status === "INPROGRESS" ? "bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900 dark:text-blue-300" : detailTask?.status === "INREVIEW" ? "bg-yellow-100 text-yellow-700 border-yellow-300 dark:bg-yellow-900 dark:text-yellow-300" : detailTask?.status === "DONE" ? "bg-green-100 text-green-700 border-green-300 dark:bg-green-900 dark:text-green-300" : "bg-card border-border")}>
+                    {statusLabels[detailTask?.status || ""] || detailTask?.status}
+                  </Badge>
+                </div>
+                {detailTask?.priority !== "NONE" && (
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><Tag className="h-3 w-3" /> Prioridad</h4>
+                    <Badge variant="secondary" className={cn("text-xs border", priorityColors[detailTask?.priority || "NONE"])}>
+                      {priorityLabels[detailTask?.priority || "NONE"]}
+                    </Badge>
+                  </div>
+                )}
+                {detailTask?.dueDate && (
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><Clock className="h-3 w-3" /> Fecha límite</h4>
+                    <p className="text-sm text-foreground">{new Date(detailTask.dueDate).toLocaleDateString("es-ES", { weekday: "short", year: "numeric", month: "short", day: "numeric" })}</p>
+                  </div>
+                )}
+                {(detailTask?.assignees && detailTask.assignees.length > 0) && (
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><User className="h-3 w-3" /> Asignados</h4>
+                    <div className="space-y-1">
+                      {detailTask.assignees.map((a) => (
+                        <div key={a.id} className="flex items-center gap-2 text-sm text-foreground">
+                          <div className="w-6 h-6 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xs shrink-0">
+                            {a.name?.[0]?.toUpperCase() || a.email[0].toUpperCase()}
+                          </div>
+                          <span className="truncate">{a.name || a.email}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {!detailTask?.assignees?.length && detailTask?.assignee && (
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><User className="h-3 w-3" /> Asignado</h4>
+                    <div className="flex items-center gap-2 text-sm text-foreground">
+                      <div className="w-6 h-6 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xs shrink-0">
+                        {detailTask.assignee.name?.[0]?.toUpperCase() || detailTask.assignee.email[0].toUpperCase()}
+                      </div>
+                      <span>{detailTask.assignee.name || detailTask.assignee.email}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            {/* Actions */}
+            <div className="flex gap-2 pt-2 border-t border-border">
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => {
+                  if (detailTask) {
+                    openEditTask(detailTask);
+                    setDetailOpen(false);
+                    setTaskOpen(true);
+                  }
+                }}
+              >
+                <Pencil className="h-4 w-4" /> Editar tarea
+              </Button>
+              <Button
+                variant="outline"
+                className="gap-2 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+                onClick={() => {
+                  if (detailTask) {
+                    handleDeleteTask(detailTask.id);
+                    setDetailOpen(false);
+                  }
+                }}
+              >
+                <Trash2 className="h-4 w-4" /> Eliminar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Create/Edit Task Dialog */}
       <Dialog open={taskOpen} onOpenChange={(v) => { setTaskOpen(v); if (!v) resetTaskForm(); }}>
