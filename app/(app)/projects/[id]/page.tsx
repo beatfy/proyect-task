@@ -108,6 +108,20 @@ const roleColors: Record<string, string> = {
 
 // --- Kanban DnD Components ---
 
+function CollapsibleSection({ title, badge, defaultOpen = false, children }: { title: string; badge?: string; defaultOpen?: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div>
+      <button onClick={() => setOpen(!open)} className="flex items-center gap-2 mb-2 text-sm font-semibold text-[#172B4D] hover:text-[#0052CC]">
+        <ChevronDown className={cn("h-4 w-4 transition-transform", !open && "-rotate-90")} />
+        {title}
+        {badge && <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-muted text-[#6B778C]">{badge}</span>}
+      </button>
+      {open && <div className="pl-6">{children}</div>}
+    </div>
+  );
+}
+
 function DroppableColumn({ id, children }: { id: string; children: React.ReactNode }) {
   const { setNodeRef } = useDroppable({ id });
   return <div ref={setNodeRef} className="bg-card rounded-lg p-2 space-y-2 border border-border min-h-[100px]">{children}</div>;
@@ -334,6 +348,14 @@ export default function ProjectDetailPage() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailTask, setDetailTask] = useState<Task | null>(null);
+  const [detailAttachments, setDetailAttachments] = useState<{id: string; name: string; url: string; createdAt: string}[]>([]);
+  useEffect(() => {
+    if (detailTask) {
+      fetch(`/api/attachments?taskId=${detailTask.id}`).then(r => r.ok ? r.json() : []).then(d => Array.isArray(d) ? setDetailAttachments(d) : setDetailAttachments(d.attachments || [])).catch(() => setDetailAttachments([]));
+    } else {
+      setDetailAttachments([]);
+    }
+  }, [detailTask?.id]);
   const [editTask, setEditTask] = useState<Task | null>(null);
 
   const [title, setTitle] = useState("");
@@ -694,106 +716,247 @@ export default function ProjectDetailPage() {
         projectId={projectId}
       />
 
-      {/* Task Detail Dialog */}
-      <Dialog open={detailOpen} onOpenChange={(v) => { setDetailOpen(v); if (!v) setDetailTask(null); }}>
-        <DialogContent className="bg-card border-border max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle className="text-foreground text-lg">{detailTask?.title}</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto space-y-6 pt-2">
-            {/* Main content */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Left column - Description & details */}
-              <div className="md:col-span-2 space-y-4">
+      {/* Task Detail Dialog - Jira Style */}
+      <Dialog open={detailOpen} onOpenChange={(v) => { setDetailOpen(v); if (!v) { setDetailTask(null); setDetailAttachments([]); } }}>
+        <DialogContent className="bg-card border-border p-0 gap-0 overflow-hidden" style={{ width: "85vw", maxWidth: "85vw", height: "85vh", maxHeight: "85vh" }}>
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[#DFE1E6]">
+            <DialogTitle className="text-xl font-bold text-[#172B4D]">{detailTask?.title}</DialogTitle>
+            <button onClick={() => { setDetailOpen(false); setDetailTask(null); }} className="p-1 rounded hover:bg-muted"><X className="h-5 w-5 text-[#6B778C]" /></button>
+          </div>
+          {/* Two columns */}
+          <div className="flex flex-1 overflow-hidden" style={{ height: "calc(85vh - 65px)" }}>
+            {/* Left column 70% */}
+            <div className="flex-[7] overflow-y-auto p-6 space-y-5">
+              {/* Descripción */}
+              <CollapsibleSection title="Descripción" defaultOpen>
                 {detailTask?.description ? (
-                  <div>
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Descripción</h4>
-                    <p className="text-sm text-foreground whitespace-pre-wrap bg-muted/50 rounded-lg p-3 border border-border">{detailTask.description}</p>
-                  </div>
+                  <p className="text-sm text-[#172B4D] whitespace-pre-wrap bg-muted/40 rounded-md p-3 border border-[#DFE1E6]">{detailTask.description}</p>
                 ) : (
-                  <div>
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Descripción</h4>
-                    <p className="text-sm text-muted-foreground italic">Sin descripción</p>
-                  </div>
+                  <p className="text-sm text-[#6B778C] italic">Sin descripción</p>
                 )}
-              </div>
-              {/* Right column - Metadata sidebar */}
-              <div className="space-y-4">
-                <div>
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Estado</h4>
-                  <Badge variant="secondary" className={cn("text-xs border", detailTask?.status === "TODO" ? "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300" : detailTask?.status === "INPROGRESS" ? "bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900 dark:text-blue-300" : detailTask?.status === "INREVIEW" ? "bg-yellow-100 text-yellow-700 border-yellow-300 dark:bg-yellow-900 dark:text-yellow-300" : detailTask?.status === "DONE" ? "bg-green-100 text-green-700 border-green-300 dark:bg-green-900 dark:text-green-300" : "bg-card border-border")}>
-                    {statusLabels[detailTask?.status || ""] || detailTask?.status}
-                  </Badge>
-                </div>
-                {detailTask?.priority !== "NONE" && (
-                  <div>
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><Tag className="h-3 w-3" /> Prioridad</h4>
-                    <Badge variant="secondary" className={cn("text-xs border", priorityColors[detailTask?.priority || "NONE"])}>
-                      {priorityLabels[detailTask?.priority || "NONE"]}
-                    </Badge>
-                  </div>
-                )}
-                {detailTask?.dueDate && (
-                  <div>
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><Clock className="h-3 w-3" /> Fecha límite</h4>
-                    <p className="text-sm text-foreground">{new Date(detailTask.dueDate).toLocaleDateString("es-ES", { weekday: "short", year: "numeric", month: "short", day: "numeric" })}</p>
-                  </div>
-                )}
-                {(detailTask?.assignees && detailTask.assignees.length > 0) && (
-                  <div>
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><User className="h-3 w-3" /> Asignados</h4>
-                    <div className="space-y-1">
-                      {detailTask.assignees.map((a) => (
-                        <div key={a.id} className="flex items-center gap-2 text-sm text-foreground">
-                          <div className="w-6 h-6 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xs shrink-0">
-                            {a.name?.[0]?.toUpperCase() || a.email[0].toUpperCase()}
+              </CollapsibleSection>
+
+              {/* Archivos adjuntos */}
+              <CollapsibleSection title="Archivos adjuntos" badge={detailAttachments.length > 0 ? String(detailAttachments.length) : undefined} defaultOpen={detailAttachments.length > 0}>
+                {detailAttachments.length === 0 ? (
+                  <p className="text-sm text-[#6B778C] italic">Sin archivos adjuntos</p>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {detailAttachments.map((att) => {
+                      const isImage = /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(att.name);
+                      return (
+                        <div key={att.id} className="rounded-lg border border-[#DFE1E6] overflow-hidden">
+                          {isImage ? (
+                            <img src={att.url} alt={att.name} className="w-full h-24 object-cover" />
+                          ) : (
+                            <div className="w-full h-24 flex items-center justify-center bg-muted/50"><Download className="h-8 w-8 text-[#6B778C]" /></div>
+                          )}
+                          <div className="p-2">
+                            <p className="text-xs text-[#172B4D] truncate">{att.name}</p>
+                            <p className="text-[10px] text-[#6B778C]">{new Date(att.createdAt).toLocaleDateString("es-ES")}</p>
                           </div>
-                          <span className="truncate">{a.name || a.email}</span>
                         </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CollapsibleSection>
+
+              {/* Subtareas */}
+              <CollapsibleSection title="Subtareas" defaultOpen={false}>
+                {(() => {
+                  const subs = tasks.filter(t => t.parentId === detailTask?.id);
+                  if (subs.length === 0) return <p className="text-sm text-[#6B778C] italic">Sin subtareas</p>;
+                  return (
+                    <div className="space-y-2">
+                      {subs.map(sub => (
+                        <label key={sub.id} className="flex items-center gap-2 text-sm text-[#172B4D]">
+                          <input
+                            type="checkbox"
+                            checked={sub.status === "DONE"}
+                            onChange={async () => {
+                              const newStatus = sub.status === "DONE" ? "TODO" : "DONE";
+                              await fetch("/api/tasks", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: sub.id, status: newStatus }) });
+                              setTasks(prev => prev.map(t => t.id === sub.id ? { ...t, status: newStatus as Task["status"] } : t));
+                            }}
+                            className="rounded"
+                          />
+                          <span className={sub.status === "DONE" ? "line-through text-[#6B778C]" : ""}>{sub.title}</span>
+                        </label>
                       ))}
                     </div>
-                  </div>
-                )}
-                {!detailTask?.assignees?.length && detailTask?.assignee && (
-                  <div>
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><User className="h-3 w-3" /> Asignado</h4>
-                    <div className="flex items-center gap-2 text-sm text-foreground">
-                      <div className="w-6 h-6 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xs shrink-0">
-                        {detailTask.assignee.name?.[0]?.toUpperCase() || detailTask.assignee.email[0].toUpperCase()}
-                      </div>
-                      <span>{detailTask.assignee.name || detailTask.assignee.email}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
+                  );
+                })()}
+              </CollapsibleSection>
             </div>
-            {/* Actions */}
-            <div className="flex gap-2 pt-2 border-t border-border">
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={() => {
-                  if (detailTask) {
-                    openEditTask(detailTask);
-                    setDetailOpen(false);
-                    setTaskOpen(true);
-                  }
-                }}
-              >
-                <Pencil className="h-4 w-4" /> Editar tarea
-              </Button>
-              <Button
-                variant="outline"
-                className="gap-2 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
-                onClick={() => {
-                  if (detailTask) {
-                    handleDeleteTask(detailTask.id);
-                    setDetailOpen(false);
-                  }
-                }}
-              >
-                <Trash2 className="h-4 w-4" /> Eliminar
-              </Button>
+
+            {/* Right sidebar 30% */}
+            <div className="flex-[3] bg-[#F4F5F7] border-l border-[#DFE1E6] p-5 space-y-5 overflow-y-auto">
+              {/* Status pill */}
+              <div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium text-white bg-[#0052CC] hover:bg-[#0052CC]/90 transition">
+                      {statusLabels[detailTask?.status || ""] || detailTask?.status}
+                      <ChevronDown className="h-3.5 w-3.5 ml-0.5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    {["TODO", "INPROGRESS", "INREVIEW", "DONE"].map(s => (
+                      <DropdownMenuItem key={s} onClick={async () => {
+                        if (!detailTask) return;
+                        await fetch("/api/tasks", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: detailTask.id, status: s }) });
+                        setDetailTask({ ...detailTask, status: s as Task["status"] });
+                        setTasks(prev => prev.map(t => t.id === detailTask.id ? { ...t, status: s as Task["status"] } : t));
+                        toast.success(`Estado cambiado a ${statusLabels[s]}`);
+                      }}>{statusLabels[s]}</DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              {/* Detalles */}
+              <div className="space-y-4">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-[#6B778C]">Detalles</h4>
+
+                {/* Persona asignada */}
+                <div>
+                  <p className="text-[11px] text-[#6B778C] mb-1">Persona asignada</p>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="flex items-center gap-2 text-sm text-[#172B4D] hover:bg-white/60 rounded px-1 py-0.5 -ml-1">
+                        {(() => {
+                          const a = detailTask?.assignees?.[0] || detailTask?.assignee;
+                          if (!a) return <span className="text-[#6B778C]">Ninguno</span>;
+                          return <>
+                            <div className="w-6 h-6 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xs shrink-0">{(a.name || a.email)[0].toUpperCase()}</div>
+                            <span>{a.name || a.email}</span>
+                          </>;
+                        })()}
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem onClick={async () => {
+                        if (!detailTask) return;
+                        await fetch("/api/tasks", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: detailTask.id, assigneeIds: [] }) });
+                        setDetailTask({ ...detailTask, assignees: [], assignee: undefined as any });
+                        toast.success("Asignado eliminado");
+                      }}>Ninguno</DropdownMenuItem>
+                      {members.map(m => (
+                        <DropdownMenuItem key={m.user.id} onClick={async () => {
+                          if (!detailTask) return;
+                          await fetch("/api/tasks", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: detailTask.id, assigneeIds: [m.user.id] }) });
+                          const newAssignee = { id: m.user.id, name: m.user.name, email: m.user.email };
+                          setDetailTask({ ...detailTask, assignees: [newAssignee], assignee: newAssignee as any });
+                          toast.success(`Asignado a ${m.user.name || m.user.email}`);
+                        }}>
+                          <div className="flex items-center gap-2">
+                            <div className="w-5 h-5 rounded-full bg-neutral-900 text-white flex items-center justify-center text-[10px]">{(m.user.name || m.user.email)[0].toUpperCase()}</div>
+                            {m.user.name || m.user.email}
+                          </div>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                {/* Informador (Creador) */}
+                <div>
+                  <p className="text-[11px] text-[#6B778C] mb-1">Informador</p>
+                  <div className="flex items-center gap-2 text-sm text-[#172B4D]">
+                    {detailTask?.creator ? (
+                      <>
+                        <div className="w-6 h-6 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xs shrink-0">{(detailTask.creator.name || detailTask.creator.email)[0].toUpperCase()}</div>
+                        <span>{detailTask.creator.name || detailTask.creator.email}</span>
+                      </>
+                    ) : <span className="text-[#6B778C]">—</span>}
+                  </div>
+                </div>
+
+                {/* Prioridad */}
+                <div>
+                  <p className="text-[11px] text-[#6B778C] mb-1">Prioridad</p>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="flex items-center gap-1.5 text-sm text-[#172B4D] hover:bg-white/60 rounded px-1 py-0.5 -ml-1">
+                        {detailTask?.priority === "HIGH" && <span className="text-red-500">▲</span>}
+                        {detailTask?.priority === "MEDIUM" && <span className="text-yellow-500">▲</span>}
+                        {detailTask?.priority === "LOW" && <span className="text-blue-400">▼</span>}
+                        {detailTask?.priority === "NONE" && <span className="text-[#6B778C]">—</span>}
+                        <span>{priorityLabels[detailTask?.priority || "NONE"]}</span>
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      {["NONE", "LOW", "MEDIUM", "HIGH"].map(p => (
+                        <DropdownMenuItem key={p} onClick={async () => {
+                          if (!detailTask) return;
+                          await fetch("/api/tasks", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: detailTask.id, priority: p }) });
+                          setDetailTask({ ...detailTask, priority: p as Task["priority"] });
+                          toast.success(`Prioridad cambiada a ${priorityLabels[p]}`);
+                        }}>{priorityLabels[p]}</DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                {/* Etiquetas */}
+                <div>
+                  <p className="text-[11px] text-[#6B778C] mb-1">Etiquetas</p>
+                  <p className="text-sm text-[#172B4D]">Ninguno</p>
+                </div>
+
+                {/* Fecha de vencimiento */}
+                <div>
+                  <p className="text-[11px] text-[#6B778C] mb-1">Fecha de vencimiento</p>
+                  <input
+                    type="date"
+                    value={detailTask?.dueDate ? new Date(detailTask.dueDate).toISOString().split("T")[0] : ""}
+                    onChange={async (e) => {
+                      if (!detailTask) return;
+                      const val = e.target.value || null;
+                      await fetch("/api/tasks", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: detailTask.id, dueDate: val }) });
+                      setDetailTask({ ...detailTask, dueDate: val });
+                      toast.success("Fecha de vencimiento actualizada");
+                    }}
+                    className="text-sm text-[#172B4D] bg-transparent border-none outline-none cursor-pointer"
+                  />
+                </div>
+
+                {/* Fecha inicio */}
+                <div>
+                  <p className="text-[11px] text-[#6B778C] mb-1">Fecha inicio</p>
+                  <p className="text-sm text-[#172B4D]">{detailTask?.startDate ? new Date(detailTask.startDate).toLocaleDateString("es-ES") : <span className="text-[#6B778C]">Ninguno</span>}</p>
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="pt-4 border-t border-[#DFE1E6] space-y-2">
+                <Button
+                  className="w-full gap-2 bg-[#0052CC] hover:bg-[#0052CC]/90 text-white"
+                  onClick={() => {
+                    if (detailTask) {
+                      openEditTask(detailTask);
+                      setTaskOpen(true);
+                      setDetailOpen(false);
+                    }
+                  }}
+                >
+                  <Pencil className="h-4 w-4" /> Editar tarea
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full gap-2 text-red-500 hover:text-red-600 hover:bg-red-50 border-red-200"
+                  onClick={() => {
+                    if (detailTask) {
+                      handleDeleteTask(detailTask.id);
+                      setDetailOpen(false);
+                    }
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" /> Eliminar
+                </Button>
+              </div>
             </div>
           </div>
         </DialogContent>
