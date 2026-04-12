@@ -33,6 +33,7 @@ const sections = [
       { name: "Calendario", href: "/calendar", icon: Calendar },
       { name: "Archivos", href: "/files", icon: FileText },
       { name: "Mail", href: "/mail", icon: Mail },
+      { name: "Templates", href: "/templates", icon: FileText },
     ],
   },
   {
