@@ -335,17 +335,17 @@ export default function OrganizationDetailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/organizations")}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+          <Button variant="ghost" size="icon" className="flex-shrink-0" onClick={() => router.push("/organizations")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div className="w-12 h-12 rounded-lg bg-neutral-100 dark:bg-neutral-900/10 flex items-center justify-center">
-            <Building2 className="h-6 w-6 text-neutral-900 dark:text-neutral-500" />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-neutral-100 dark:bg-neutral-900/10 flex items-center justify-center flex-shrink-0">
+            <Building2 className="h-5 w-5 sm:h-6 sm:w-6 text-neutral-900 dark:text-neutral-500" />
           </div>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">{org.name}</h1>
-            <p className="text-muted-foreground text-sm mt-0.5">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-3xl font-bold text-foreground truncate">{org.name}</h1>
+            <p className="text-muted-foreground text-sm mt-0.5 truncate">
               {org.slug}
               {org.description && ` · ${org.description}`}
             </p>
@@ -391,11 +391,12 @@ export default function OrganizationDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-border pb-2">
+      <div className="flex gap-2 border-b border-border pb-2 overflow-x-auto scrollbar-hide -mx-1 px-1">
         <Button
           variant={activeTab === "projects" ? "default" : "ghost"}
           size="sm"
           onClick={() => setActiveTab("projects")}
+          className="flex-shrink-0"
         >
           <FolderOpen className="h-4 w-4 mr-2" />
           Proyectos
@@ -404,6 +405,7 @@ export default function OrganizationDetailPage() {
           variant={activeTab === "members" ? "default" : "ghost"}
           size="sm"
           onClick={() => setActiveTab("members")}
+          className="flex-shrink-0"
         >
           <Users className="h-4 w-4 mr-2" />
           Miembros
@@ -412,6 +414,7 @@ export default function OrganizationDetailPage() {
           variant={activeTab === "knowledge" ? "default" : "ghost"}
           size="sm"
           onClick={() => setActiveTab("knowledge")}
+          className="flex-shrink-0"
         >
           <Settings className="h-4 w-4 mr-2" />
           Base de conocimiento
@@ -423,7 +426,7 @@ export default function OrganizationDetailPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-foreground">Proyectos</h2>
-            <Button onClick={() => setProjectOpen(true)} size="sm">
+            <Button onClick={() => setProjectOpen(true)} size="sm" className="flex-shrink-0 ml-2">
               <Plus className="h-4 w-4 mr-2" /> Nuevo proyecto
             </Button>
           </div>

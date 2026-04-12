@@ -118,8 +118,8 @@ export default function OrganizationsPage() {
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Nueva organización
+              <Plus className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Nueva organización</span>
             </Button>
           </DialogTrigger>
           <DialogContent>
