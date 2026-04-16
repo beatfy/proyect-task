@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Plus, Users, Trash2, MoreHorizontal, Pencil, Calendar, User, Loader2, Link2, Copy, Check, Mail, ChevronDown, X, Download, Clock, Tag } from "lucide-react";
+import { Plus, Users, Trash2, MoreHorizontal, Pencil, Calendar, User, Loader2, Link2, Copy, Check, Mail, ChevronDown, X, Download, Clock, Tag, Upload, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -51,6 +51,12 @@ interface Assignee {
   name: string | null;
   email: string;
   image?: string | null;
+}
+
+interface Subtask {
+  id: string;
+  title: string;
+  status: string;
 }
 
 interface Task {
@@ -349,11 +355,20 @@ export default function ProjectDetailPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailTask, setDetailTask] = useState<Task | null>(null);
   const [detailAttachments, setDetailAttachments] = useState<{id: string; name: string; url: string; createdAt: string}[]>([]);
+  const [detailSubtasks, setDetailSubtasks] = useState<Subtask[]>([]);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [editDescText, setEditDescText] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (detailTask) {
       fetch(`/api/attachments?taskId=${detailTask.id}`).then(r => r.ok ? r.json() : []).then(d => Array.isArray(d) ? setDetailAttachments(d) : setDetailAttachments(d.attachments || [])).catch(() => setDetailAttachments([]));
+      fetch(`/api/tasks?parentId=${detailTask.id}`).then(r => r.ok ? r.json() : []).then(d => Array.isArray(d) ? setDetailSubtasks(d) : setDetailSubtasks([])).catch(() => setDetailSubtasks([]));
     } else {
       setDetailAttachments([]);
+      setDetailSubtasks([]);
     }
   }, [detailTask?.id]);
   const [editTask, setEditTask] = useState<Task | null>(null);
@@ -728,47 +743,190 @@ export default function ProjectDetailPage() {
           <div className="flex flex-col md:flex-row flex-1 overflow-hidden" style={{ height: "calc(85vh - 65px)" }}>
             {/* Left column 70% */}
             <div className="flex-1 md:flex-[7] overflow-y-auto p-4 md:p-6 space-y-5">
-              {/* Descripción */}
+              {/* Descripción editable */}
               <CollapsibleSection title="Descripción" defaultOpen>
-                {detailTask?.description ? (
-                  <p className="text-sm text-[#172B4D] whitespace-pre-wrap bg-muted/40 rounded-md p-3 border border-[#DFE1E6]">{detailTask.description}</p>
+                {editingDescription ? (
+                  <div className="space-y-2">
+                    <textarea
+                      value={editDescText}
+                      onChange={(e) => setEditDescText(e.target.value)}
+                      className="w-full min-h-[100px] text-sm text-[#172B4D] bg-white border border-[#DFE1E6] rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-[#0052CC]/30 resize-y"
+                      autoFocus
+                    />
+                    <div className="flex gap-2">
+                      <Button size="sm" className="h-7 text-xs bg-[#0052CC] hover:bg-[#0052CC]/90" onClick={async () => {
+                        if (!detailTask) return;
+                        await fetch("/api/tasks", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: detailTask.id, description: editDescText }) });
+                        setDetailTask({ ...detailTask, description: editDescText });
+                        setEditingDescription(false);
+                        toast.success("Descripción guardada");
+                      }}>Guardar</Button>
+                      <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingDescription(false)}>Cancelar</Button>
+                    </div>
+                  </div>
                 ) : (
-                  <p className="text-sm text-[#6B778C] italic">Sin descripción</p>
-                )}
-              </CollapsibleSection>
-
-              {/* Archivos adjuntos */}
-              <CollapsibleSection title="Archivos adjuntos" badge={detailAttachments.length > 0 ? String(detailAttachments.length) : undefined} defaultOpen={detailAttachments.length > 0}>
-                {detailAttachments.length === 0 ? (
-                  <p className="text-sm text-[#6B778C] italic">Sin archivos adjuntos</p>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                    {detailAttachments.map((att) => {
-                      const isImage = /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(att.name);
-                      return (
-                        <a key={att.id} href={`/api/attachments/${att.id}`} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-[#DFE1E6] overflow-hidden hover:shadow-md transition-shadow cursor-pointer block">
-                          {isImage ? (
-                            <img src={`/api/attachments/${att.id}`} alt={att.name} className="w-full h-24 object-cover" />
-                          ) : (
-                            <div className="w-full h-24 flex flex-col items-center justify-center bg-muted/50 gap-1"><Download className="h-8 w-8 text-[#6B778C]" /><span className="text-[10px] text-[#6B778C]">Descargar</span></div>
-                          )}
-                          <div className="p-2">
-                            <p className="text-xs text-[#172B4D] truncate">{att.name}</p>
-                            <p className="text-[10px] text-[#6B778C]">{new Date(att.createdAt).toLocaleDateString("es-ES")}</p>
-                          </div>
-                        </a>
-                      );
-                    })}
+                  <div
+                    onClick={() => { setEditDescText(detailTask?.description || ""); setEditingDescription(true); }}
+                    className="cursor-pointer rounded-md p-3 border border-[#DFE1E6] hover:bg-muted/60 transition-colors min-h-[60px]"
+                  >
+                    {detailTask?.description ? (
+                      <p className="text-sm text-[#172B4D] whitespace-pre-wrap">{detailTask.description}</p>
+                    ) : (
+                      <p className="text-sm text-[#6B778C] italic">Haz clic para añadir una descripción...</p>
+                    )}
                   </div>
                 )}
               </CollapsibleSection>
 
-              {/* Subtareas */}
-              <CollapsibleSection title="Subtareas" defaultOpen={false}>
-                {(() => {
-                  if (!detailTask) return null;
-                  return <p className="text-sm text-[#6B778C] italic">Sin subtareas</p>;
-                })()}
+              {/* Archivos adjuntos con upload */}
+              <CollapsibleSection title="Archivos adjuntos" badge={detailAttachments.length > 0 ? String(detailAttachments.length) : undefined} defaultOpen={detailAttachments.length > 0}>
+                <div className="space-y-3">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept="image/*,.pdf,.txt"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file || !detailTask) return;
+                      setUploading(true);
+                      try {
+                        const formData = new FormData();
+                        formData.append("file", file);
+                        formData.append("taskId", detailTask.id);
+                        const res = await fetch("/api/attachments", { method: "POST", body: formData });
+                        if (res.ok) {
+                          const att = await res.json();
+                          setDetailAttachments(prev => [att, ...prev]);
+                          toast.success("Archivo subido");
+                        } else {
+                          const data = await res.json();
+                          toast.error(data.error || "Error al subir");
+                        }
+                      } catch { toast.error("Error de conexión"); }
+                      finally { setUploading(false); e.target.value = ""; }
+                    }}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 text-[#6B778C] border-[#DFE1E6] hover:bg-muted"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                  >
+                    {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                    {uploading ? "Subiendo..." : "Subir archivo"}
+                  </Button>
+                  {detailAttachments.length === 0 ? (
+                    !uploading && <p className="text-sm text-[#6B778C] italic">Sin archivos adjuntos</p>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                      {detailAttachments.map((att) => {
+                        const isImage = /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(att.name);
+                        return (
+                          <div key={att.id} className="relative group rounded-lg border border-[#DFE1E6] overflow-hidden hover:shadow-md transition-shadow">
+                            <a href={`/api/attachments/${att.id}`} target="_blank" rel="noopener noreferrer" className="block">
+                              {isImage ? (
+                                <img src={`/api/attachments/${att.id}`} alt={att.name} className="w-full h-24 object-cover" />
+                              ) : (
+                                <div className="w-full h-24 flex flex-col items-center justify-center bg-muted/50 gap-1"><Download className="h-8 w-8 text-[#6B778C]" /><span className="text-[10px] text-[#6B778C]">Descargar</span></div>
+                              )}
+                              <div className="p-2">
+                                <p className="text-xs text-[#172B4D] truncate">{att.name}</p>
+                                <p className="text-[10px] text-[#6B778C]">{new Date(att.createdAt).toLocaleDateString("es-ES")}</p>
+                              </div>
+                            </a>
+                            <button
+                              onClick={async () => {
+                                if (!confirm("¿Eliminar este archivo?")) return;
+                                const res = await fetch(`/api/attachments?id=${att.id}`, { method: "DELETE" });
+                                if (res.ok) {
+                                  setDetailAttachments(prev => prev.filter(a => a.id !== att.id));
+                                  toast.success("Archivo eliminado");
+                                }
+                              }}
+                              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </CollapsibleSection>
+
+              {/* Subtareas funcionales */}
+              <CollapsibleSection title="Subtareas" badge={detailSubtasks.length > 0 ? String(detailSubtasks.length) : undefined} defaultOpen>
+                <div className="space-y-2">
+                  {detailSubtasks.map((st) => (
+                    <div key={st.id} className="flex items-center gap-2 group">
+                      <input
+                        type="checkbox"
+                        checked={st.status === "DONE"}
+                        onChange={async () => {
+                          const newStatus = st.status === "DONE" ? "TODO" : "DONE";
+                          await fetch("/api/tasks", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: st.id, status: newStatus }) });
+                          setDetailSubtasks(prev => prev.map(s => s.id === st.id ? { ...s, status: newStatus } : s));
+                        }}
+                        className="rounded border-[#DFE1E6] text-[#0052CC] focus:ring-[#0052CC]/30"
+                      />
+                      <span className={cn("text-sm flex-1", st.status === "DONE" && "line-through text-[#6B778C]")}>{st.title}</span>
+                      <button
+                        onClick={async () => {
+                          await fetch(`/api/tasks?id=${st.id}`, { method: "DELETE" });
+                          setDetailSubtasks(prev => prev.filter(s => s.id !== st.id));
+                          toast.success("Subtarea eliminada");
+                        }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-600"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                  <div className="flex gap-2 mt-2">
+                    <input
+                      type="text"
+                      placeholder="Añadir subtarea..."
+                      value={newSubtaskTitle}
+                      onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                      onKeyDown={async (e) => {
+                        if (e.key === "Enter" && newSubtaskTitle.trim() && detailTask) {
+                          const res = await fetch("/api/tasks", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ title: newSubtaskTitle.trim(), parentId: detailTask.id, projectId, status: "TODO" }),
+                          });
+                          if (res.ok) {
+                            const st = await res.json();
+                            setDetailSubtasks(prev => [...prev, { id: st.id, title: st.title, status: st.status }]);
+                            setNewSubtaskTitle("");
+                          }
+                        }
+                      }}
+                      className="flex-1 text-sm border border-[#DFE1E6] rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#0052CC]/30 bg-white"
+                    />
+                    <Button
+                      size="sm"
+                      className="h-8 text-xs bg-[#0052CC] hover:bg-[#0052CC]/90"
+                      onClick={async () => {
+                        if (!newSubtaskTitle.trim() || !detailTask) return;
+                        const res = await fetch("/api/tasks", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ title: newSubtaskTitle.trim(), parentId: detailTask.id, projectId, status: "TODO" }),
+                        });
+                        if (res.ok) {
+                          const st = await res.json();
+                          setDetailSubtasks(prev => [...prev, { id: st.id, title: st.title, status: st.status }]);
+                          setNewSubtaskTitle("");
+                          toast.success("Subtarea creada");
+                        }
+                      }}
+                    >Añadir</Button>
+                  </div>
+                </div>
               </CollapsibleSection>
             </div>
 
