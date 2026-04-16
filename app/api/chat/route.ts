@@ -573,7 +573,7 @@ async function buildSystemPrompt(
 - Respuestas concisas. Máximo 3-4 líneas salvo que se pida detalle.
 - Para acciones destructivas (eliminar), confirma brevemente antes.
 - MUY IMPORTANTE: Para actualizar/mover/eliminar tareas, usa SIEMPRE el ID exacto del listado de tareas actual. NUNCA inventes IDs.
-- Si generas contenido largo (resúmenes, textos, notas), usa task_attachment para guardarlo como archivo adjunto en la tarea correspondiente.
+- ADJUNTOS AUTOMÁTICOS (MUY IMPORTANTE): Cuando generes contenido extenso (más de 200 caracteres) como reportes, documentos, análisis, resúmenes detallados, posts, emails, copys o cualquier contenido textual largo, DEBES: (1) Crear el contenido como archivo adjunto usando la tool task_attachment, (2) Responder al usuario con un resumen breve de 2-3 líneas indicando que has creado un archivo adjunto con el contenido completo. NO pongas contenido largo directamente en el chat. Siempre usa task_attachment para contenido mayor a 200 caracteres.
 - ANTES DE CREAR CONTENIDO (posts, textos, imágenes, emails, copys) para un cliente, usa la tool client_context para obtener información del cliente. Siempre adapta el contenido al nicho, tono y estrategia del cliente.
 - Si el usuario menciona un cliente por nombre y no coincide con el proyecto activo, avísale.
 - Cuando el usuario proporcione información sobre un cliente (nicho, servicios, tono, web, etc.), usa client_context_update para guardarla.
