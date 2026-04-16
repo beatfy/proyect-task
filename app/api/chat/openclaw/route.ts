@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendToTasky } from "@/lib/openclaw-proxy";
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     const { message, userId, projectId, organizationId } = await req.json();

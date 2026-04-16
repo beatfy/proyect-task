@@ -6,6 +6,8 @@ import { notifyTaskWebhook } from "@/lib/webhook";
 import { put } from "@vercel/blob";
 import { cuid } from "@/lib/utils";
 
+export const dynamic = 'force-dynamic';
+
 // ---- Tool definitions for function calling ----
 const TOOLS = [
   {

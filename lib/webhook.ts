@@ -5,9 +5,6 @@
  */
 const SCYTALE_USER_ID = "scytale-admin-beatfy";
 const SCYTALE_EMAIL = "scytale@beatfy.app";
-const OPENCLAW_WEBHOOK_URL = process.env.OPENCLAW_WEBHOOK_URL || "https://clawd.beatfy.net/hooks/wake";
-const OPENCLAW_AUTH_TOKEN = process.env.OPENCLAW_AUTH_TOKEN;
-if (!OPENCLAW_AUTH_TOKEN) throw new Error("OPENCLAW_AUTH_TOKEN is required");
 const TELEGRAM_BOT_TOKEN = process.env.WEBHOOK_TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.WEBHOOK_TELEGRAM_CHAT_ID;
 
@@ -42,15 +39,17 @@ export async function notifyTaskWebhook(task: {
 
   const priorityLabel = task.priority || "NONE";
 
-  // OpenClaw system event
+  // OpenClaw system event (lazy env var reads)
   try {
-    if (!OPENCLAW_AUTH_TOKEN) {
+    const authToken = process.env.OPENCLAW_AUTH_TOKEN;
+    if (!authToken) {
       console.warn("[OpenClaw Webhook] Skipping: OPENCLAW_AUTH_TOKEN not set");
       return;
     }
-    const response = await fetch(OPENCLAW_WEBHOOK_URL, {
+    const webhookUrl = process.env.OPENCLAW_WEBHOOK_URL || "https://clawd.beatfy.net/hooks/wake";
+    const response = await fetch(webhookUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `${OPENCLAW_AUTH_TOKEN.startsWith("Bearer ") ? OPENCLAW_AUTH_TOKEN : `Bearer ${OPENCLAW_AUTH_TOKEN}`}` },
+      headers: { "Content-Type": "application/json", Authorization: `${authToken.startsWith("Bearer ") ? authToken : `Bearer ${authToken}`}` },
       body: JSON.stringify({
         text: `Nueva tarea asignada a Scytale: ${task.title} (${priorityLabel})`,
         mode: "now",
