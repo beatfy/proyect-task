@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-interface Project {
+interface Target {
   id: string;
   name: string;
   description: string | null;
-  color: string;
+  color?: string | null;
+  logo?: string | null;
 }
 
 interface Inviter {
@@ -16,15 +17,27 @@ interface Inviter {
 }
 
 interface Props {
-  project: Project;
+  type: "project" | "organization";
+  target: Target;
   inviter: Inviter;
   token: string;
 }
 
-export default function JoinProjectClient({ project, inviter, token }: Props) {
+export default function JoinProjectClient({
+  type,
+  target,
+  inviter,
+  token,
+}: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isOrg = type === "organization";
+  const label = isOrg ? "organización" : "proyecto";
+  const redirectPath = isOrg
+    ? `/organizations/${target.id}`
+    : `/projects/${target.id}`;
 
   const handleJoin = async () => {
     setLoading(true);
@@ -40,12 +53,13 @@ export default function JoinProjectClient({ project, inviter, token }: Props) {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Error al unirse al proyecto");
+        setError(data.error || `Error al unirse a la ${label}`);
         return;
       }
 
-      router.push(`/projects/${project.id}`);
-    } catch (err) {
+      // Use the redirect from the API if available
+      router.push(data.redirectTo || redirectPath);
+    } catch {
       setError("Error de conexión");
     } finally {
       setLoading(false);
@@ -55,27 +69,36 @@ export default function JoinProjectClient({ project, inviter, token }: Props) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
       <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
-        {/* Project Info */}
+        {/* Icon / Logo */}
         <div className="text-center mb-6">
-          <div
-            className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-white text-2xl font-bold"
-            style={{ backgroundColor: project.color }}
-          >
-            {project.name.charAt(0).toUpperCase()}
-          </div>
+          {isOrg && target.logo ? (
+            <img
+              src={target.logo}
+              alt={target.name}
+              className="w-16 h-16 rounded-full mx-auto mb-4 object-cover"
+            />
+          ) : (
+            <div
+              className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-white text-2xl font-bold"
+              style={{ backgroundColor: target.color || "#6366f1" }}
+            >
+              {target.name.charAt(0).toUpperCase()}
+            </div>
+          )}
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {project.name}
+            {target.name}
           </h1>
-          {project.description && (
+          {target.description && (
             <p className="text-gray-600 dark:text-gray-400 mt-2">
-              {project.description}
+              {target.description}
             </p>
           )}
         </div>
 
         {/* Inviter */}
         <p className="text-center text-gray-600 dark:text-gray-400 mb-6">
-          {inviter.name || "Alguien"} te ha invitado a unirte a este proyecto
+          {inviter.name || "Alguien"} te ha invitado a unirte a esta{" "}
+          {label}
         </p>
 
         {/* Error */}
@@ -91,7 +114,9 @@ export default function JoinProjectClient({ project, inviter, token }: Props) {
           disabled={loading}
           className="w-full py-3 px-4 bg-neutral-900 hover:bg-neutral-800 disabled:bg-neutral-500 text-white font-medium rounded-lg transition-colors"
         >
-          {loading ? "Uniéndose..." : "Unirse al proyecto"}
+          {loading
+            ? "Uniéndose..."
+            : `Unirse a la ${label.charAt(0).toUpperCase() + label.slice(1)}`}
         </button>
 
         <button
