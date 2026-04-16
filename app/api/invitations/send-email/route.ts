@@ -76,7 +76,6 @@ export async function POST(request: NextRequest) {
     }
 
     // No email service configured — return invite URL for manual sharing
-    console.log(`[INVITE] No RESEND_API_KEY. Invite URL for ${invitation.email}: ${inviteUrl}`);
     return NextResponse.json({ success: true, sent: false, inviteUrl, message: "Email no configurado. Comparte el enlace manualmente." });
   } catch (error) {
     console.error("Send invite email error:", error);

@@ -755,7 +755,6 @@ export async function POST(request: NextRequest) {
     }
 
     const firstData = await firstResponse.json();
-    console.log(`[Tasky] LLM response:`, JSON.stringify(firstData.choices?.[0]?.message || {}).substring(0, 300));
     const choice = firstData.choices[0];
     const assistantMessage = choice.message;
 
@@ -792,8 +791,6 @@ export async function POST(request: NextRequest) {
         toolArgs = {};
       }
 
-      console.log(`[Tasky] Tool call: ${toolName}`, JSON.stringify(toolArgs));
-
       const result = await executeTool(
         toolName,
         toolArgs,
@@ -802,7 +799,6 @@ export async function POST(request: NextRequest) {
         organizationId
       );
 
-      console.log(`[Tasky] Tool result:`, JSON.stringify(result).substring(0, 200));
       actions.push({ tool: toolName, result });
       toolResults.push({
         role: "tool",

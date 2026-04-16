@@ -209,7 +209,6 @@ function KanbanBoard({ tasks, setTasks, onTaskClick, handleDeleteTask, projectId
 
   const updateTaskStatus = useCallback(async (taskId: string, newStatus: string, rollbackStatus: string) => {
     try {
-      console.log(`[Kanban] PATCH taskId=${taskId} newStatus=${newStatus}`);
       const res = await fetch("/api/tasks", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -217,17 +216,14 @@ function KanbanBoard({ tasks, setTasks, onTaskClick, handleDeleteTask, projectId
       });
       if (res.ok) {
         const updated = await res.json();
-        console.log(`[Kanban] PATCH OK`, updated.status);
         setTasks(prev => prev.map(t => t.id === taskId ? updated : t));
         toast.success(`Tarea movida a ${statusLabels[newStatus] || newStatus}`);
       } else {
-        console.error(`[Kanban] PATCH failed`, res.status);
-        // Revert optimistic update
+          // Revert optimistic update
         setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: rollbackStatus } : t));
         toast.error("Error al mover tarea");
       }
     } catch (err) {
-      console.error(`[Kanban] PATCH error`, err);
       setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: rollbackStatus } : t));
       toast.error("Error de conexión");
     }
@@ -238,7 +234,6 @@ function KanbanBoard({ tasks, setTasks, onTaskClick, handleDeleteTask, projectId
     const task = tasks.find(t => t.id === event.active.id);
     if (task) {
       setOriginalStatus(task.status);
-      console.log(`[Kanban] dragStart taskId=${task.id} originalStatus=${task.status}`);
     }
   };
 
@@ -282,12 +277,8 @@ function KanbanBoard({ tasks, setTasks, onTaskClick, handleDeleteTask, projectId
       if (overTask) targetStatus = overTask.status;
     }
 
-    console.log(`[Kanban] dragEnd originalStatus=${originalStatus} targetStatus=${targetStatus} over.id=${over?.id}`);
     if (targetStatus && originalStatus !== null && originalStatus !== targetStatus) {
-      console.log(`[Kanban] calling PATCH`);
       updateTaskStatus(activeTask.id, targetStatus, originalStatus);
-    } else {
-      console.log(`[Kanban] skipping PATCH (same column or no target)`);
     }
     setOriginalStatus(null);
   };

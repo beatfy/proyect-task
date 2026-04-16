@@ -111,8 +111,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    console.log(`[cron/due-date-reminders] Due today: ${dueTodayCount}, Overdue: ${overdueCount}`);
-
     return NextResponse.json({
       success: true,
       dueToday: dueTodayCount,

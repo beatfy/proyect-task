@@ -38,7 +38,6 @@ export async function notifyTaskWebhook(task: {
   creatorId?: string;
   taskAssignees?: Array<{ id?: string; email?: string; userId?: string }> | null;
 }): Promise<void> {
-  console.log("[Webhook] notifyTaskWebhook called. isScytale:", isScytale(task.assigneeId, task.assigneeEmail, task.taskAssignees));
   if (!isScytale(task.assigneeId, task.assigneeEmail, task.taskAssignees)) return;
 
   const priorityLabel = task.priority || "NONE";
@@ -58,9 +57,6 @@ export async function notifyTaskWebhook(task: {
       }),
       signal: AbortSignal.timeout(5000),
     });
-    console.log("[OpenClaw Webhook] Status:", response.status, "OK:", response.ok);
-    const body = await response.text();
-    console.log("[OpenClaw Webhook] Response body:", body);
   } catch (error) {
     console.error("[OpenClaw Webhook] FAILED:", (error as Error).message || String(error));
   }
