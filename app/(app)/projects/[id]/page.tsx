@@ -29,7 +29,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors, useDroppable, type DragStartEvent, type DragEndEvent, type DragOverEvent } from "@dnd-kit/core";
+import { DndContext, DragOverlay, closestCorners, PointerSensor, KeyboardSensor, useSensor, useSensors, useDroppable, type DragStartEvent, type DragEndEvent, type DragOverEvent } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -128,24 +128,37 @@ function CollapsibleSection({ title, badge, defaultOpen = false, children }: { t
   );
 }
 
-function DroppableColumn({ id, children }: { id: string; children: React.ReactNode }) {
+function DroppableColumn({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
   const { setNodeRef } = useDroppable({ id });
-  return <div ref={setNodeRef} className="bg-card rounded-lg p-2 space-y-2 border border-border min-h-[100px]">{children}</div>;
+  return <div ref={setNodeRef} role="list" aria-label={label} className="bg-card rounded-lg p-2 space-y-2 border border-border min-h-[100px]">{children}</div>;
 }
 
-function SortableTaskCard({ task, onEdit, onDelete }: { task: Task; onEdit: () => void; onDelete: () => void }) {
+function SortableTaskCard({ task, onEdit, onDelete, position, totalCount, columnLabel }: { task: Task; onEdit: () => void; onDelete: () => void; position: number; totalCount: number; columnLabel: string }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id, data: { task } });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+  const posId = `pos-${task.id}`;
 
   const taskAssignees = task.assignees && task.assignees.length > 0
     ? task.assignees
     : task.assignee ? [task.assignee] : [];
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn("outline-none focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-1 rounded-lg", isDragging && "shadow-lg ring-2 ring-neutral-500")}
+      {...attributes}
+      {...listeners}
+      role="listitem"
+      aria-grabbed={isDragging || undefined}
+      aria-describedby={posId}
+      tabIndex={0}
+    >
+      <span id={posId} className="sr-only">{`Tarea ${position} de ${totalCount} en ${columnLabel}`}</span>
       <Card
         className={cn("bg-muted border-border hover:shadow-md cursor-pointer transition-shadow", isDragging && "shadow-lg ring-2 ring-neutral-500")}
         onClick={(e) => { e.stopPropagation(); onEdit(); }}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); } }}
       >
         <CardContent className="p-3">
           <div className="flex items-start justify-between gap-2 mb-2">
@@ -203,7 +216,10 @@ function KanbanBoard({ tasks, setTasks, onTaskClick, handleDeleteTask, projectId
 }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [originalStatus, setOriginalStatus] = useState<string | null>(null);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor)
+  );
 
   const getTasksByStatus = (s: string) => tasks.filter(t => t.status === s);
 
@@ -297,17 +313,20 @@ function KanbanBoard({ tasks, setTasks, onTaskClick, handleDeleteTask, projectId
                 <h3 className="font-medium text-sm text-foreground">{col.title}</h3>
                 <span className="text-xs text-muted-foreground ml-auto">{colTasks.length}</span>
               </div>
-              <DroppableColumn id={`column-${col.id}`}>
+              <DroppableColumn id={`column-${col.id}`} label={col.title}>
                 <SortableContext items={colTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
                   {colTasks.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground text-sm">Sin tareas</div>
                   ) : (
-                    colTasks.map((task) => (
+                    colTasks.map((task, idx) => (
                       <SortableTaskCard
                         key={task.id}
                         task={task}
                         onEdit={() => onTaskClick(task)}
                         onDelete={() => handleDeleteTask(task.id)}
+                        position={idx + 1}
+                        totalCount={colTasks.length}
+                        columnLabel={col.title}
                       />
                     ))
                   )}
