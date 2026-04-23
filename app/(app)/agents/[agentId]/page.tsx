@@ -1,8 +1,8 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useState, useRef, useEffect } from "react";
-import { ArrowLeft, Send, Bot, Loader2, Copy, Check, MessageSquare, FileText } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { ArrowLeft, Send, Bot, Loader2, Copy, Check, MessageSquare, FileText, Building2, X, ChevronRight, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -63,7 +63,35 @@ interface Message {
   content: string;
 }
 
+interface ProjectOption {
+  id: string;
+  name: string;
+  description?: string | null;
+  color: string;
+  organization?: { name: string } | null;
+}
+
 type Tab = "chat" | "templates";
+
+/* ── localStorage helpers ── */
+function getStoredProject(agentId: string): ProjectOption | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(`agent-client-${agentId}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function setStoredProject(agentId: string, project: ProjectOption | null) {
+  if (typeof window === "undefined") return;
+  if (project) {
+    localStorage.setItem(`agent-client-${agentId}`, JSON.stringify(project));
+  } else {
+    localStorage.removeItem(`agent-client-${agentId}`);
+  }
+}
 
 export default function AgentChatPage() {
   const params = useParams();
@@ -80,6 +108,57 @@ export default function AgentChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  /* ── Cliente/Proyecto seleccionado ── */
+  const [selectedClient, setSelectedClient] = useState<ProjectOption | null>(null);
+  const [showClientSelector, setShowClientSelector] = useState(true);
+  const [projects, setProjects] = useState<ProjectOption[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
+  const [projectSearch, setProjectSearch] = useState("");
+
+  /* Restaurar cliente desde localStorage */
+  useEffect(() => {
+    const stored = getStoredProject(agentId);
+    if (stored) {
+      setSelectedClient(stored);
+      setShowClientSelector(false);
+    }
+  }, [agentId]);
+
+  /* Cargar proyectos */
+  const fetchProjects = useCallback(async () => {
+    setLoadingProjects(true);
+    try {
+      const res = await fetch("/api/projects");
+      if (res.ok) {
+        const data = await res.json();
+        const mapped: ProjectOption[] = (data as Array<{
+          id: string;
+          name: string;
+          description?: string | null;
+          color: string;
+          organization?: { name: string } | null;
+        }>).map((p) => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          color: p.color,
+          organization: p.organization,
+        }));
+        setProjects(mapped);
+      }
+    } catch {
+      /* silencioso */
+    } finally {
+      setLoadingProjects(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (showClientSelector) {
+      fetchProjects();
+    }
+  }, [showClientSelector, fetchProjects]);
+
   /* Scroll al fondo al recibir mensajes */
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -87,10 +166,10 @@ export default function AgentChatPage() {
 
   /* Focus al input cuando cambiamos a chat tab */
   useEffect(() => {
-    if (activeTab === "chat") {
+    if (activeTab === "chat" && !showClientSelector) {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [activeTab]);
+  }, [activeTab, showClientSelector]);
 
   /* Reset copied state */
   useEffect(() => {
@@ -99,6 +178,29 @@ export default function AgentChatPage() {
       return () => clearTimeout(t);
     }
   }, [copiedIdx]);
+
+  /* ── Seleccionar cliente ── */
+  const selectClient = (project: ProjectOption) => {
+    setSelectedClient(project);
+    setStoredProject(agentId, project);
+    setShowClientSelector(false);
+  };
+
+  const skipClient = () => {
+    setSelectedClient(null);
+    setStoredProject(agentId, null);
+    setShowClientSelector(false);
+  };
+
+  const changeClient = () => {
+    setShowClientSelector(true);
+    fetchProjects();
+  };
+
+  const clearClient = () => {
+    setSelectedClient(null);
+    setStoredProject(agentId, null);
+  };
 
   /* Agente no encontrado */
   if (!agent) {
@@ -114,12 +216,26 @@ export default function AgentChatPage() {
     );
   }
 
+  /* ── Filtrar proyectos por búsqueda ── */
+  const filteredProjects = projectSearch.trim()
+    ? projects.filter((p) =>
+        p.name.toLowerCase().includes(projectSearch.toLowerCase()) ||
+        (p.organization?.name || "").toLowerCase().includes(projectSearch.toLowerCase())
+      )
+    : projects;
+
   const sendMessage = async (text?: string) => {
     const messageText = text || input.trim();
     if (!messageText || isLoading) return;
 
     setInput("");
     setActiveTab("chat");
+
+    // Prefijar con contexto de cliente si hay seleccionado
+    const prefixedMessage = selectedClient
+      ? `[Cliente: ${selectedClient.name}] ${messageText}`
+      : messageText;
+
     setMessages((prev) => [...prev, { role: "user", content: messageText }]);
     setIsLoading(true);
 
@@ -129,7 +245,7 @@ export default function AgentChatPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           agentId,
-          message: messageText,
+          message: prefixedMessage,
           history: messages.slice(-20).map((m) => ({ role: m.role, content: m.content })),
         }),
       });
@@ -184,6 +300,128 @@ export default function AgentChatPage() {
     sendMessage(prompt);
   };
 
+  /* ════════════════════════════════════════════
+     RENDER: Selector de cliente
+     ════════════════════════════════════════════ */
+  if (showClientSelector) {
+    return (
+      <div className="flex flex-col h-[calc(100vh-2rem)] md:h-[calc(100vh-3rem)]">
+        {/* Cabecera */}
+        <div className="flex items-center gap-3 border-b border-border pb-4 mb-4 flex-shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => router.back()}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div className="w-10 h-10 rounded-full bg-neutral-900/10 flex items-center justify-center flex-shrink-0">
+            <span className="text-xl">{agent.emoji}</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg font-semibold">{agent.name}</h1>
+            <p className="text-xs text-muted-foreground">{agent.description}</p>
+          </div>
+        </div>
+
+        {/* Selector de cliente */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-xl mx-auto">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 rounded-full bg-neutral-900/10 flex items-center justify-center mx-auto mb-3">
+                <Building2 className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h2 className="text-xl font-semibold">Selecciona un cliente</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Elige el proyecto/cliente para dar contexto a {agent.name}, o sáltalo si no es necesario.
+              </p>
+            </div>
+
+            {/* Barra de búsqueda */}
+            {projects.length > 5 && (
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={projectSearch}
+                  onChange={(e) => setProjectSearch(e.target.value)}
+                  placeholder="Buscar proyecto..."
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-neutral-900"
+                />
+              </div>
+            )}
+
+            {/* Lista de proyectos */}
+            {loadingProjects ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-sm text-muted-foreground">Cargando proyectos...</span>
+              </div>
+            ) : (
+              <div className="space-y-2 mb-6">
+                {filteredProjects.map((project) => (
+                  <button
+                    key={project.id}
+                    onClick={() => selectClient(project)}
+                    className={cn(
+                      "w-full flex items-center gap-3 rounded-xl border border-border p-4 text-left hover:bg-muted/50 transition-colors group",
+                      selectedClient?.id === project.id && "border-neutral-900 bg-muted/50"
+                    )}
+                  >
+                    <div
+                      className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 text-white text-sm font-medium"
+                      style={{ backgroundColor: project.color || "#6366f1" }}
+                    >
+                      {project.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-medium truncate">{project.name}</h3>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {project.organization && (
+                          <span className="text-xs text-muted-foreground">
+                            🏢 {project.organization.name}
+                          </span>
+                        )}
+                        {project.description && (
+                          <span className="text-xs text-muted-foreground truncate">
+                            {project.description}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors flex-shrink-0" />
+                  </button>
+                ))}
+                {filteredProjects.length === 0 && !loadingProjects && (
+                  <div className="text-center py-8">
+                    <p className="text-sm text-muted-foreground">
+                      {projectSearch ? "No se encontraron proyectos" : "No hay proyectos disponibles"}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Botón saltar */}
+            <div className="text-center pb-6">
+              <Button
+                variant="outline"
+                onClick={skipClient}
+                className="text-sm"
+              >
+                Continuar sin cliente →
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ════════════════════════════════════════════
+     RENDER: Chat con tabs
+     ════════════════════════════════════════════ */
   return (
     <div className="flex flex-col h-[calc(100vh-2rem)] md:h-[calc(100vh-3rem)]">
       {/* Cabecera */}
@@ -204,6 +442,40 @@ export default function AgentChatPage() {
           <p className="text-xs text-muted-foreground">{agent.description}</p>
         </div>
       </div>
+
+      {/* Badge de cliente seleccionado */}
+      {selectedClient && (
+        <div className="flex items-center gap-2 mb-3 px-1 flex-shrink-0">
+          <div className="flex items-center gap-2 rounded-full bg-muted px-3 py-1.5 text-sm">
+            <span>📋</span>
+            <span className="font-medium">Cliente: {selectedClient.name}</span>
+            <button
+              onClick={changeClient}
+              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 ml-1"
+            >
+              Cambiar
+            </button>
+            <button
+              onClick={clearClient}
+              className="ml-1 p-0.5 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+              title="Quitar cliente"
+            >
+              <X className="h-3.5 w-3.5 text-muted-foreground" />
+            </button>
+          </div>
+        </div>
+      )}
+      {!selectedClient && !showClientSelector && (
+        <div className="mb-3 px-1 flex-shrink-0">
+          <button
+            onClick={changeClient}
+            className="flex items-center gap-1.5 rounded-full border border-dashed border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+          >
+            <Building2 className="h-3.5 w-3.5" />
+            Seleccionar cliente
+          </button>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex border-b border-border mb-4 flex-shrink-0">
@@ -251,9 +523,18 @@ export default function AgentChatPage() {
                 <div>
                   <p className="font-medium">¡Hola! Soy {agent.name}</p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {agent.description}. ¿En qué puedo ayudarte?
+                    {selectedClient
+                      ? `Trabajando con: ${selectedClient.name}. ¿En qué puedo ayudarte?`
+                      : `${agent.description}. ¿En qué puedo ayudarte?`
+                    }
                   </p>
                 </div>
+                {selectedClient && (
+                  <div className="flex items-center gap-2 rounded-full bg-muted px-3 py-1.5 text-sm">
+                    <span>📋</span>
+                    <span>Cliente: {selectedClient.name}</span>
+                  </div>
+                )}
                 {templates.length > 0 && (
                   <button
                     onClick={() => setActiveTab("templates")}
@@ -317,7 +598,10 @@ export default function AgentChatPage() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={`Escribe un mensaje a ${agent.name}...`}
+                placeholder={selectedClient
+                  ? `Mensaje sobre ${selectedClient.name}...`
+                  : `Escribe un mensaje a ${agent.name}...`
+                }
                 rows={1}
                 className="flex-1 resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-neutral-900 max-h-32"
                 style={{ height: "auto", minHeight: "42px" }}
