@@ -2,20 +2,39 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, FolderOpen, CheckSquare, Calendar, Settings, LogOut, ChevronLeft, ChevronRight, Mail, Sun, Moon, Building2, FileText, MessageCircle, Menu, Receipt } from "lucide-react";
+import {
+  Home, FolderOpen, CheckSquare, Calendar, Settings, LogOut,
+  ChevronLeft, ChevronRight, Mail, Sun, Moon, Building2, FileText,
+  Menu, Receipt, Bot, ChevronDown, MessageCircle, Megaphone,
+  BarChart3, Search, Palette
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import Link from "next/link";
 import NotificationCenter from "@/components/notifications/NotificationCenter";
-import ChatSidebar from "@/components/chat/ChatSidebar";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
+
+const agentItems = [
+  { name: "Ads", href: "/agents/ads-commander", icon: Megaphone },
+  { name: "Social Media", href: "/agents/social-pulse-agent", icon: MessageCircle },
+  { name: "SEO", href: "/agents/seofilo-agent", icon: Search },
+  { name: "Diseño", href: "/agents/design-agent", icon: Palette },
+];
 
 const sections = [
   {
@@ -43,10 +62,8 @@ const sections = [
     ],
   },
   {
-    label: "Sistema",
-    items: [
-      { name: "Configuración", href: "/settings", icon: Settings },
-    ],
+    label: "Agentes",
+    items: agentItems,
   },
 ];
 
@@ -55,7 +72,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, setTheme } = useTheme();
 
@@ -98,6 +114,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <Link href="/dashboard" className="text-lg font-bold text-neutral-900">{process.env.NEXT_PUBLIC_BRAND_NAME || "TaskX"}</Link>
           <NotificationCenter compact />
         </header>
+
         {/* Sidebar */}
         <aside
           className={cn(
@@ -203,90 +220,72 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             ))}
           </nav>
 
-          {/* Theme toggle */}
-          <div className="px-2 pb-2 flex-shrink-0">
-            {collapsed ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-9 w-full text-muted-foreground hover:text-accent-foreground"
-                    onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                  >
-                    {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  {theme === "dark" ? "Tema claro" : "Tema oscuro"}
-                </TooltipContent>
-              </Tooltip>
-            ) : (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start text-muted-foreground hover:text-accent-foreground"
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              >
-                {theme === "dark" ? <Sun className="h-4 w-4 mr-2" /> : <Moon className="h-4 w-4 mr-2" />}
-                {theme === "dark" ? "Tema claro" : "Tema oscuro"}
-              </Button>
-            )}
-          </div>
-
-          {/* User section */}
+          {/* User section with dropdown */}
           <div className="border-t border-border p-2 flex-shrink-0">
             {collapsed ? (
               <div className="flex flex-col items-center gap-2 py-1">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="w-8 h-8 rounded-full bg-neutral-900 text-white flex items-center justify-center text-sm font-medium cursor-default">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="w-8 h-8 rounded-full bg-neutral-900 text-white flex items-center justify-center text-sm font-medium hover:opacity-90 transition-opacity">
                       {session.user?.name?.[0]?.toUpperCase() || "U"}
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">
-                    {session.user?.name}<br />{session.user?.email}
-                  </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-accent-foreground"
-                      onClick={() => signOut({ callbackUrl: "/login" })}
-                    >
-                      <LogOut className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">Cerrar sesión</TooltipContent>
-                </Tooltip>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent side="right" align="start" className="w-48">
+                    <DropdownMenuLabel className="font-normal">
+                      <p className="text-sm font-medium">{session.user?.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{session.user?.email}</p>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => router.push("/settings")}>
+                      <Settings className="h-4 w-4 mr-2" />
+                      Configuración
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+                      {theme === "dark" ? <Sun className="h-4 w-4 mr-2" /> : <Moon className="h-4 w-4 mr-2" />}
+                      {theme === "dark" ? "Tema claro" : "Tema oscuro"}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/login" })}>
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Cerrar sesión
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             ) : (
-              <div className="px-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-neutral-900 text-white flex items-center justify-center text-sm font-medium">
-                    {session.user?.name?.[0]?.toUpperCase() || "U"}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">
-                      {session.user?.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {session.user?.email}
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full mt-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                  onClick={() => signOut({ callbackUrl: "/login" })}
-                >
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Cerrar sesión
-                </Button>
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-accent transition-colors text-left">
+                    <div className="w-8 h-8 rounded-full bg-neutral-900 text-white flex items-center justify-center text-sm font-medium flex-shrink-0">
+                      {session.user?.name?.[0]?.toUpperCase() || "U"}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {session.user?.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {session.user?.email}
+                      </p>
+                    </div>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent side="top" align="start" className="w-56 mb-1">
+                  <DropdownMenuItem onClick={() => router.push("/settings")}>
+                    <Settings className="h-4 w-4 mr-2" />
+                    Configuración
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+                    {theme === "dark" ? <Sun className="h-4 w-4 mr-2" /> : <Moon className="h-4 w-4 mr-2" />}
+                    {theme === "dark" ? "Tema claro" : "Tema oscuro"}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/login" })}>
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Cerrar sesión
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
         </aside>
@@ -301,21 +300,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         >
           <div className="p-4 md:p-6 pb-8">{children}</div>
         </main>
-
-        {/* Tasky Chat Button */}
-        <button
-          onClick={() => setChatOpen(true)}
-          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-neutral-900 hover:bg-neutral-800 active:bg-indigo-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center"
-          title="Chat con Tasky"
-        >
-          <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6" />
-        </button>
-
-        {/* Tasky Chat Sidebar */}
-        <ChatSidebar
-          isOpen={chatOpen}
-          onClose={() => setChatOpen(false)}
-        />
       </div>
     </TooltipProvider>
   );
