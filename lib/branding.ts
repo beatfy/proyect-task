@@ -1,5 +1,5 @@
 /**
- * TaskX Branding Configuration
+ * Leadfy Branding Configuration
  * 
  * All brand settings are driven by environment variables.
  * Clone the repo, set these vars, deploy — instant branded app.
@@ -7,7 +7,7 @@
 
 export const brand = {
   /** Application name shown in sidebar, auth pages, document title */
-  name: process.env.NEXT_PUBLIC_BRAND_NAME || "TaskX",
+  name: process.env.NEXT_PUBLIC_BRAND_NAME || "Leadfy",
 
   /** Full URL to the brand logo (PNG/SVG). Falls back to first letter of name */
   logoUrl: process.env.NEXT_PUBLIC_BRAND_LOGO_URL || "",

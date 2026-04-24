@@ -48,7 +48,7 @@ export async function POST(
 
       await prisma.invitation.update({ where: { id }, data: { status: "ACCEPTED" } });
 
-      const targetName = invitation.project?.name || invitation.organization?.name || "TaskX";
+      const targetName = invitation.project?.name || invitation.organization?.name || "Leadfy";
       await prisma.notification.create({
         data: {
           id: cuid(), userId: invitation.invitedBy, type: "PROJECT_JOINED",

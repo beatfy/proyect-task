@@ -1,5 +1,5 @@
 /**
- * Integration tests for Tasky AI agent tools (POST /api/chat)
+ * Integration tests for Ledy AI agent tools (POST /api/chat)
  *
  * Strategy: mock all external dependencies (Prisma, fetch, auth, blob)
  * and test tool definitions, route handler responses, and error handling.
@@ -102,7 +102,7 @@ function mockLLMResponse(message: { content?: string; tool_calls?: Array<{ id: s
 // TOOL DEFINITIONS TESTS
 // ============================================================
 
-describe("Tasky tool definitions", () => {
+describe("Ledy tool definitions", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     const { authenticateRequest } = require("@/lib/api-auth");

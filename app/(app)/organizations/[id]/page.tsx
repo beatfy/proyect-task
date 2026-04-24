@@ -108,7 +108,7 @@ function KnowledgeBaseSection({ orgId }: { orgId: string }) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-foreground">Base de conocimiento</h2>
-          <p className="text-sm text-muted-foreground">Información que Tasky usará como contexto para esta organización. Usa markdown.</p>
+          <p className="text-sm text-muted-foreground">Información que Ledy usará como contexto para esta organización. Usa markdown.</p>
         </div>
         <Button onClick={handleSave} disabled={saving} size="sm">
           {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}

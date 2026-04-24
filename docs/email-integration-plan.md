@@ -1,7 +1,7 @@
-# 📊 ANÁLISIS TaskX + Plan Integración Email
+# 📊 ANÁLISIS Leadfy + Plan Integración Email
 
 **Fecha:** 2026-03-30  
-**Proyecto:** TaskX (xnote-app)  
+**Proyecto:** Leadfy (xnote-app)  
 **Ubicación:** `/home/ele/.openclaw/workspace/xnote-app`
 
 ---
@@ -43,7 +43,7 @@
 ### Objetivo
 Añadir una sección **"Correo"** donde el usuario pueda:
 1. Ver su inbox de Gmail/Outlook de empresa
-2. Leer emails sin salir de TaskX
+2. Leer emails sin salir de Leadfy
 3. Asociar emails a tareas (convertir email → tarea)
 4. Buscar en historial de emails
 
@@ -199,7 +199,7 @@ EMAIL_IMAP_PASSWORD=password
 
 ## 💡 MEJORAS ADICIONALES SUGERIDAS
 
-### Para TaskX en general:
+### Para Leadfy en general:
 1. **Dark mode** - ya tienes next-themes, solo falta toggle en UI
 2. **Exportar tareas a CSV/PDF**
 3. **Time tracking** - tiempo dedicado a cada tarea
@@ -211,7 +211,7 @@ EMAIL_IMAP_PASSWORD=password
 1. **Email → Comment** - añadir email como comentario en tarea
 2. **Smart parsing** - detectar deadlines en emails
 3. **Templates** - guardar emails como templates
-4. **Quick reply** - responder desde TaskX (requiere write scope)
+4. **Quick reply** - responder desde Leadfy (requiere write scope)
 
 ---
 

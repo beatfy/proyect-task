@@ -130,7 +130,7 @@ export async function POST(
 
       // Send invitation email
       try {
-        await fetch(`${process.env.NEXT_PUBLIC_APP_URL || "https://task-x-2.vercel.app"}/api/invitations/send-email`, {
+        await fetch(`${process.env.NEXT_PUBLIC_APP_URL || "https://leadfy.vercel.app"}/api/invitations/send-email`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

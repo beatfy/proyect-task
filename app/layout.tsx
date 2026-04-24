@@ -6,7 +6,7 @@ import { Providers } from "./providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "TaskX - Gestión de Tareas",
+  title: "Leadfy - Gestión de Tareas",
   description: "Aplicación de gestión de tareas estilo Asana",
 };
 

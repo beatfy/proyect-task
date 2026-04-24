@@ -181,16 +181,16 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Tasky AI Metrics */}
+      {/* Ledy AI Metrics */}
       <Card className="bg-card border-border">
         <CardHeader>
           <CardTitle className="text-foreground flex items-center gap-2">
             <Bot className="h-5 w-5 text-violet-500" />
-            Métricas de Tasky (Agente IA)
+            Métricas de Ledy (Agente IA)
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <TaskyMetrics organizationId={selectedOrg === "all" ? null : selectedOrg} />
+          <LedyMetrics organizationId={selectedOrg === "all" ? null : selectedOrg} />
         </CardContent>
       </Card>
 
@@ -272,7 +272,7 @@ export default function DashboardPage() {
 
 const TOOL_COLORS = ["bg-green-500", "bg-blue-500", "bg-amber-500", "bg-purple-500", "bg-pink-500"];
 
-function TaskyMetrics({ organizationId }: { organizationId: string | null }) {
+function LedyMetrics({ organizationId }: { organizationId: string | null }) {
   const [data, setData] = useState<{ totalQueries: number; totalTools: number; queriesByDay: Record<string, number>; topTools: { name: string; count: number }[] } | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -290,7 +290,7 @@ function TaskyMetrics({ organizationId }: { organizationId: string | null }) {
   }
 
   if (!data || data.totalQueries === 0) {
-    return <div className="text-center py-8 text-muted-foreground">Sin datos aún. Usa Tasky para empezar a generar métricas.</div>;
+    return <div className="text-center py-8 text-muted-foreground">Sin datos aún. Usa Ledy para empezar a generar métricas.</div>;
   }
 
   const toolsPerQuery = data.totalQueries > 0 ? (data.totalTools / data.totalQueries).toFixed(1) : "0";

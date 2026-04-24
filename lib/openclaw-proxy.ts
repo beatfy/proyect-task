@@ -1,6 +1,6 @@
 const OPENCLAW_GATEWAY = "https://clawd.beatfy.net";
 
-export async function sendToTasky(
+export async function sendToLedy(
   message: string,
   userId: string,
   projectId?: string,
@@ -19,7 +19,7 @@ export async function sendToTasky(
       text: `[Contexto: Proyecto ${projectId || "unknown"}, Org ${organizationId || "unknown"}]
 ${message}`,
       mode: "now",
-      sessionKey: `taskx2-${userId}-${projectId || "none"}`,
+      sessionKey: `leadfy2-${userId}-${projectId || "none"}`,
     }),
     signal: AbortSignal.timeout(30000),
   });

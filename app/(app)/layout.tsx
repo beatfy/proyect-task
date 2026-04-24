@@ -112,7 +112,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <button onClick={() => setMobileMenuOpen(true)} className="p-2 -ml-2">
             <Menu className="h-5 w-5" />
           </button>
-          <Link href="/dashboard" className="text-lg font-bold text-neutral-900">{process.env.NEXT_PUBLIC_BRAND_NAME || "TaskX"}</Link>
+          <Link href="/dashboard" className="text-lg font-bold text-neutral-900">{process.env.NEXT_PUBLIC_BRAND_NAME || "Leadfy"}</Link>
           <NotificationCenter compact />
         </header>
 
@@ -132,12 +132,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           )}>
             {!collapsed && (
               <Link href="/dashboard" className="text-xl font-bold text-neutral-900 dark:text-neutral-500">
-                {process.env.NEXT_PUBLIC_BRAND_NAME || "TaskX"}
+                {process.env.NEXT_PUBLIC_BRAND_NAME || "Leadfy"}
               </Link>
             )}
             {collapsed && (
               <Link href="/dashboard" className="text-lg font-bold text-neutral-900 dark:text-neutral-500">
-                {(process.env.NEXT_PUBLIC_BRAND_NAME || "TaskX")[0]}
+                {(process.env.NEXT_PUBLIC_BRAND_NAME || "Leadfy")[0]}
               </Link>
             )}
             <div className={cn("flex items-center gap-1", !collapsed && "ml-auto")}>

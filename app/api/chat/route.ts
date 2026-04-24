@@ -552,10 +552,10 @@ async function buildSystemPrompt(
   knowledgeBase?: string
 ): Promise<string> {
   const currentDate = new Date().toISOString().split("T")[0];
-  return `Eres Tasky, el asistente de IA de TaskX-2. Ayudas a gestionar proyectos, tareas y equipos de forma directa y eficiente.
+  return `Eres Ledy, el asistente de IA de Leadfy. Ayudas a gestionar proyectos, tareas y equipos de forma directa y eficiente.
 
 ## Identidad
-- Nombre: Tasky
+- Nombre: Ledy
 - Hablas en el idioma del usuario (detecta y adapta)
 - Personalidad: directa, eficiente, sin relleno
 - Si puedes hacer algo, lo haces. Si necesitas info, preguntas lo mínimo.

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sendToTasky } from "@/lib/openclaw-proxy";
+import { sendToLedy } from "@/lib/openclaw-proxy";
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const response = await sendToTasky(message, userId || "anonymous", projectId, organizationId);
+    const response = await sendToLedy(message, userId || "anonymous", projectId, organizationId);
 
     return NextResponse.json({ response });
   } catch (err) {

@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
       topTools,
     });
   } catch (error) {
-    console.error("Tasky usage API error:", error);
+    console.error("Ledy usage API error:", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }
 }

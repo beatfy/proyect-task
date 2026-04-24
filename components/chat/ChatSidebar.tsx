@@ -232,7 +232,7 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
               <span className="text-sm">🤖</span>
             </div>
             <div>
-              <h3 className="font-semibold text-sm">Tasky</h3>
+              <h3 className="font-semibold text-sm">Ledy</h3>
               {projectName ? (
                 <p className="text-xs text-muted-foreground truncate max-w-[200px]">
                   📁 {projectName}
@@ -272,7 +272,7 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
               </div>
               <div>
                 <p className="font-medium text-sm">
-                  ¡Hola! Soy Tasky
+                  ¡Hola! Soy Ledy
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {projectName

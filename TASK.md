@@ -1,4 +1,4 @@
-## Task: Add "Forgot Password" flow to TaskX-2
+## Task: Add "Forgot Password" flow to Leadfy
 
 ### Context
 - Next.js app with NextAuth (credentials provider, bcrypt passwords, Prisma + PostgreSQL)
@@ -32,7 +32,7 @@ Add relation to User model: `resetTokens PasswordResetToken[]`
 - Generate token (randomBytes 32, hex)
 - Save PasswordResetToken with 1h expiry
 - Send email via Resend with link: `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?token=${token}`
-- Email template: simple HTML, "Reset your TaskX password" with the link
+- Email template: simple HTML, "Reset your Leadfy password" with the link
 - Return { success: true } always (don't reveal if email exists)
 - Use `RESEND_API_KEY` env var
 
