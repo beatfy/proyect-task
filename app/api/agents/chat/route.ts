@@ -1,129 +1,92 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-/**
- * API route que conecta el chat de agentes con OpenClaw Gateway.
- *
- * El chat NO pasa contexto automático de proyecto/cliente.
- * El agente en OpenClaw identifica el cliente y busca contexto en Obsidian/Qdrant.
- * La app solo es el frontend — el motor es OpenClaw.
- */
 export async function POST(req: NextRequest) {
   try {
-    const { agentId, message, history } = await req.json();
+    const { agentId, message, history, projectId } = await req.json();
 
     if (!agentId || typeof agentId !== "string") {
-      return NextResponse.json(
-        { error: "agentId es requerido" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "agentId es requerido" }, { status: 400 });
     }
 
     if (!message || typeof message !== "string") {
-      return NextResponse.json(
-        { error: "message es requerido" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "message es requerido" }, { status: 400 });
     }
 
-    // Intentar conectar con OpenClaw Gateway
     const gatewayUrl = process.env.OPENCLAW_GATEWAY_URL || "http://127.0.0.1:18789";
     const authToken = process.env.OPENCLAW_AUTH_TOKEN || "";
-    const bearerToken = authToken.startsWith("Bearer ") ? authToken : `Bearer ${authToken}`;
 
-    try {
-      const res = await fetch(`${gatewayUrl}/__openclaw__/api/agent/turn`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: bearerToken,
-        },
-        body: JSON.stringify({
-          agentId,
-          message,
-          sessionKey: `taskx2-agent-${agentId}`,
-          history: Array.isArray(history) ? history.slice(-20) : [],
-        }),
-        signal: AbortSignal.timeout(60000), // 60s timeout para respuestas de agentes
-      });
-
-      if (!res.ok) {
-        const errorText = await res.text().catch(() => "Error desconocido");
-        console.error(`OpenClaw Gateway error [${res.status}]:`, errorText);
-
-        // Fallback: intentar con el endpoint /hooks/wake
-        return await fallbackWake(message, agentId, bearerToken);
-      }
-
-      const data = await res.json();
-      return NextResponse.json({ response: data.response || data.text || data.message || "Procesado" });
-    } catch (fetchErr) {
-      console.error("Gateway fetch failed, trying fallback:", fetchErr);
-      return await fallbackWake(message, agentId, bearerToken);
+    if (!authToken) {
+      return NextResponse.json({ error: "OPENCLAW_AUTH_TOKEN no configurado" }, { status: 500 });
     }
-  } catch (err) {
-    console.error("Agent chat error:", err);
-    return NextResponse.json(
-      { error: "Error interno del servidor" },
-      { status: 500 }
-    );
-  }
-}
 
-/**
- * Fallback: usar /hooks/wake del gateway (mismo patrón que openclaw-proxy.ts)
- */
-async function fallbackWake(
-  message: string,
-  agentId: string,
-  bearerToken: string
-): Promise<NextResponse> {
-  const gatewayUrl = process.env.OPENCLAW_GATEWAY_URL || "http://127.0.0.1:18789";
+    // Buscar contexto del proyecto/cliente si se proporciona projectId
+    let clientContext = "";
+    if (projectId && typeof projectId === "string") {
+      try {
+        const project = await prisma.project.findUnique({
+          where: { id: projectId },
+          select: { id: true, name: true, description: true },
+        });
+        if (project) {
+          clientContext = `\n\n---\n[SISTEMA] El usuario te habla sobre su cliente "${project.name}"${project.description ? ` (${project.description})` : ""}. IMPORTANTE: Busca en tu memoria (search.py Qdrant) toda la info de este cliente. Responde SOBRE EL CLIENTE, no sobre ti mismo. No menciones tu configuración interna ni archivos del sistema.]`;
+        }
+      } catch (dbErr) {
+        console.error("DB lookup error:", dbErr);
+      }
+    }
 
-  try {
-    const res = await fetch(`${gatewayUrl}/hooks/wake`, {
+    // Construir mensajes
+    const messages: Array<{ role: string; content: string }> = [];
+
+    // Añadir historial (últimos 20 mensajes)
+    if (Array.isArray(history) && history.length > 0) {
+      const contextMsg = history.slice(-20).map((m: { role: string; content: string }) => ({
+        role: m.role === "user" ? "user" : "assistant",
+        content: m.content
+      }));
+      messages.push(...contextMsg);
+    }
+
+    // Añadir mensaje actual con contexto del cliente
+    const finalMessage = clientContext
+      ? `${message}${clientContext}`
+      : message;
+
+    messages.push({ role: "user", content: finalMessage });
+
+    const model = `openclaw/${agentId}`;
+
+    const gatewayRes = await fetch(`${gatewayUrl}/v1/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: bearerToken,
+        "Authorization": `Bearer ${authToken}`
       },
       body: JSON.stringify({
-        text: `[Agente: ${agentId}]\n${message}`,
-        mode: "now",
-        sessionKey: `taskx2-agent-${agentId}`,
+        model,
+        messages,
+        temperature: 0.7,
+        max_tokens: 2000
       }),
-      signal: AbortSignal.timeout(60000),
+      signal: AbortSignal.timeout(60000)
     });
 
-    const text = await res.text();
-    return NextResponse.json({ response: text || "Sin respuesta del agente" });
-  } catch {
-    // Último fallback: gateway remoto (clawd.beatfy.net)
-    const remoteGateway = "https://clawd.beatfy.net";
-    try {
-      const res = await fetch(`${remoteGateway}/hooks/wake`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: bearerToken,
-        },
-        body: JSON.stringify({
-          text: `[Agente: ${agentId}]\n${message}`,
-          mode: "now",
-          sessionKey: `taskx2-agent-${agentId}`,
-        }),
-        signal: AbortSignal.timeout(30000),
-      });
-
-      const text = await res.text();
-      return NextResponse.json({ response: text || "Sin respuesta del agente" });
-    } catch (remoteErr) {
-      console.error("All gateway connections failed:", remoteErr);
-      return NextResponse.json(
-        { error: "No se pudo conectar con el agente. Verifica que OpenClaw Gateway esté activo." },
-        { status: 502 }
-      );
+    if (!gatewayRes.ok) {
+      const errText = await gatewayRes.text().catch(() => "Error gateway");
+      console.error(`Gateway error [${gatewayRes.status}]:`, errText);
+      return NextResponse.json({ error: "Error al conectar con el gateway" }, { status: 502 });
     }
+
+    const gatewayData = await gatewayRes.json();
+    const response = gatewayData.choices?.[0]?.message?.content || "Sin respuesta del agente";
+
+    return NextResponse.json({ response });
+
+  } catch (err) {
+    console.error("Agent chat error:", err);
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }

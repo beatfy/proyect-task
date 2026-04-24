@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,6 +58,7 @@ const emptyForm = {
 };
 
 export default function ContactsPage() {
+  const router = useRouter();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -224,7 +226,7 @@ export default function ContactsPage() {
       ) : (
         <div className="space-y-2">
           {contacts.map((contact) => (
-            <Card key={contact.id} className="bg-card border-border hover:shadow-sm transition-shadow">
+            <Card key={contact.id} className="bg-card border-border hover:shadow-sm transition-shadow cursor-pointer" onClick={() => router.push(`/crm/contacts/${contact.id}`)}>
               <CardContent className="py-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -270,12 +272,12 @@ export default function ContactsPage() {
                     <span className="text-xs text-muted-foreground hidden sm:block">
                       {contact._count.deals} deals · {contact._count.activities} act.
                     </span>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(contact)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); handleEdit(contact); }}>
                       <Edit2 className="h-4 w-4" />
                     </Button>
                     <Dialog open={deleteConfirm === contact.id} onOpenChange={(open) => setDeleteConfirm(open ? contact.id : null)}>
                       <DialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600" onClick={(e) => e.stopPropagation()}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </DialogTrigger>

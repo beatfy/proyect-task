@@ -5,8 +5,11 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Users, DollarSign, TrendingUp, Clock, ArrowRight } from "lucide-react";
 import { useOrganization } from "@/lib/organization-context";
+import CrmGlobalSearch from "@/components/crm/CrmGlobalSearch";
+import { FunnelChart, RevenueForecast } from "@/components/crm/FunnelChart";
 
 interface CrmStats {
   totalContacts: number;
@@ -62,6 +65,16 @@ function timeAgo(dateStr: string): string {
   return date.toLocaleDateString("es-ES", { day: "numeric", month: "short" });
 }
 
+// Probability defaults for forecast (could come from stage config in the future)
+const stageProbabilityDefaults: Record<number, number> = {
+  0: 10,
+  1: 25,
+  2: 50,
+  3: 75,
+  4: 90,
+  5: 100,
+};
+
 export default function CrmDashboardPage() {
   const [stats, setStats] = useState<CrmStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -107,6 +120,15 @@ export default function CrmDashboardPage() {
   const totalStatusCount = Object.values(stats.contactsByStatus).reduce((a, b) => a + b, 0) || 1;
   const maxStageValue = Math.max(...stats.pipelineStages.map(s => s.totalValue), 1);
 
+  // Enrich stages with probability for forecast
+  const enrichedStages = stats.pipelineStages.map(s => ({
+    ...s,
+    probability: stageProbabilityDefaults[s.position] || 50,
+  }));
+
+  // Top deals by value (use recent deals as proxy, sorted by value desc)
+  const topDeals = [...stats.recentDeals].sort((a, b) => b.value - a.value);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -115,7 +137,8 @@ export default function CrmDashboardPage() {
           <h1 className="text-3xl font-bold text-foreground">CRM</h1>
           <p className="text-muted-foreground mt-1">Gestión de contactos y pipeline de ventas</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <CrmGlobalSearch />
           <Link href="/crm/contacts">
             <Button variant="outline" size="sm">
               <Users className="h-4 w-4 mr-2" />
@@ -178,78 +201,147 @@ export default function CrmDashboardPage() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Contacts by Status */}
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-foreground">Contactos por Estado</CardTitle>
-              <Link href="/crm/contacts" className="text-sm text-primary hover:underline flex items-center gap-1">
-                Ver todos <ArrowRight className="h-3 w-3" />
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {Object.entries(statusLabels).map(([key, label]) => {
-                const count = stats.contactsByStatus[key] || 0;
-                const percentage = Math.round((count / totalStatusCount) * 100);
-                return (
-                  <div key={key}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm text-foreground">{label}</span>
-                      <span className="text-sm font-medium text-foreground">{count} ({percentage}%)</span>
-                    </div>
-                    <div className="w-full bg-muted rounded-full h-2.5">
-                      <div
-                        className="h-2.5 rounded-full bg-primary transition-all duration-500"
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+      {/* Tabs for Advanced sections */}
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="overview">Resumen</TabsTrigger>
+          <TabsTrigger value="funnel">Funnel</TabsTrigger>
+          <TabsTrigger value="forecast">Forecast</TabsTrigger>
+        </TabsList>
 
-        {/* Pipeline Stages */}
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-foreground">Pipeline por Etapas</CardTitle>
-              <Link href="/crm/pipeline" className="text-sm text-primary hover:underline flex items-center gap-1">
-                Ver pipeline <ArrowRight className="h-3 w-3" />
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {stats.pipelineStages.map((stage) => (
-                <div key={stage.id}>
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: stage.color }} />
-                      <span className="text-sm text-foreground">{stage.name}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">{stage.dealCount} deals</span>
-                      <span className="text-sm font-medium text-foreground">{formatCurrency(stage.totalValue)}</span>
-                    </div>
-                  </div>
-                  <div className="w-full bg-muted rounded-full h-2">
-                    <div
-                      className="h-2 rounded-full transition-all duration-500"
-                      style={{ width: `${(stage.totalValue / maxStageValue) * 100}%`, backgroundColor: stage.color }}
-                    />
-                  </div>
+        {/* Overview Tab */}
+        <TabsContent value="overview">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Contacts by Status */}
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-foreground">Contactos por Estado</CardTitle>
+                  <Link href="/crm/contacts" className="text-sm text-primary hover:underline flex items-center gap-1">
+                    Ver todos <ArrowRight className="h-3 w-3" />
+                  </Link>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {Object.entries(statusLabels).map(([key, label]) => {
+                    const count = stats.contactsByStatus[key] || 0;
+                    const percentage = Math.round((count / totalStatusCount) * 100);
+                    return (
+                      <div key={key}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm text-foreground">{label}</span>
+                          <span className="text-sm font-medium text-foreground">{count} ({percentage}%)</span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-2.5">
+                          <div
+                            className="h-2.5 rounded-full bg-primary transition-all duration-500"
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
 
+            {/* Pipeline Stages */}
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-foreground">Pipeline por Etapas</CardTitle>
+                  <Link href="/crm/pipeline" className="text-sm text-primary hover:underline flex items-center gap-1">
+                    Ver pipeline <ArrowRight className="h-3 w-3" />
+                  </Link>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {stats.pipelineStages.map((stage) => (
+                    <div key={stage.id}>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: stage.color }} />
+                          <span className="text-sm text-foreground">{stage.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">{stage.dealCount} deals</span>
+                          <span className="text-sm font-medium text-foreground">{formatCurrency(stage.totalValue)}</span>
+                        </div>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div
+                          className="h-2 rounded-full transition-all duration-500"
+                          style={{ width: `${(stage.totalValue / maxStageValue) * 100}%`, backgroundColor: stage.color }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Funnel Tab */}
+        <TabsContent value="funnel">
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="text-foreground">Funnel de Conversión</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <FunnelChart stages={enrichedStages} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Forecast Tab */}
+        <TabsContent value="forecast">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="text-foreground">Revenue Forecast</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <RevenueForecast stages={enrichedStages} />
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="text-foreground">Deals más Valiosos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {topDeals.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">Sin deals</p>
+                ) : (
+                  <div className="space-y-3">
+                    {topDeals.map((deal, idx) => (
+                      <Link key={deal.id} href={`/crm/deals/${deal.id}`}>
+                        <div className="flex items-center gap-3 p-2 rounded-md hover:bg-accent transition-colors">
+                          <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold flex-shrink-0">
+                            {idx + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{deal.title}</p>
+                            <p className="text-xs text-muted-foreground">{deal.contact.name} · {deal.stage.name}</p>
+                          </div>
+                          <span className="text-sm font-semibold text-foreground flex-shrink-0">
+                            {formatCurrency(deal.value)}
+                          </span>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* Bottom Section: Recent Contacts + Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Contacts */}
         <Card className="bg-card border-border">
@@ -267,20 +359,20 @@ export default function CrmDashboardPage() {
             ) : (
               <div className="space-y-3">
                 {stats.recentContacts.map((contact) => (
-                  <div key={contact.id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-medium flex-shrink-0">
-                        {contact.name[0].toUpperCase()}
+                  <Link key={contact.id} href={`/crm/contacts/${contact.id}`}>
+                    <div className="flex items-center justify-between p-1 rounded-md hover:bg-accent transition-colors">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-medium flex-shrink-0">
+                          {contact.name[0].toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{contact.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{contact.email || contact.company || "—"}</p>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{contact.name}</p>
-                        <p className="text-xs text-muted-foreground truncate">{contact.email || contact.company || "—"}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
                       <Badge className={statusColors[contact.status]}>{statusLabels[contact.status]}</Badge>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}

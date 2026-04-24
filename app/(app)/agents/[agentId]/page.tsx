@@ -246,6 +246,7 @@ export default function AgentChatPage() {
         body: JSON.stringify({
           agentId,
           message: prefixedMessage,
+          projectId: selectedClient?.id || null,
           history: messages.slice(-20).map((m) => ({ role: m.role, content: m.content })),
         }),
       });

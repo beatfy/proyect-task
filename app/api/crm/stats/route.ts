@@ -99,14 +99,28 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Recent activities
+    // Recent activities (10 for dashboard)
     const recentActivities = await prisma.activity.findMany({
       where: {}, // Activities don't have organizationId filter at this level
-      take: 5,
+      take: 10,
       orderBy: { createdAt: "desc" },
       include: {
         contact: { select: { name: true } },
       },
+    });
+
+    // Top deals by value
+    const topDeals = await prisma.deal.findMany({
+      where: {
+        stageId: { notIn: closedStageIds },
+        ...(organizationId ? { organizationId } : {}),
+      },
+      include: {
+        contact: { select: { name: true } },
+        stage: { select: { name: true, color: true } },
+      },
+      orderBy: { value: "desc" },
+      take: 10,
     });
 
     return NextResponse.json({
@@ -120,6 +134,7 @@ export async function GET(request: NextRequest) {
       recentContacts,
       recentDeals,
       recentActivities,
+      topDeals,
     });
   } catch (error) {
     console.error("CRM dashboard stats error:", error);
