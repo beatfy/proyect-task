@@ -49,6 +49,20 @@ interface Deal {
   movedAt: string;
 }
 
+interface PipelineStage {
+  id: string;
+  name: string;
+  color: string;
+  position: number;
+  _count: { deals: number };
+}
+
+interface Pipeline {
+  id: string;
+  name: string;
+  stages: PipelineStage[];
+}
+
 interface Activity {
   id: string;
   type: string;
@@ -132,6 +146,8 @@ export default function ContactDetailPage() {
   const [activityForm, setActivityForm] = useState(emptyActivityForm);
   const [saving, setSaving] = useState(false);
   const [deleteActivityId, setDeleteActivityId] = useState<string | null>(null);
+  const [pipelines, setPipelines] = useState<Pipeline[]>([]);
+  const [stageLoading, setStageLoading] = useState(false);
 
   const fetchContact = useCallback(async () => {
     try {
@@ -151,6 +167,10 @@ export default function ContactDetailPage() {
 
   useEffect(() => {
     fetchContact();
+    fetch("/api/crm/pipelines")
+      .then((res) => res.ok ? res.json() : [])
+      .then(setPipelines)
+      .catch(() => {});
   }, [fetchContact]);
 
   const handleQuickAction = (type: string) => {
@@ -220,6 +240,48 @@ export default function ContactDetailPage() {
       console.error("Error deleting activity:", error);
     }
   };
+
+  const handleStageChange = async (stageId: string) => {
+    if (!stageId || !contact) return;
+    setStageLoading(true);
+    try {
+      const existingDeal = contact.deals.length > 0 ? contact.deals[0] : null;
+      if (existingDeal) {
+        await fetch("/api/crm/deals", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: existingDeal.id, stageId }),
+        });
+      } else {
+        const stage = pipelines
+          .flatMap((p) => p.stages)
+          .find((s) => s.id === stageId);
+        const pipelineId = stage
+          ? pipelines.find((p) => p.stages.some((s) => s.id === stageId))?.id
+          : pipelines[0]?.id;
+        if (!pipelineId) return;
+        await fetch("/api/crm/deals", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: `Deal - ${contact.name}`,
+            contactId,
+            stageId,
+            pipelineId,
+          }),
+        });
+      }
+      fetchContact();
+    } catch (error) {
+      console.error("Error updating stage:", error);
+    } finally {
+      setStageLoading(false);
+    }
+  };
+
+  const currentDeal = contact?.deals?.[0] ?? null;
+  const allStages = pipelines.flatMap((p) => p.stages).sort((a, b) => a.position - b.position);
+  const currentStageId = currentDeal?.stage?.id ?? "";
 
   if (loading) {
     return (
@@ -296,6 +358,59 @@ export default function ContactDetailPage() {
         {/* Overview Tab */}
         <TabsContent value="overview">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Pipeline Stage Selector */}
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="text-base">Pipeline</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {allStages.length > 0 ? (
+                  <>
+                    <div className="flex items-center gap-2 text-sm">
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Etapa del Pipeline</span>
+                    </div>
+                    <Select value={currentStageId} onValueChange={handleStageChange} disabled={stageLoading}>
+                      <SelectTrigger className="w-full">
+                        {stageLoading ? (
+                          <span className="flex items-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin" /> Actualizando…
+                          </span>
+                        ) : currentDeal ? (
+                          <span className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: currentDeal.stage.color }} />
+                            {currentDeal.stage.name}
+                          </span>
+                        ) : (
+                          <SelectValue placeholder="Seleccionar etapa…" />
+                        )}
+                      </SelectTrigger>
+                      <SelectContent>
+                        {allStages.map((stage) => (
+                          <SelectItem key={stage.id} value={stage.id}>
+                            <span className="flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: stage.color }} />
+                              {stage.name}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {currentDeal && (
+                      <p className="text-xs text-muted-foreground">
+                        Deal: <span className="text-foreground font-medium">{currentDeal.title}</span>
+                        {currentDeal.value > 0 && (
+                          <> · {formatCurrency(currentDeal.value)}</>
+                        )}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No hay pipelines configurados</p>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Contact Info */}
             <Card className="bg-card border-border">
               <CardHeader>

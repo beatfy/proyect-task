@@ -249,7 +249,7 @@ export default function PipelinePage() {
   };
 
   const getStageTotal = (stage: Stage) => {
-    return stage.deals.reduce((sum, d) => sum + d.value, 0);
+    return (stage.deals || []).reduce((sum, d) => sum + d.value, 0);
   };
 
   if (loading) {
@@ -292,7 +292,7 @@ export default function PipelinePage() {
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: stage.color }} />
                     <span className="font-medium text-foreground text-sm">{stage.name}</span>
-                    <Badge variant="secondary" className="text-xs">{stage.deals.length}</Badge>
+                    <Badge variant="secondary" className="text-xs">{(stage.deals || []).length}</Badge>
                   </div>
                   <div className="flex items-center gap-1">
                     <span className="text-xs text-muted-foreground">{formatCurrency(getStageTotal(stage))}</span>
@@ -312,7 +312,7 @@ export default function PipelinePage() {
                       snapshot.isDraggingOver ? "bg-primary/5 border-primary/30" : ""
                     }`}
                   >
-                    {stage.deals.map((deal, index) => (
+                    {stage.deals?.map((deal, index) => (
                       <Draggable key={deal.id} draggableId={deal.id} index={index}>
                         {(provided, snapshot) => (
                           <div
@@ -366,7 +366,7 @@ export default function PipelinePage() {
                       </Draggable>
                     ))}
                     {provided.placeholder}
-                    {stage.deals.length === 0 && !snapshot.isDraggingOver && (
+                    {stage.deals?.length === 0 && !snapshot.isDraggingOver && (
                       <div className="text-center py-8 text-muted-foreground text-xs">
                         Arrastra deals aquí
                       </div>
