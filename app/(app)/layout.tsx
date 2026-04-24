@@ -6,7 +6,7 @@ import {
   Home, FolderOpen, CheckSquare, Calendar, Settings, LogOut,
   ChevronLeft, ChevronRight, Mail, Sun, Moon, Building2, FileText,
   Menu, Receipt, Bot, ChevronDown, MessageCircle, Megaphone,
-  BarChart3, Search, Palette
+  BarChart3, Search, Palette, Users, Kanban
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -52,18 +52,19 @@ const sections = [
       { name: "Calendario", href: "/calendar", icon: Calendar },
       { name: "Archivos", href: "/files", icon: FileText },
       { name: "Mail", href: "/mail", icon: Mail },
-      { name: "Templates", href: "/templates", icon: FileText },
-    ],
-  },
-  {
-    label: "Negocio",
-    items: [
-      { name: "Facturación", href: "/billing", icon: Receipt },
     ],
   },
   {
     label: "Agentes",
     items: agentItems,
+  },
+  {
+    label: "Negocio",
+    items: [
+      { name: "CRM", href: "/crm", icon: Users },
+      { name: "Pipeline", href: "/crm/pipeline", icon: Kanban },
+      { name: "Facturación", href: "/billing", icon: Receipt },
+    ],
   },
 ];
 
