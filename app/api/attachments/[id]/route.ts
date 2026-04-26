@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateRequest } from "@/lib/api-auth";
-import { get } from "@vercel/blob";
+import { readFile } from "fs/promises";
+import { join } from "path";
+import { existsSync } from "fs";
 
-// GET /api/attachments/[id] — stream a private attachment (verifies auth)
+const UPLOAD_DIR = join(process.cwd(), "uploads", "task-attachments");
+
+// GET /api/attachments/[id] — stream a local attachment (verifies auth)
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -27,33 +31,40 @@ export async function GET(
       );
     }
 
-    // Fetch the private blob via SDK
-    const result = await get(attachment.url, { access: "private" });
+    // Try local file first
+    // URL format: /api/attachments/{taskId}/{uniqueName}
+    const urlMatch = attachment.url.match(/\/api\/attachments\/(.+)/);
+    if (urlMatch) {
+      const localPath = join(UPLOAD_DIR, urlMatch[1]);
+      if (existsSync(localPath)) {
+        const fileBuffer = await readFile(localPath);
+        const ext = attachment.name.split('.').pop()?.toLowerCase();
+        const mimeMap: Record<string, string> = {
+          jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+          gif: 'image/gif', webp: 'image/webp', pdf: 'application/pdf',
+          txt: 'text/plain',
+        };
+        const contentType = mimeMap[ext || ''] || 'application/octet-stream';
 
-    if (!result || !result.stream) {
-      return NextResponse.json(
-        { error: "No se pudo obtener el archivo" },
-        { status: 500 }
-      );
+        const headers = new Headers();
+        headers.set("Content-Type", contentType);
+        headers.set("Content-Disposition", `inline; filename="${encodeURIComponent(attachment.name)}"`);
+        headers.set("Content-Length", String(fileBuffer.length));
+        headers.set("Cache-Control", "private, max-age=300");
+
+        return new NextResponse(fileBuffer, { status: 200, headers });
+      }
     }
 
-    // Stream the blob content back to the client
-    const headers = new Headers();
-    headers.set(
-      "Content-Type",
-      result.blob.contentType || "application/octet-stream"
-    );
-    headers.set(
-      "Content-Disposition",
-      `inline; filename="${encodeURIComponent(attachment.name)}"`
-    );
-    if (result.blob.size) {
-      headers.set("Content-Length", String(result.blob.size));
+    // Fallback: if URL looks like a remote/blob URL, return it as redirect
+    if (attachment.url.startsWith('http')) {
+      return NextResponse.json({ url: attachment.url, name: attachment.name }, { status: 200 });
     }
-    // Cache briefly to avoid hammering Vercel Blob on repeated views
-    headers.set("Cache-Control", "private, max-age=300");
 
-    return new NextResponse(result.stream, { status: 200, headers });
+    return NextResponse.json(
+      { error: "No se pudo obtener el archivo" },
+      { status: 500 }
+    );
   } catch (error) {
     console.error("Attachment download error:", error);
     return NextResponse.json(

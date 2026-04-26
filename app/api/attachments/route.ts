@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateRequest } from "@/lib/api-auth";
-import { put, del } from "@vercel/blob";
 import { cuid } from "@/lib/utils";
+import { writeFile, mkdir, unlink } from "fs/promises";
+import { join } from "path";
+
+const UPLOAD_DIR = join(process.cwd(), "uploads", "task-attachments");
 
 const ALLOWED_MIME_TYPES = [
   "image/jpeg",
@@ -144,23 +147,24 @@ export async function POST(request: NextRequest) {
     const ext = safeName.split(".").pop() || "bin";
     const uniqueName = `${timestamp}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-    // Upload to Vercel Blob (private)
-    const key = `task-attachments/${taskId}/${uniqueName}`;
-    const blob = await put(key, file, {
-      access: "private",
-    });
+    // Save to local filesystem
+    const dirPath = join(UPLOAD_DIR, taskId);
+    await mkdir(dirPath, { recursive: true });
+    const filePath = join(dirPath, uniqueName);
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    await writeFile(filePath, bytes);
 
     // Determine type
     let type = "document";
     if (mimeType.startsWith("image/")) type = "image";
     else if (mimeType.includes("pdf")) type = "pdf";
 
-    // Save to database with Blob URL
+    // Save to database with local URL
     const attachment = await prisma.attachment.create({
       data: {
         id: cuid(),
         name: safeName,
-        url: blob.url,
+        url: `/api/attachments/${taskId}/${uniqueName}`,
         type,
         size: file.size,
         taskId,
@@ -214,11 +218,16 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Delete from Vercel Blob
+    // Delete from local filesystem
     try {
-      await del(attachment.url);
-    } catch (blobError) {
-      console.error("Blob delete failed (continuing with DB delete):", blobError);
+      // Extract relative path from URL like /api/attachments/{taskId}/{filename}
+      const urlParts = attachment.url.split("/api/attachments/");
+      if (urlParts[1]) {
+        const localPath = join(UPLOAD_DIR, urlParts[1]);
+        await unlink(localPath).catch(() => {});
+      }
+    } catch (fsError) {
+      console.error("File delete failed (continuing with DB delete):", fsError);
     }
 
     // Delete from database

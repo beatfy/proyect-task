@@ -44,3 +44,4 @@ next-env.d.ts
 # build trigger 1774601156
 .env.check
 generated/
+.next.bak/

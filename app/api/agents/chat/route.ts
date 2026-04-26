@@ -71,13 +71,18 @@ export async function POST(req: NextRequest) {
         temperature: 0.7,
         max_tokens: 2000
       }),
-      signal: AbortSignal.timeout(60000)
+      signal: AbortSignal.timeout(120000) // 2 minutes timeout for agent response
     });
 
     if (!gatewayRes.ok) {
       const errText = await gatewayRes.text().catch(() => "Error gateway");
       console.error(`Gateway error [${gatewayRes.status}]:`, errText);
-      return NextResponse.json({ error: "Error al conectar con el gateway" }, { status: 502 });
+      const errorMsg = gatewayRes.status === 429 
+        ? "El agente está ocupado. Intenta de nuevo en unos segundos."
+        : gatewayRes.status === 503 
+        ? "El agente no está disponible temporalmente."
+        : "Error al conectar con el agente.";
+      return NextResponse.json({ error: errorMsg }, { status: 502 });
     }
 
     const gatewayData = await gatewayRes.json();
