@@ -24,6 +24,13 @@ export async function GET(request: NextRequest) {
           orderBy: { position: "asc" },
           include: {
             _count: { select: { deals: true } },
+            deals: {
+              orderBy: { movedAt: "desc" },
+              include: {
+                contact: { select: { id: true, name: true, email: true, company: true } },
+                _count: { select: { activities: true } },
+              },
+            },
           },
         },
         _count: { select: { deals: true, contacts: true } },
