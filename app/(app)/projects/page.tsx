@@ -76,10 +76,10 @@ export default function ProjectsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
 
   const fetchProjects = useCallback(async () => {
-    if (!selectedOrg || selectedOrg === "all") { setProjects([]); setLoading(false); return; }
     setLoading(true);
     try {
-      const params = new URLSearchParams({ organizationId: selectedOrg });
+      const params = new URLSearchParams();
+      if (selectedOrg && selectedOrg !== "all") params.set("organizationId", selectedOrg);
       if (filterLabel !== "all") params.set("labelId", filterLabel);
       const response = await fetch(`/api/projects?${params}`);
       if (response.ok) {

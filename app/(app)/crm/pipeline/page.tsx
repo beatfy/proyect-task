@@ -263,7 +263,11 @@ export default function PipelinePage() {
   if (!pipeline) {
     return (
       <div className="text-center py-16">
-        <p className="text-muted-foreground">No se encontró pipeline. Crea uno primero.</p>
+        <p className="text-muted-foreground mb-4">No se encontró pipeline para esta organización.</p>
+        <Button onClick={() => setDialogOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Crear primer deal
+        </Button>
       </div>
     );
   }
