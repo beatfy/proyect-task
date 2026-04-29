@@ -28,10 +28,60 @@ export async function POST(req: NextRequest) {
       try {
         const project = await prisma.project.findUnique({
           where: { id: projectId },
-          select: { id: true, name: true, description: true },
+          select: { id: true, name: true, description: true, clientContext: true },
         });
+
         if (project) {
-          clientContext = `\n\n---\n[SISTEMA] El usuario te habla sobre su cliente "${project.name}"${project.description ? ` (${project.description})` : ""}. IMPORTANTE: Busca en tu memoria (search.py Qdrant) toda la info de este cliente. Responde SOBRE EL CLIENTE, no sobre ti mismo. No menciones tu configuración interna ni archivos del sistema.]`;
+          // Fetch task counts by status
+          const taskCountByStatus = await prisma.task.groupBy({
+            by: ["status"],
+            where: { projectId },
+            _count: { id: true },
+          });
+
+          const statusCounts = Object.fromEntries(
+            taskCountByStatus.map((t) => [t.status, t._count.id])
+          );
+          const todoCount = statusCounts["TODO"] ?? 0;
+          const inProgressCount = statusCounts["IN_PROGRESS"] ?? 0;
+          const doneCount = statusCounts["DONE"] ?? 0;
+
+          // Last 5 completed tasks
+          const recentDoneTasks = await prisma.task.findMany({
+            where: { projectId, status: "DONE" },
+            orderBy: { updatedAt: "desc" },
+            take: 5,
+            select: { title: true },
+          });
+
+          // Recent chat messages for this project
+          const recentChatMessages = await prisma.chatMessage.findMany({
+            where: { projectId },
+            orderBy: { createdAt: "desc" },
+            take: 5,
+            select: { role: true, content: true },
+          });
+
+          // Recent comments on tasks in this project
+          const recentComments = await prisma.comment.findMany({
+            where: { task: { projectId } },
+            orderBy: { createdAt: "desc" },
+            take: 5,
+            select: { content: true },
+          });
+
+          let sysContext = `\n\n---\n[SISTEMA] Cliente: "${project.name}"
+- Descripcion: ${project.description || "Sin descripcion"}
+- Tareas: ${todoCount} pendientes, ${inProgressCount} en progreso, ${doneCount} completadas
+- Ultimas tareas completadas: ${recentDoneTasks.map((t) => t.title).join(", ") || "Ninguna"}
+- Notas recientes: ${recentComments.map((c) => c.content).slice(0, 3).join(" | ") || "Ninguna"}
+- Historial de chat: ${recentChatMessages.slice(0, 3).map((m) => `${m.role}: ${m.content.substring(0, 100)}`).join(" | ") || "Ninguno"}`;
+
+          if (project.clientContext) {
+            sysContext += `\n\n---\n[CONTEXTO DEL CLIENTE — USO ESTRICTO]\n${project.clientContext}\n[FIN CONTEXTO]`;
+          }
+
+          clientContext = sysContext;
         }
       } catch (dbErr) {
         console.error("DB lookup error:", dbErr);
@@ -41,7 +91,7 @@ export async function POST(req: NextRequest) {
     // Construir mensajes
     const messages: Array<{ role: string; content: string }> = [];
 
-    // Añadir historial (últimos 20 mensajes)
+    // Anadir historial (ultimos 20 mensajes)
     if (Array.isArray(history) && history.length > 0) {
       const contextMsg = history.slice(-20).map((m: { role: string; content: string }) => ({
         role: m.role === "user" ? "user" : "assistant",
@@ -50,7 +100,7 @@ export async function POST(req: NextRequest) {
       messages.push(...contextMsg);
     }
 
-    // Añadir mensaje actual con contexto del cliente
+    // Anadir mensaje actual con contexto del cliente
     const finalMessage = clientContext
       ? `${message}${clientContext}`
       : message;
@@ -59,28 +109,55 @@ export async function POST(req: NextRequest) {
 
     const model = `openclaw/${agentId}`;
 
-    const gatewayRes = await fetch(`${gatewayUrl}/v1/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${authToken}`
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: 0.7,
-        max_tokens: 2000
-      }),
-      signal: AbortSignal.timeout(120000) // 2 minutes timeout for agent response
-    });
+    async function gatewayCallWithRetry(url: string, body: unknown, retries = 3, delayMs = 2000): Promise<Response> {
+      let lastErr: Error | null = null;
+      for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+          const res = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${authToken}`
+            },
+            body: JSON.stringify(body),
+            signal: AbortSignal.timeout(300000)
+          });
+          if (res.ok) return res;
+          if (res.status >= 500 && attempt < retries) {
+            console.warn(`Gateway returned ${res.status}, retrying (${attempt}/${retries})...`);
+            await new Promise(r => setTimeout(r, delayMs * attempt));
+            continue;
+          }
+          return res;
+        } catch (err) {
+          lastErr = err as Error;
+          if (attempt < retries) {
+            console.warn(`Gateway fetch error, retrying (${attempt}/${retries})...`, err);
+            await new Promise(r => setTimeout(r, delayMs * attempt));
+          }
+        }
+      }
+      throw lastErr || new Error("Gateway call failed after retries");
+    }
+
+    let gatewayRes: Response;
+    try {
+      gatewayRes = await gatewayCallWithRetry(
+        `${gatewayUrl}/v1/chat/completions`,
+        { model, messages, temperature: 0.7, max_tokens: 16000 }
+      );
+    } catch (err) {
+      console.error("Agent chat error after retries:", err);
+      return NextResponse.json({ error: "El agente no esta disponible. Intenta de nuevo en unos segundos." }, { status: 503 });
+    }
 
     if (!gatewayRes.ok) {
       const errText = await gatewayRes.text().catch(() => "Error gateway");
       console.error(`Gateway error [${gatewayRes.status}]:`, errText);
-      const errorMsg = gatewayRes.status === 429 
-        ? "El agente está ocupado. Intenta de nuevo en unos segundos."
-        : gatewayRes.status === 503 
-        ? "El agente no está disponible temporalmente."
+      const errorMsg = gatewayRes.status === 429
+        ? "El agente esta ocupado. Intenta de nuevo en unos segundos."
+        : gatewayRes.status === 503
+        ? "El agente no esta disponible temporalmente."
         : "Error al conectar con el agente.";
       return NextResponse.json({ error: errorMsg }, { status: 502 });
     }

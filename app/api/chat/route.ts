@@ -549,11 +549,11 @@ async function buildSystemPrompt(
   orgId?: string,
   taskList?: string,
   memberList?: string,
-  knowledgeBase?: string
+  knowledgeBase?: string,
+  clientContext?: string
 ): Promise<string> {
   const currentDate = new Date().toISOString().split("T")[0];
   return `Eres Ledy, el asistente de IA de Leadfy. Ayudas a gestionar proyectos, tareas y equipos de forma directa y eficiente.
-
 ## Identidad
 - Nombre: Ledy
 - Hablas en el idioma del usuario (detecta y adapta)
@@ -566,6 +566,13 @@ async function buildSystemPrompt(
 - Usuario: ${userName} (ID: ${userId})
 - Fecha actual: ${currentDate}
 
+## Aislamiento de clientes — REGLAS CRÍTICAS (INFRACCIONES GRAVES)
+- SOLO puedes trabajar con datos del proyecto activo y su cliente asociado.
+- JAMÁS menciones, reveles o proceses información de otros clientes, proyectos u organizaciones.
+- Si el usuario pregunta sobre un cliente, solo puedes usar los datos del proyecto activo. No tienes acceso a datos de otros proyectos aunque existan en el sistema.
+- Si no hay contexto del cliente cargado en el proyecto activo, avisa al usuario y no inventes información.
+- NUNCA describas, listes, resumas o uses datos de clientes que no sean el del proyecto activo.
+- El contexto del cliente (clientContext) es información confidencial del proyecto activo: úsala solo para responder sobre ese cliente específico.
 ## Reglas
 - Ante un mensaje ambiguo, interpreta la intención más probable y actúa.
 - Para crear tareas: si no se especifica prioridad, usa NONE. Si no se especifica estado, usa TODO.
@@ -587,7 +594,9 @@ ${taskList || "Sin proyecto activo."}
 ${memberList || "Sin proyecto activo."}
 
 ${knowledgeBase ? `## Base de conocimiento de la organización
-${knowledgeBase}` : ""}`;
+${knowledgeBase}` : ""}
+${clientContext ? `## Contexto del cliente (${projectName})
+${clientContext}` : ""}`;
 }
 
 // ---- GET: chat history ----
@@ -691,6 +700,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Fetch client context (per-project branding/docs — strict isolation)
+    let clientContext: string | undefined;
+    if (projectId) {
+      const proj = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: { name: true, clientContext: true },
+      });
+      if (proj?.clientContext) {
+        clientContext = proj.clientContext;
+      }
+    }
+
     const systemPrompt = await buildSystemPrompt(
       user?.name || "Usuario",
       authResult.userId,
@@ -700,7 +721,8 @@ export async function POST(request: NextRequest) {
       organizationId,
       taskList,
       memberList,
-      knowledgeBase
+      knowledgeBase,
+      clientContext
     );
 
     // Build messages for OpenAI

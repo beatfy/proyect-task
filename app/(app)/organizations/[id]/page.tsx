@@ -294,14 +294,13 @@ export default function OrganizationDetailPage() {
       if (res.ok) {
         const data = await res.json();
         if (data.pendingInvite) {
-          toast.success(data.message);
+          toast.success(data.message || `Invitación enviada a ${inviteEmail}`);
           if (data.inviteUrl) {
-            // No email service — show link to copy
             try {
               await navigator.clipboard.writeText(data.inviteUrl);
-              toast.success("Enlace de invitación copiado al portapapeles");
+              toast.success("Enlace copiado al portapapeles");
             } catch {
-              prompt("Comparte este enlace:", data.inviteUrl);
+              prompt("Copia este enlace de invitación:", data.inviteUrl);
             }
           }
         } else {

@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Plus, Users, Trash2, MoreHorizontal, Pencil, Calendar, User, Loader2, Link2, Copy, Check, Mail, ChevronDown, X, Download, Clock, Tag, Upload, Paperclip } from "lucide-react";
+import { Plus, Users, Trash2, MoreHorizontal, Pencil, Calendar, User, Loader2, Link2, Copy, Check, Mail, ChevronDown, X, Download, Clock, Tag, Upload, Paperclip, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -38,6 +38,7 @@ interface Project {
   name: string;
   description: string | null;
   color: string;
+  clientContext?: string | null;
 }
 
 interface Member {
@@ -403,6 +404,33 @@ export default function ProjectDetailPage() {
   const [copied, setCopied] = useState(false);
   const [inviteLinks, setInviteLinks] = useState<{ token: string; url: string; expiresAt: string | null; maxUses: number | null; uses: number; role: string }[]>([]);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [contextOpen, setContextOpen] = useState(false);
+  const [contextText, setContextText] = useState("");
+
+  const openContextEditor = () => {
+    setContextText(project?.clientContext || "");
+    setContextOpen(true);
+  };
+
+  const saveContext = async () => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientContext: contextText }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setProject(updated);
+        setContextOpen(false);
+        toast.success("Contexto guardado");
+      } else {
+        toast.error("Error al guardar contexto");
+      }
+    } catch {
+      toast.error("Error de conexión");
+    }
+  };
 
   useEffect(() => {
     fetchProject();
@@ -682,6 +710,9 @@ export default function ProjectDetailPage() {
           <Button variant="outline" size="sm" onClick={() => setMemberOpen(true)}>
             <Users className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Miembros</span>
           </Button>
+          <Button variant="outline" size="sm" onClick={openContextEditor}>
+            <FileText className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Contexto</span>
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
@@ -740,6 +771,30 @@ export default function ProjectDetailPage() {
         handleDeleteTask={handleDeleteTask}
         projectId={projectId}
       />
+
+      {/* Context Editor Dialog */}
+      <Dialog open={contextOpen} onOpenChange={setContextOpen}>
+        <DialogContent className="bg-card border-border max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle className="text-foreground">Contexto del proyecto</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Este texto se incluirá en el sistema prompt de los agentes de IA para que conozcan el branding y documentación del cliente.
+            </p>
+            <textarea
+              value={contextText}
+              onChange={(e) => setContextText(e.target.value)}
+              placeholder="Escribe aquí el contexto, branding, instrucciones y documentación del cliente..."
+              className="w-full h-80 p-3 rounded-md border border-border bg-background text-foreground text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-3 border-t border-border flex-shrink-0">
+            <Button variant="outline" onClick={() => setContextOpen(false)}>Cancelar</Button>
+            <Button onClick={saveContext}>Guardar contexto</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Task Detail Dialog - Jira Style */}
       <Dialog open={detailOpen} onOpenChange={(v) => { setDetailOpen(v); if (!v) { setDetailTask(null); setDetailAttachments([]); } }}>

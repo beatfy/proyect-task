@@ -1,0 +1,27 @@
+Error: listen EADDRINUSE: address already in use :::3333
+    at <unknown> (Error: listen EADDRINUSE: address already in use :::3333)
+    at <unknown> (server.js:25:6) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '::',
+  port: 3333
+}
+ ⨯ uncaughtException: Error: listen EADDRINUSE: address already in use :::3333
+    at <unknown> (Error: listen EADDRINUSE: address already in use :::3333)
+    at <unknown> (server.js:25:6) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '::',
+  port: 3333
+}
+ ⨯ uncaughtException:  Error: listen EADDRINUSE: address already in use :::3333
+    at <unknown> (Error: listen EADDRINUSE: address already in use :::3333)
+    at <unknown> (server.js:25:6) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '::',
+  port: 3333
+}

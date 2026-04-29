@@ -8,6 +8,20 @@ const app = next({ dev })
 const handle = app.getRequestHandler()
 const port = process.env.PORT || 3000
 
+// Global error handlers — catch unhandled errors that slip through
+process.on('uncaughtException', (err) => {
+  const msg = `[${new Date().toISOString()}] [FATAL] UncaughtException: ${err.message}\n${err.stack}\n---\n`;
+  require('fs').appendFileSync('/home/ele/taskx2/error.log', msg);
+  console.error('UncaughtException:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  const msg = `[${new Date().toISOString()}] [FATAL] UnhandledRejection: ${reason}\n---\n`;
+  require('fs').appendFileSync('/home/ele/taskx2/error.log', msg);
+  console.error('UnhandledRejection:', reason);
+});
+
 app.prepare().then(() => {
   if (!dev) {
     try {
