@@ -11,6 +11,7 @@ const activityCreateSchema = z.object({
   dueDate: z.string().optional(),
   contactId: z.string().min(1),
   dealId: z.string().optional(),
+  organizationId: z.string().optional(),
 });
 
 const activityUpdateSchema = z.object({
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: parsed.error.issues.map(i => i.message).join(", ") }, { status: 400 });
     }
 
-    const { type, title, description, dueDate, contactId, dealId } = parsed.data;
+    const { type, title, description, dueDate, contactId, dealId, organizationId } = parsed.data;
 
     const activity = await prisma.activity.create({
       data: {
@@ -80,6 +81,7 @@ export async function POST(request: NextRequest) {
         contactId,
         dealId: dealId || null,
         ownerId: authResult.userId,
+        organizationId: organizationId || null,
       },
       include: {
         contact: { select: { id: true, name: true } },

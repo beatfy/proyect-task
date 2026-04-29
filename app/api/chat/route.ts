@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/api-auth";
+import { aiRateLimit } from "@/lib/ai-rate-limit";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { notifyTaskWebhook } from "@/lib/webhook";
@@ -630,6 +631,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    const rateCheck = await aiRateLimit(authResult.userId);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: "Has alcanzado el límite de mensajes. Espera un momento.", remaining: rateCheck.remaining },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const { message, projectId, organizationId, history } = body as {
       message: string;
@@ -739,7 +748,7 @@ export async function POST(request: NextRequest) {
     messages.push({ role: "user", content: message });
 
     // Save user message
-    await prisma.chatMessage.create({ data: { userId: authResult.userId, projectId: projectId || null, role: "user", content: message } });
+    await prisma.chatMessage.create({ data: { userId: authResult.userId, projectId: projectId || null, role: "user", content: message, organizationId: organizationId || null } });
 
     const startTime = Date.now();
 
@@ -785,7 +794,7 @@ export async function POST(request: NextRequest) {
     // If no tool calls, return directly
     if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
       const reply = assistantMessage.content || "";
-      await prisma.chatMessage.create({ data: { userId: authResult.userId, projectId: projectId || null, role: "assistant", content: reply } });
+      await prisma.chatMessage.create({ data: { userId: authResult.userId, projectId: projectId || null, role: "assistant", content: reply, organizationId: organizationId || null } });
       // Track usage
       const duration = Date.now() - startTime;
       await prisma.taskyUsage.create({
@@ -863,7 +872,7 @@ export async function POST(request: NextRequest) {
     const secondData = await secondResponse.json();
     const finalReply = secondData.choices[0]?.message?.content || "Acción completada.";
 
-    await prisma.chatMessage.create({ data: { userId: authResult.userId, projectId: projectId || null, role: "assistant", content: finalReply } });
+    await prisma.chatMessage.create({ data: { userId: authResult.userId, projectId: projectId || null, role: "assistant", content: finalReply, organizationId: organizationId || null } });
 
     // Track usage
     const duration = Date.now() - startTime;

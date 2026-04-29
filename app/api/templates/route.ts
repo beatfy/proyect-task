@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, title, description, status, priority, tags } = body;
+    const { name, title, description, status, priority, tags, organizationId } = body;
 
     if (!name || !title) {
       return NextResponse.json(
@@ -95,6 +95,7 @@ export async function POST(request: NextRequest) {
         priority: priority || "NONE",
         tags: tags || null,
         isDefault: false,
+        organizationId: organizationId || null,
       },
     });
 

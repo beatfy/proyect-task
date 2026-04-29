@@ -110,15 +110,6 @@ export async function POST(request: NextRequest) {
       ];
     }
 
-    // Auto-add Scytale as ADMIN to every new project (if user exists and not already in members)
-    const scytaleId = "scytale-admin-beatfy";
-    if (authResult.userId !== scytaleId && !membersCreate.some(m => m.userId === scytaleId)) {
-      const scytaleUser = await prisma.user.findUnique({ where: { id: scytaleId }, select: { id: true } });
-      if (scytaleUser) {
-        membersCreate.push({ id: cuid(), userId: scytaleId, role: "ADMIN" });
-      }
-    }
-
     const project = await prisma.project.create({
       data: {
         id: projectId,

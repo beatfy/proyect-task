@@ -222,15 +222,17 @@ model TimeEntry {
 // ========== TASK TEMPLATES ==========
 
 model TaskTemplate {
-  id          String   @id
-  name        String
-  title       String
-  description String?
-  status      String   @default("TODO")
-  priority    String   @default("NONE")
-  tags        Json?
-  isDefault   Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  id             String        @id
+  name           String
+  title          String
+  description    String?
+  status         String        @default("TODO")
+  priority       String        @default("NONE")
+  tags           Json?
+  isDefault      Boolean       @default(false)
+  createdAt      DateTime      @default(now())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
 // ========== ORGANIZACIONES ==========
@@ -243,11 +245,15 @@ model Organization {
   logo        String?
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
-  members      OrganizationMember[]
-  projects     Project[]
-  invitations  Invitation[]
-  labels       Label[]
+  members       OrganizationMember[]
+  projects      Project[]
+  invitations   Invitation[]
+  labels        Label[]
   knowledgeBase KnowledgeBase?
+  pipelines     Pipeline[]
+  activities    Activity[]
+  taskTemplates TaskTemplate[]
+  chatMessages  ChatMessage[]
 }
 
 model OrganizationMember {
@@ -269,6 +275,7 @@ model OrganizationMember {
 model ApiKey {
   id          String    @id @default(cuid())
   key         String    @unique
+  keyPrefix   String
   name        String
   userId      String
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -306,12 +313,14 @@ model Invoice {
 }
 
 model ChatMessage {
-  id        String   @id @default(cuid())
-  userId    String
-  projectId String?
-  role      String   // "user" | "assistant" | "system"
-  content   String
-  createdAt DateTime @default(now())
+  id             String        @id @default(cuid())
+  userId         String
+  projectId      String?
+  role           String        // "user" | "assistant" | "system"
+  content        String
+  createdAt      DateTime      @default(now())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
 model RateLimit {
@@ -387,14 +396,16 @@ model Contact {
 }
 
 model Pipeline {
-  id        String          @id @default(cuid())
-  name      String          @default("Ventas")
-  isDefault Boolean         @default(true)
-  stages    PipelineStage[]
-  deals     Deal[]
-  contacts  Contact[]
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+  id             String          @id @default(cuid())
+  name           String          @default("Ventas")
+  isDefault      Boolean         @default(true)
+  stages         PipelineStage[]
+  deals          Deal[]
+  contacts       Contact[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  organizationId String?
+  organization   Organization?   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
 model PipelineStage {
@@ -432,20 +443,22 @@ model Deal {
 }
 
 model Activity {
-  id          String    @id @default(cuid())
-  type        String
-  title       String
-  description String?
-  dueDate     DateTime?
-  completed   Boolean   @default(false)
-  completedAt DateTime?
-  contactId   String
-  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  dealId      String?
-  deal        Deal?     @relation(fields: [dealId], references: [id], onDelete: SetNull)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  ownerId     String?
+  id             String        @id @default(cuid())
+  type           String
+  title          String
+  description    String?
+  dueDate        DateTime?
+  completed      Boolean       @default(false)
+  completedAt    DateTime?
+  contactId      String
+  contact        Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  dealId         String?
+  deal           Deal?         @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  ownerId        String?
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
 // ========== EMAIL / IMAP ==========

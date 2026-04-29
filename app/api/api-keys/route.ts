@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
 import crypto from "crypto";
+import bcrypt from "bcryptjs";
 
 export async function GET() {
   try {
@@ -40,11 +41,14 @@ export async function POST(request: NextRequest) {
 
     // Generate key with tx2_ prefix
     const rawKey = `tx2_${crypto.randomBytes(32).toString("hex")}`;
+    const hashedKey = await bcrypt.hash(rawKey, 10);
+    const keyPrefix = rawKey.substring(0, 8);
 
     const apiKey = await prisma.apiKey.create({
       data: {
         id: cuid(),
-        key: rawKey,
+        key: hashedKey,
+        keyPrefix,
         name,
         userId: session.user.id,
         permissions: permissions || "full",

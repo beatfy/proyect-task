@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import bcrypt from "bcryptjs";
 
 /**
  * Dual auth: API key (Bearer token) OR NextAuth session.
@@ -17,12 +18,13 @@ export async function authenticateRequest(request: NextRequest): Promise<{
 
     // Only match our prefixed keys
     if (token.startsWith("tx2_")) {
+      const keyPrefix = token.substring(0, 8);
       const apiKey = await prisma.apiKey.findFirst({
-        where: { key: token, active: true },
-        select: { id: true, userId: true, permissions: true },
+        where: { keyPrefix, active: true },
+        select: { id: true, userId: true, permissions: true, key: true },
       });
 
-      if (apiKey) {
+      if (apiKey && await bcrypt.compare(token, apiKey.key)) {
         // Update lastUsedAt (non-blocking)
         prisma.apiKey.update({
           where: { id: apiKey.id },

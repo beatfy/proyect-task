@@ -1,10 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { authenticateRequest } from "@/lib/api-auth";
+import { agentRateLimit } from "@/lib/ai-rate-limit";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
+    const authResult = await authenticateRequest(req);
+    if (!authResult) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const rateCheck = await agentRateLimit(authResult.userId);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: "Has alcanzado el límite de llamadas al agente. Espera un momento.", remaining: rateCheck.remaining },
+        { status: 429 }
+      );
+    }
+
     const { agentId, message, history, projectId } = await req.json();
 
     if (!agentId || typeof agentId !== "string") {

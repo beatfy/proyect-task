@@ -11,10 +11,14 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const pipelineId = searchParams.get("pipelineId");
+    const organizationId = searchParams.get("organizationId");
 
     const where: Record<string, unknown> = {};
     if (pipelineId) {
       where.id = pipelineId;
+    }
+    if (organizationId) {
+      where.organizationId = organizationId;
     }
 
     const pipelines = await prisma.pipeline.findMany({
