@@ -78,6 +78,12 @@ export default function InviteManager({ projectId, onClose }: Props) {
       }
 
       toast.success(`Invitación enviada a ${email}`);
+
+      // Mostrar link mágico para copiar
+      if (data.inviteUrl) {
+        setInviteLink(data.inviteUrl);
+      }
+
       setEmail("");
       if (onClose) onClose();
     } catch (err) {
