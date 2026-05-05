@@ -15,19 +15,25 @@ export async function GET(request: NextRequest) {
 
     const userOrgIds = await getUserOrgIds(authResult.userId);
 
-    const orgFilter: Record<string, unknown> = {};
+    let orgFilter: Record<string, unknown>;
     if (organizationId) {
       const { valid } = await verifyOrgMembership(authResult.userId, organizationId);
       if (!valid) {
         return NextResponse.json({ error: "No tienes acceso a esta organización" }, { status: 403 });
       }
-      orgFilter.organizationId = organizationId;
+      orgFilter = { organizationId };
     } else {
-      orgFilter.OR = [
-        { organizationId: { in: userOrgIds } },
-        { ownerId: authResult.userId, organizationId: null },
-      ];
+      orgFilter = {
+        OR: [
+          { organizationId: { in: userOrgIds } },
+          { ownerId: authResult.userId, organizationId: null },
+        ],
+      };
     }
+
+    const orgIdFilter: Record<string, unknown> = organizationId
+      ? { organizationId }
+      : { organizationId: { in: userOrgIds } };
 
     const contactsByStatus = await prisma.contact.groupBy({
       by: ["status"],
@@ -77,7 +83,7 @@ export async function GET(request: NextRequest) {
     });
 
     const stages = await prisma.pipelineStage.findMany({
-      where: { pipeline: orgFilter },
+      where: organizationId ? { pipeline: { organizationId } } : { pipeline: { organizationId: { in: userOrgIds } } },
       orderBy: { position: "asc" },
       include: {
         deals: {
