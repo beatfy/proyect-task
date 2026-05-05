@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
+import { getUserOrgIds, verifyOrgMembership } from "@/lib/tenant";
 import { z } from "zod";
 
 const dealCreateSchema = z.object({
@@ -39,12 +40,26 @@ export async function GET(request: NextRequest) {
     const contactId = searchParams.get("contactId");
     const organizationId = searchParams.get("organizationId");
 
+    const userOrgIds = await getUserOrgIds(authResult.userId);
+
     const where: Record<string, unknown> = {};
+
+    if (organizationId) {
+      const { valid } = await verifyOrgMembership(authResult.userId, organizationId);
+      if (!valid) {
+        return NextResponse.json({ error: "No tienes acceso a esta organización" }, { status: 403 });
+      }
+      where.organizationId = organizationId;
+    } else {
+      where.OR = [
+        { organizationId: { in: userOrgIds } },
+        { ownerId: authResult.userId, organizationId: null },
+      ];
+    }
 
     if (pipelineId) where.pipelineId = pipelineId;
     if (stageId) where.stageId = stageId;
     if (contactId) where.contactId = contactId;
-    if (organizationId) where.organizationId = organizationId;
 
     const deals = await prisma.deal.findMany({
       where,
@@ -77,6 +92,13 @@ export async function POST(request: NextRequest) {
     }
 
     const { title, value, stageId, contactId, pipelineId, probability, expectedClose, notes, organizationId } = parsed.data;
+
+    if (organizationId) {
+      const { valid } = await verifyOrgMembership(authResult.userId, organizationId);
+      if (!valid) {
+        return NextResponse.json({ error: "No tienes acceso a esta organización" }, { status: 403 });
+      }
+    }
 
     const deal = await prisma.deal.create({
       data: {
@@ -120,6 +142,21 @@ export async function PATCH(request: NextRequest) {
     }
 
     const { id, ...data } = parsed.data;
+
+    const existingDeal = await prisma.deal.findUnique({
+      where: { id },
+      select: { organizationId: true },
+    });
+    if (!existingDeal) {
+      return NextResponse.json({ error: "Deal no encontrado" }, { status: 404 });
+    }
+    if (existingDeal.organizationId) {
+      const { valid } = await verifyOrgMembership(authResult.userId, existingDeal.organizationId);
+      if (!valid) {
+        return NextResponse.json({ error: "No tienes acceso a este deal" }, { status: 403 });
+      }
+    }
+
     const updateData: Record<string, unknown> = {};
 
     if (data.title !== undefined) updateData.title = data.title;
@@ -163,6 +200,20 @@ export async function DELETE(request: NextRequest) {
 
     if (!id) {
       return NextResponse.json({ error: "ID requerido" }, { status: 400 });
+    }
+
+    const deal = await prisma.deal.findUnique({
+      where: { id },
+      select: { organizationId: true },
+    });
+    if (!deal) {
+      return NextResponse.json({ error: "Deal no encontrado" }, { status: 404 });
+    }
+    if (deal.organizationId) {
+      const { valid } = await verifyOrgMembership(authResult.userId, deal.organizationId);
+      if (!valid) {
+        return NextResponse.json({ error: "No tienes acceso a este deal" }, { status: 403 });
+      }
     }
 
     await prisma.deal.delete({ where: { id } });

@@ -17,7 +17,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ error: "Factura no encontrada" }, { status: 404 });
     }
 
-    const isPrivileged = invoice.project.members.some(m => m.userId === authResult.userId && ["OWNER", "ADMIN"].includes(m.role));
+    const isPrivileged = invoice.project.members.some((m: { userId: string; role: string }) => m.userId === authResult.userId && ["OWNER", "ADMIN"].includes(m.role));
     if (!isPrivileged) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }
@@ -50,7 +50,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       return NextResponse.json({ error: "Factura no encontrada" }, { status: 404 });
     }
 
-    const isPrivileged = invoice.project.members.some(m => m.userId === authResult.userId && ["OWNER", "ADMIN"].includes(m.role));
+    const isPrivileged = invoice.project.members.some((m: { userId: string; role: string }) => m.userId === authResult.userId && ["OWNER", "ADMIN"].includes(m.role));
     if (!isPrivileged) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
+import { getUserOrgIds, verifyOrgMembership } from "@/lib/tenant";
 import { z } from "zod";
 
 const activityCreateSchema = z.object({
@@ -33,8 +34,24 @@ export async function GET(request: NextRequest) {
     const contactId = searchParams.get("contactId");
     const dealId = searchParams.get("dealId");
     const type = searchParams.get("type");
+    const organizationId = searchParams.get("organizationId");
+
+    const userOrgIds = await getUserOrgIds(authResult.userId);
 
     const where: Record<string, unknown> = {};
+
+    if (organizationId) {
+      const { valid } = await verifyOrgMembership(authResult.userId, organizationId);
+      if (!valid) {
+        return NextResponse.json({ error: "No tienes acceso a esta organización" }, { status: 403 });
+      }
+      where.organizationId = organizationId;
+    } else {
+      where.OR = [
+        { organizationId: { in: userOrgIds } },
+        { ownerId: authResult.userId, organizationId: null },
+      ];
+    }
 
     if (contactId) where.contactId = contactId;
     if (dealId) where.dealId = dealId;
@@ -70,6 +87,13 @@ export async function POST(request: NextRequest) {
     }
 
     const { type, title, description, dueDate, contactId, dealId, organizationId } = parsed.data;
+
+    if (organizationId) {
+      const { valid } = await verifyOrgMembership(authResult.userId, organizationId);
+      if (!valid) {
+        return NextResponse.json({ error: "No tienes acceso a esta organización" }, { status: 403 });
+      }
+    }
 
     const activity = await prisma.activity.create({
       data: {
@@ -110,6 +134,21 @@ export async function PATCH(request: NextRequest) {
     }
 
     const { id, ...data } = parsed.data;
+
+    const existingActivity = await prisma.activity.findUnique({
+      where: { id },
+      select: { organizationId: true },
+    });
+    if (!existingActivity) {
+      return NextResponse.json({ error: "Actividad no encontrada" }, { status: 404 });
+    }
+    if (existingActivity.organizationId) {
+      const { valid } = await verifyOrgMembership(authResult.userId, existingActivity.organizationId);
+      if (!valid) {
+        return NextResponse.json({ error: "No tienes acceso a esta actividad" }, { status: 403 });
+      }
+    }
+
     const updateData: Record<string, unknown> = {};
 
     if (data.title !== undefined) updateData.title = data.title;
@@ -148,6 +187,20 @@ export async function DELETE(request: NextRequest) {
 
     if (!id) {
       return NextResponse.json({ error: "ID requerido" }, { status: 400 });
+    }
+
+    const activity = await prisma.activity.findUnique({
+      where: { id },
+      select: { organizationId: true },
+    });
+    if (!activity) {
+      return NextResponse.json({ error: "Actividad no encontrada" }, { status: 404 });
+    }
+    if (activity.organizationId) {
+      const { valid } = await verifyOrgMembership(authResult.userId, activity.organizationId);
+      if (!valid) {
+        return NextResponse.json({ error: "No tienes acceso a esta actividad" }, { status: 403 });
+      }
     }
 
     await prisma.activity.delete({ where: { id } });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
+import { getUserOrgIds, verifyOrgMembership } from "@/lib/tenant";
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,12 +14,23 @@ export async function GET(request: NextRequest) {
     const pipelineId = searchParams.get("pipelineId");
     const organizationId = searchParams.get("organizationId");
 
+    const userOrgIds = await getUserOrgIds(authResult.userId);
+
     const where: Record<string, unknown> = {};
     if (pipelineId) {
       where.id = pipelineId;
     }
     if (organizationId) {
+      const { valid } = await verifyOrgMembership(authResult.userId, organizationId);
+      if (!valid) {
+        return NextResponse.json({ error: "No tienes acceso a esta organización" }, { status: 403 });
+      }
       where.organizationId = organizationId;
+    } else {
+      where.OR = [
+        { organizationId: { in: userOrgIds } },
+        { organizationId: null },
+      ];
     }
 
     const pipelines = await prisma.pipeline.findMany({

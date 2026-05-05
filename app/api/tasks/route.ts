@@ -3,6 +3,7 @@ import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
 import { canAccessTask, canModifyTask } from "@/lib/authz";
+import { canAccessProject, getUserOrgIds, verifyOrgMembership } from "@/lib/tenant";
 import { taskCreateSchema, taskUpdateSchema } from "@/lib/validations/task";
 import { notifyTaskWebhook } from "@/lib/webhook";
 import { put } from "@vercel/blob";
@@ -112,28 +113,29 @@ export async function GET(request: NextRequest) {
     const projectId = searchParams.get("projectId");
     const organizationId = searchParams.get("organizationId");
 
+    const userOrgIds = await getUserOrgIds(authResult.userId);
+
     const whereClause: Record<string, unknown> = {};
 
     if (projectId) {
-      // When viewing a specific project, show ALL tasks in it
-      // (user is authenticated and presumably a project member)
+      const hasAccess = await canAccessProject(authResult.userId, projectId);
+      if (!hasAccess) {
+        return NextResponse.json({ error: "No tienes acceso a este proyecto" }, { status: 403 });
+      }
       whereClause.projectId = projectId;
+    } else if (organizationId) {
+      const { valid } = await verifyOrgMembership(authResult.userId, organizationId);
+      if (!valid) {
+        return NextResponse.json({ error: "No tienes acceso a esta organización" }, { status: 403 });
+      }
+      whereClause.project = { organizationId };
     } else {
-      // No project filter: only show tasks where user is involved
       whereClause.OR = [
         { creatorId: authResult.userId },
         { assigneeId: authResult.userId },
         { taskAssignees: { some: { userId: authResult.userId } } },
+        { project: { organizationId: { in: userOrgIds } } },
       ];
-    }
-
-    if (organizationId) {
-      whereClause.project = {
-        organizationId: organizationId,
-      };
-      if (!projectId) {
-        delete whereClause.projectId;
-      }
     }
 
     const parentId = searchParams.get("parentId");
@@ -163,10 +165,10 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    const formattedTasks = tasks.map(task => ({
+    const formattedTasks = tasks.map((task: { assignee?: { email: string } | null; taskAssignees: { user: unknown }[]; [key: string]: unknown }) => ({
       ...task,
       assignedTo: task.assignee?.email || null,
-      assignees: task.taskAssignees.map(ta => ta.user),
+      assignees: task.taskAssignees.map((ta: { user: unknown }) => ta.user),
     }));
 
     return NextResponse.json(formattedTasks);
@@ -196,6 +198,19 @@ export async function POST(request: NextRequest) {
     const userExists = await prisma.user.findUnique({ where: { id: authResult.userId }, select: { id: true } });
     if (!userExists) {
       return NextResponse.json({ error: "Sesión inválida. Por favor, cierra sesión y vuelve a iniciar." }, { status: 401 });
+    }
+
+    if (projectId) {
+      const hasAccess = await canAccessProject(authResult.userId, projectId);
+      if (!hasAccess) {
+        return NextResponse.json({ error: "No tienes acceso a este proyecto" }, { status: 403 });
+      }
+    }
+    if (organizationId) {
+      const { valid } = await verifyOrgMembership(authResult.userId, organizationId);
+      if (!valid) {
+        return NextResponse.json({ error: "No tienes acceso a esta organización" }, { status: 403 });
+      }
     }
 
     let finalAssigneeId: string | null = null;
@@ -276,13 +291,13 @@ export async function POST(request: NextRequest) {
       dueDate: dueDate ? new Date(dueDate).toISOString() : null,
       assigneeId: finalAssigneeId, assigneeEmail: assignedTo || null,
       creatorId: authResult.userId,
-      taskAssignees: task.taskAssignees?.map(ta => ({ id: ta.user?.id, email: ta.user?.email, userId: ta.userId })),
+      taskAssignees: task.taskAssignees?.map((ta: { user?: { id: string; email: string } | null; userId: string }) => ({ id: ta.user?.id, email: ta.user?.email, userId: ta.userId })),
     });
 
     return NextResponse.json({
       ...task,
       assignedTo: task.assignee?.email || null,
-      assignees: task.taskAssignees.map(ta => ta.user),
+      assignees: task.taskAssignees.map((ta: { user: unknown }) => ta.user),
     });
   } catch (error) {
     console.error("Create task error:", error);
@@ -339,9 +354,9 @@ export async function PATCH(request: NextRequest) {
         where: { taskId: id },
         select: { userId: true },
       });
-      const currentIds = current.map(c => c.userId);
-      const toAdd = newIds.filter(uid => !currentIds.includes(uid));
-      const toRemove = currentIds.filter(uid => !newIds.includes(uid));
+      const currentIds = current.map((c: { userId: string }) => c.userId);
+      const toAdd = newIds.filter((uid: string) => !currentIds.includes(uid));
+      const toRemove = currentIds.filter((uid: string) => !newIds.includes(uid));
 
       if (toRemove.length > 0) {
         await prisma.taskAssignee.deleteMany({
@@ -429,7 +444,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Webhook: check both legacy assigneeId and multi-assignees
-    const webhookAssignees = task.taskAssignees?.map(ta => ({ id: ta.user?.id, email: ta.user?.email, userId: ta.userId }));
+    const webhookAssignees = task.taskAssignees?.map((ta: { user?: { id: string; email: string } | null; userId: string }) => ({ id: ta.user?.id, email: ta.user?.email, userId: ta.userId }));
     const hasAssigneeChanges = (assigneeId !== undefined && assigneeId) || (assigneeIds !== undefined);
     if (hasAssigneeChanges) {
       await notifyTaskWebhook({
@@ -445,7 +460,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({
       ...task,
       assignedTo: task.assignee?.email || null,
-      assignees: task.taskAssignees.map(ta => ta.user),
+      assignees: task.taskAssignees.map((ta: { user: unknown }) => ta.user),
     });
   } catch (error) {
     console.error("Update task error:", error);

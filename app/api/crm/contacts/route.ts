@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
+import { getUserOrgIds, verifyOrgMembership } from "@/lib/tenant";
 import { z } from "zod";
 
 const contactCreateSchema = z.object({
@@ -43,10 +44,21 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "50");
 
+    const userOrgIds = await getUserOrgIds(authResult.userId);
+
     const where: Record<string, unknown> = {};
 
     if (organizationId) {
+      const { valid } = await verifyOrgMembership(authResult.userId, organizationId);
+      if (!valid) {
+        return NextResponse.json({ error: "No tienes acceso a esta organización" }, { status: 403 });
+      }
       where.organizationId = organizationId;
+    } else {
+      where.OR = [
+        { organizationId: { in: userOrgIds } },
+        { ownerId: authResult.userId, organizationId: null },
+      ];
     }
 
     if (search) {
@@ -102,6 +114,13 @@ export async function POST(request: NextRequest) {
 
     const { name, email, phone, company, notes, tags, status, pipelineId, organizationId } = parsed.data;
 
+    if (organizationId) {
+      const { valid } = await verifyOrgMembership(authResult.userId, organizationId);
+      if (!valid) {
+        return NextResponse.json({ error: "No tienes acceso a esta organización" }, { status: 403 });
+      }
+    }
+
     const contact = await prisma.contact.create({
       data: {
         id: cuid(),
@@ -145,6 +164,20 @@ export async function PATCH(request: NextRequest) {
     const { id, ...data } = parsed.data;
     const updateData: Record<string, unknown> = {};
 
+    const existingContact = await prisma.contact.findUnique({
+      where: { id },
+      select: { organizationId: true },
+    });
+    if (!existingContact) {
+      return NextResponse.json({ error: "Contacto no encontrado" }, { status: 404 });
+    }
+    if (existingContact.organizationId) {
+      const { valid } = await verifyOrgMembership(authResult.userId, existingContact.organizationId);
+      if (!valid) {
+        return NextResponse.json({ error: "No tienes acceso a este contacto" }, { status: 403 });
+      }
+    }
+
     if (data.name !== undefined) updateData.name = data.name;
     if (data.email !== undefined) updateData.email = data.email === "" ? null : data.email;
     if (data.phone !== undefined) updateData.phone = data.phone;
@@ -182,6 +215,20 @@ export async function DELETE(request: NextRequest) {
 
     if (!id) {
       return NextResponse.json({ error: "ID requerido" }, { status: 400 });
+    }
+
+    const contact = await prisma.contact.findUnique({
+      where: { id },
+      select: { organizationId: true },
+    });
+    if (!contact) {
+      return NextResponse.json({ error: "Contacto no encontrado" }, { status: 404 });
+    }
+    if (contact.organizationId) {
+      const { valid } = await verifyOrgMembership(authResult.userId, contact.organizationId);
+      if (!valid) {
+        return NextResponse.json({ error: "No tienes acceso a este contacto" }, { status: 403 });
+      }
     }
 
     await prisma.contact.delete({ where: { id } });

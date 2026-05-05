@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Total tools executed
-    const totalTools = usages.reduce((sum, u) => sum + u.toolsUsed.length, 0);
+    const totalTools = usages.reduce((sum: number, u: { toolsUsed: string[] }) => sum + u.toolsUsed.length, 0);
 
     // Queries per day (last 7 days)
     const now = new Date();

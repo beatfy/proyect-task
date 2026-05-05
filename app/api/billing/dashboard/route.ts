@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       orderBy: { name: "asc" },
     });
 
-    const projectIds = projects.map((p) => p.id);
+    const projectIds = projects.map((p: { id: string }) => p.id);
 
     // All invoices for those projects
     const invoices = await prisma.invoice.findMany({
@@ -38,19 +38,19 @@ export async function GET(request: NextRequest) {
 
     // Current month invoices
     const currentMonthInvoices = invoices.filter(
-      (i) => i.month === currentMonth && i.year === currentYear
+      (i: { month: number; year: number }) => i.month === currentMonth && i.year === currentYear
     );
 
-    const totalThisMonth = currentMonthInvoices.reduce((s, i) => s + i.amount, 0);
-    const totalPaid = invoices.filter((i) => i.status === "PAID").reduce((s, i) => s + i.amount, 0);
-    const totalPending = invoices.filter((i) => i.status === "PENDING").reduce((s, i) => s + i.amount, 0);
-    const totalOverdue = invoices.filter((i) => i.status === "OVERDUE").reduce((s, i) => s + i.amount, 0);
+    const totalThisMonth = currentMonthInvoices.reduce((s: number, i: { amount: number }) => s + i.amount, 0);
+    const totalPaid = invoices.filter((i: { status: string }) => i.status === "PAID").reduce((s: number, i: { amount: number }) => s + i.amount, 0);
+    const totalPending = invoices.filter((i: { status: string }) => i.status === "PENDING").reduce((s: number, i: { amount: number }) => s + i.amount, 0);
+    const totalOverdue = invoices.filter((i: { status: string }) => i.status === "OVERDUE").reduce((s: number, i: { amount: number }) => s + i.amount, 0);
 
     // Per-project status
-    const projectsWithStatus = projects.map((p) => {
-      const pInvoices = invoices.filter((i) => i.projectId === p.id);
+    const projectsWithStatus = projects.map((p: { id: string }) => {
+      const pInvoices = invoices.filter((i: { projectId: string }) => i.projectId === p.id);
       const current = pInvoices.find(
-        (i) => i.month === currentMonth && i.year === currentYear
+        (i: { month: number; year: number }) => i.month === currentMonth && i.year === currentYear
       );
       return {
         ...p,

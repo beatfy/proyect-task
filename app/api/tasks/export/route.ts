@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    const rows = tasks.map((t) => ({
+    const rows = tasks.map((t: { title: string; description: string | null; status: string; priority: string; assignee?: { name: string | null; email: string | null } | null; dueDate: Date | null; createdAt: Date; project?: { name: string } | null }) => ({
       title: t.title,
       description: (t.description || "").replace(/"/g, '""').replace(/\n/g, " "),
       status: statusLabels[t.status] || t.status,
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
       const csv = [
         header,
         ...rows.map(
-          (r) =>
+          (r: { title: string; description: string; status: string; priority: string; assignee: string; dueDate: string; createdAt: string }) =>
             `"${r.title}","${r.description}","${r.status}","${r.priority}","${r.assignee}","${r.dueDate}","${r.createdAt}"`
         ),
       ].join("\n");
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
     autoTable(doc, {
       startY: 22,
       head: [["Título", "Estado", "Prioridad", "Asignado", "Fecha límite", "Creado"]],
-      body: rows.map((r) => [
+      body: rows.map((r: { title: string; status: string; priority: string; assignee: string; dueDate: string; createdAt: string }) => [
         r.title,
         r.status,
         r.priority,

@@ -689,13 +689,13 @@ export async function POST(request: NextRequest) {
         orderBy: { createdAt: "desc" },
         take: 20,
       });
-      taskList = tasks.map(t => `- [${t.id}] "${t.title}" | ${t.status} | ${t.priority} | vence: ${t.dueDate?.toISOString().split("T")[0] || "sin fecha"}`).join("\n") || "No hay tareas.";
+      taskList = tasks.map((t: { id: string; title: string; status: string; priority: string; dueDate: Date | null }) => `- [${t.id}] "${t.title}" | ${t.status} | ${t.priority} | vence: ${t.dueDate?.toISOString().split("T")[0] || "sin fecha"}`).join("\n") || "No hay tareas.";
 
       const members = await prisma.projectMember.findMany({
         where: { projectId },
         select: { userId: true, role: true, user: { select: { name: true, email: true } } },
       });
-      memberList = members.map(m => `- [${m.userId}] ${m.user?.name || m.user?.email} (${m.role})`).join("\n") || "No hay miembros.";
+      memberList = members.map((m: { userId: string; role: string; user: { name: string | null; email: string | null } | null }) => `- [${m.userId}] ${m.user?.name || m.user?.email} (${m.role})`).join("\n") || "No hay miembros.";
     }
 
     // Fetch organization knowledge base

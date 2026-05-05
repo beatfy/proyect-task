@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
+import { getUserOrgIds, verifyOrgMembership } from "@/lib/tenant";
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,12 +18,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ contacts: [], deals: [] });
     }
 
+    const userOrgIds = await getUserOrgIds(authResult.userId);
+
+    const orgFilter: Record<string, unknown> = {};
+    if (organizationId && organizationId !== "all") {
+      const { valid } = await verifyOrgMembership(authResult.userId, organizationId);
+      if (!valid) {
+        return NextResponse.json({ error: "No tienes acceso a esta organización" }, { status: 403 });
+      }
+      orgFilter.organizationId = organizationId;
+    } else {
+      orgFilter.OR = [
+        { organizationId: { in: userOrgIds } },
+        { ownerId: authResult.userId, organizationId: null },
+      ];
+    }
+
     const q = query.toLowerCase();
 
     const [contacts, deals] = await Promise.all([
       prisma.contact.findMany({
         where: {
-          ...(organizationId && organizationId !== "all" ? { organizationId } : {}),
+          ...orgFilter,
           OR: [
             { name: { contains: q, mode: "insensitive" } },
             { email: { contains: q, mode: "insensitive" } },
@@ -43,7 +60,7 @@ export async function GET(request: NextRequest) {
       }),
       prisma.deal.findMany({
         where: {
-          ...(organizationId && organizationId !== "all" ? { organizationId } : {}),
+          ...orgFilter,
           title: { contains: q, mode: "insensitive" },
         },
         select: {

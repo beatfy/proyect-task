@@ -103,8 +103,8 @@ export async function POST(
             },
             // All other org members as MEMBER
             ...orgMembers
-              .filter((m) => m.userId !== authResult.userId)
-              .map((m) => ({
+              .filter((m: { userId: string }) => m.userId !== authResult.userId)
+              .map((m: { userId: string }) => ({
                 id: cuid(),
                 userId: m.userId,
                 role: "MEMBER" as const,

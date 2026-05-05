@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
           });
 
           const statusCounts = Object.fromEntries(
-            taskCountByStatus.map((t) => [t.status, t._count.id])
+            taskCountByStatus.map((t: { status: string; _count: { id: number } }) => [t.status, t._count.id])
           );
           const todoCount = statusCounts["TODO"] ?? 0;
           const inProgressCount = statusCounts["IN_PROGRESS"] ?? 0;
@@ -88,9 +88,9 @@ export async function POST(req: NextRequest) {
           let sysContext = `\n\n---\n[SISTEMA] Cliente: "${project.name}"
 - Descripcion: ${project.description || "Sin descripcion"}
 - Tareas: ${todoCount} pendientes, ${inProgressCount} en progreso, ${doneCount} completadas
-- Ultimas tareas completadas: ${recentDoneTasks.map((t) => t.title).join(", ") || "Ninguna"}
-- Notas recientes: ${recentComments.map((c) => c.content).slice(0, 3).join(" | ") || "Ninguna"}
-- Historial de chat: ${recentChatMessages.slice(0, 3).map((m) => `${m.role}: ${m.content.substring(0, 100)}`).join(" | ") || "Ninguno"}`;
+- Ultimas tareas completadas: ${recentDoneTasks.map((t: { title: string }) => t.title).join(", ") || "Ninguna"}
+- Notas recientes: ${recentComments.map((c: { content: string }) => c.content).slice(0, 3).join(" | ") || "Ninguna"}
+- Historial de chat: ${recentChatMessages.slice(0, 3).map((m: { role: string; content: string }) => `${m.role}: ${m.content.substring(0, 100)}`).join(" | ") || "Ninguno"}`;
 
           if (project.clientContext) {
             sysContext += `\n\n---\n[CONTEXTO DEL CLIENTE — USO ESTRICTO]\n${project.clientContext}\n[FIN CONTEXTO]`;

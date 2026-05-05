@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateRequest } from "@/lib/api-auth";
-import { isProjectAdmin } from "@/lib/authz";
+import { canAccessProject, canModifyProject } from "@/lib/tenant";
 
 export async function GET(
   request: NextRequest,
@@ -9,8 +9,13 @@ export async function GET(
 ) {
   const { id } = await params;
   const authResult = await authenticateRequest(request);
-    if (!authResult) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!authResult) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  const hasAccess = await canAccessProject(authResult.userId, id);
+  if (!hasAccess) {
+    return NextResponse.json({ error: "No tienes acceso a este proyecto" }, { status: 403 });
   }
 
   try {
@@ -43,8 +48,13 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const authResult = await authenticateRequest(request);
-    if (!authResult) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!authResult) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  const canModify = await canModifyProject(authResult.userId, id);
+  if (!canModify) {
+    return NextResponse.json({ error: "No tienes permisos para modificar este proyecto" }, { status: 403 });
   }
 
   try {
@@ -74,13 +84,12 @@ export async function DELETE(
 ) {
   const { id } = await params;
   const authResult = await authenticateRequest(request);
-    if (!authResult) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!authResult) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
-  // Authorization: only project admins (OWNER/ADMIN) can delete
-  const authorized = await isProjectAdmin(authResult.userId, id);
-  if (!authorized) {
+  const canModify = await canModifyProject(authResult.userId, id);
+  if (!canModify) {
     return NextResponse.json({ error: "Solo los administradores del proyecto pueden eliminarlo" }, { status: 403 });
   }
 
@@ -99,11 +108,15 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  // POST on /api/projects/[id] = Duplicate project
   const { id } = await params;
   const authResult = await authenticateRequest(request);
-    if (!authResult) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!authResult) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  const hasAccess = await canAccessProject(authResult.userId, id);
+  if (!hasAccess) {
+    return NextResponse.json({ error: "No tienes acceso a este proyecto" }, { status: 403 });
   }
 
   try {
@@ -119,12 +132,10 @@ export async function POST(
       return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
     }
 
-    // Generate a new ID for the duplicated project
     const { randomUUID } = await import("crypto");
     const newProjectId = randomUUID();
     const userId = authResult.userId;
 
-    // Create the duplicated project
     const duplicated = await prisma.project.create({
       data: {
         id: newProjectId,
@@ -132,6 +143,7 @@ export async function POST(
         description: original.description,
         color: original.color,
         status: "ACTIVE",
+        organizationId: original.organizationId,
         members: {
           create: {
             id: randomUUID(),
@@ -140,7 +152,7 @@ export async function POST(
           },
         },
         tasks: {
-          create: original.tasks.map((task) => ({
+          create: original.tasks.map((task: { title: string; description: string | null; priority: string; order: number; tags: { name: string; color: string }[] }) => ({
             id: randomUUID(),
             title: task.title,
             description: task.description,
@@ -149,7 +161,7 @@ export async function POST(
             order: task.order,
             creatorId: userId,
             tags: {
-              create: task.tags.map((tag) => ({
+              create: task.tags.map((tag: { name: string; color: string }) => ({
                 id: randomUUID(),
                 name: tag.name,
                 color: tag.color,

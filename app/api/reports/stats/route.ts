@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
+import { verifyOrgMembership } from "@/lib/tenant";
 
 // Safe helper — returns fallback instead of throwing
 async function safeQuery<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
@@ -47,6 +48,10 @@ export async function GET(request: NextRequest) {
 
     // Filter by organization if provided
     if (organizationId) {
+      const { valid } = await verifyOrgMembership(authResult.userId, organizationId);
+      if (!valid) {
+        return NextResponse.json({ error: "No tienes acceso a esta organización" }, { status: 403 });
+      }
       userTasksWhere.project = { organizationId };
     }
 

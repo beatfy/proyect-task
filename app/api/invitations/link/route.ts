@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-    const tokensWithUrl = tokens.map((t) => ({
+    const tokensWithUrl = tokens.map((t: { token: string; [key: string]: unknown }) => ({
       ...t,
       url: `${baseUrl}/join/${t.token}`,
     }));

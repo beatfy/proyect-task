@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
+import { verifyOrgMembership } from "@/lib/tenant";
 import { projectCreateSchema } from "@/lib/validations/project";
 
 export async function GET(request: NextRequest) {
@@ -78,6 +79,13 @@ export async function POST(request: NextRequest) {
     const { name, description, color } = parsed.data;
     const organizationId = body.organizationId as string | undefined;
 
+    if (organizationId) {
+      const { valid } = await verifyOrgMembership(authResult.userId, organizationId);
+      if (!valid) {
+        return NextResponse.json({ error: "No tienes acceso a esta organización" }, { status: 403 });
+      }
+    }
+
     const projectId = cuid();
 
     // If creating within an org, auto-add all org members
@@ -101,8 +109,8 @@ export async function POST(request: NextRequest) {
           role: "OWNER",
         },
         ...orgMembers
-          .filter((m) => m.userId !== authResult.userId)
-          .map((m) => ({
+          .filter((m: { userId: string }) => m.userId !== authResult.userId)
+          .map((m: { userId: string }) => ({
             id: cuid(),
             userId: m.userId,
             role: "MEMBER",

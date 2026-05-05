@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    const result = organizations.map((org) => ({
+    const result = organizations.map((org: { id: string; name: string; slug: string; description: string | null; logo: string | null; createdAt: Date; _count: { members: number; projects: number }; members: { role: string }[] }) => ({
       id: org.id,
       name: org.name,
       slug: org.slug,
