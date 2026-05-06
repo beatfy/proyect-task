@@ -14,9 +14,10 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Loader2, Plus, Search, Trash2, Edit2, Users, Phone, Mail, Building2, X,
+  Loader2, Plus, Search, Trash2, Edit2, Users, Phone, Mail, Building2, X, Upload,
 } from "lucide-react";
 import { useOrganization } from "@/lib/organization-context";
+import ImportContactsDialog from "@/components/crm/ImportContactsDialog";
 
 interface Contact {
   id: string;
@@ -68,6 +69,7 @@ export default function ContactsPage() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const { selectedOrg, loading: orgLoading } = useOrganization();
 
   const fetchContacts = useCallback(async () => {
@@ -172,10 +174,16 @@ export default function ContactsPage() {
           <h1 className="text-3xl font-bold text-foreground">Contactos</h1>
           <p className="text-muted-foreground mt-1">Gestiona tus clientes y prospectos</p>
         </div>
-        <Button onClick={openNewContact}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo Contacto
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            Importar
+          </Button>
+          <Button onClick={openNewContact}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nuevo Contacto
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -395,6 +403,13 @@ export default function ContactsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ImportContactsDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        organizationId={selectedOrg}
+        onImportComplete={fetchContacts}
+      />
     </div>
   );
 }
