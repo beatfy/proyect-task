@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     const contactsByStatus = await prisma.contact.groupBy({
       by: ["status"],
-      where: orgFilter,
+      where: orgIdFilter,
       _count: true,
     });
 
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
     // Deals by stage
     const dealsByStage = await prisma.deal.groupBy({
       by: ["stageId"],
-      where: orgFilter,
+      where: orgIdFilter,
       _count: true,
       _sum: { value: true },
     });

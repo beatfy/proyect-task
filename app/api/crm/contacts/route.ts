@@ -62,12 +62,21 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
-      where.OR = [
+      const searchOR = [
         { name: { contains: search, mode: "insensitive" } },
         { email: { contains: search, mode: "insensitive" } },
         { company: { contains: search, mode: "insensitive" } },
         { phone: { contains: search } },
       ];
+      if (where.OR) {
+        where.AND = [
+          { OR: where.OR as Record<string, unknown>[] },
+          { OR: searchOR },
+        ];
+        delete where.OR;
+      } else {
+        where.OR = searchOR;
+      }
     }
 
     if (status) {

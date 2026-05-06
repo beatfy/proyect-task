@@ -36,10 +36,10 @@ export async function GET(request: NextRequest) {
 
     const q = query.toLowerCase();
 
-    const [contacts, deals] = await Promise.all([
-      prisma.contact.findMany({
-        where: {
-          ...orgFilter,
+    const contactSearchFilter = {
+      AND: [
+        orgFilter,
+        {
           OR: [
             { name: { contains: q, mode: "insensitive" } },
             { email: { contains: q, mode: "insensitive" } },
@@ -47,6 +47,12 @@ export async function GET(request: NextRequest) {
             { phone: { contains: q } },
           ],
         },
+      ],
+    };
+
+    const [contacts, deals] = await Promise.all([
+      prisma.contact.findMany({
+        where: contactSearchFilter,
         select: {
           id: true,
           name: true,
