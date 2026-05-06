@@ -19,7 +19,7 @@ export async function sendToLedy(
       text: `[Contexto: Proyecto ${projectId || "unknown"}, Org ${organizationId || "unknown"}]
 ${message}`,
       mode: "now",
-      sessionKey: `leadfy2-${userId}-${projectId || "none"}`,
+      sessionKey: `beatfy-${userId}-${projectId || "none"}`,
     }),
     signal: AbortSignal.timeout(30000),
   });

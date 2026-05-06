@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import {
   LayoutTemplate, Plus, Trash2, Edit3, Copy, X, Check, Loader2,
-  Bug, Lightbulb, Eye, FileText, Rocket, TestTube, Palette, Megaphone
+  Rocket, Music, Mic2, Disc3, Megaphone, Video, Users
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,9 +53,13 @@ const priorityColors: Record<string, string> = {
 };
 
 const templateIcons: Record<string, typeof LayoutTemplate> = {
-  "Bug fix": Bug,
-  "Feature": Lightbulb,
-  "Review": Eye,
+  "Lanzamiento": Rocket,
+  "Bolo": Music,
+  "Demo": Mic2,
+  "Pre-save": Megaphone,
+  "Contenido": Video,
+  "Remix": Disc3,
+  "Colab": Users,
 };
 
 function getTemplateIcon(name: string) {
@@ -360,7 +364,7 @@ export default function TemplatesPage() {
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Ej: Bug crítico, Feature request..."
+                placeholder="Ej: Lanzamiento, Bolo, Campaña..."
                 className="bg-background border-border text-foreground"
               />
             </div>
@@ -369,7 +373,7 @@ export default function TemplatesPage() {
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Ej: Fix: [descripción del bug]"
+                placeholder="Ej: Lanzar nuevo single en Spotify"
                 className="bg-background border-border text-foreground"
               />
             </div>
@@ -417,7 +421,7 @@ export default function TemplatesPage() {
               <Input
                 value={tagsInput}
                 onChange={(e) => setTagsInput(e.target.value)}
-                placeholder="Separadas por comas: bug, urgente, frontend"
+                placeholder="Separadas por comas: lanzamiento, pre-save, spotify"
                 className="bg-background border-border text-foreground"
               />
             </div>

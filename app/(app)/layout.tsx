@@ -6,7 +6,7 @@ import {
   Home, FolderOpen, CheckSquare, Calendar, Settings, LogOut,
   ChevronLeft, ChevronRight, Mail, Sun, Moon, Building2, FileText,
   Menu, Receipt, Bot, ChevronDown, MessageCircle, Megaphone,
-  BarChart3, Search, Palette, Users, Kanban
+  BarChart3, Search, Palette, Users, Kanban, Download, Globe
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -30,10 +30,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const agentItems = [
-  { name: "Ads", href: "/agents/ads-commander", icon: Megaphone },
-  { name: "Social Media", href: "/agents/social-pulse-agent", icon: MessageCircle },
-  { name: "SEO", href: "/agents/seofilo-agent", icon: Search },
-  { name: "Diseño", href: "/agents/design-agent", icon: Palette },
+  { name: "Viral Track", href: "/agents/ads-commander", icon: Megaphone },
+  { name: "Club Content", href: "/agents/social-pulse-agent", icon: MessageCircle },
+  { name: "A&R Pitcher", href: "/agents/seofilo-agent", icon: Search },
+  { name: "Cover Art", href: "/agents/design-agent", icon: Palette },
 ];
 
 const sections = [
@@ -41,16 +41,16 @@ const sections = [
     label: "General",
     items: [
       { name: "Dashboard", href: "/dashboard", icon: Home },
-      { name: "Organizaciones", href: "/organizations", icon: Building2 },
+      { name: "Agencias", href: "/organizations", icon: Building2 },
     ],
   },
   {
     label: "Trabajo",
     items: [
-      { name: "Proyectos", href: "/projects", icon: FolderOpen },
+      { name: "Lanzamientos", href: "/projects", icon: FolderOpen },
       { name: "Tareas", href: "/tasks", icon: CheckSquare },
       { name: "Calendario", href: "/calendar", icon: Calendar },
-      { name: "Archivos", href: "/files", icon: FileText },
+      { name: "Audio Vault", href: "/files", icon: FileText },
       { name: "Mail", href: "/mail", icon: Mail },
     ],
   },
@@ -61,9 +61,11 @@ const sections = [
   {
     label: "Negocio",
     items: [
-      { name: "CRM", href: "/crm", icon: Users },
-      { name: "Pipeline", href: "/crm/pipeline", icon: Kanban },
-      { name: "Facturación", href: "/billing", icon: Receipt },
+      { name: "Booking", href: "/crm", icon: Users },
+      { name: "Bolos", href: "/crm/pipeline", icon: Kanban },
+      { name: "Gig Finance", href: "/billing", icon: Receipt },
+      { name: "Download Gate", href: "/download-gate", icon: Download },
+      { name: "Press Kit", href: "/epk", icon: Globe },
     ],
   },
 ];
@@ -112,7 +114,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <button onClick={() => setMobileMenuOpen(true)} className="p-2 -ml-2">
             <Menu className="h-5 w-5" />
           </button>
-          <Link href="/dashboard" className="text-lg font-bold text-neutral-900">{process.env.NEXT_PUBLIC_BRAND_NAME || "Leadfy"}</Link>
+          <Link href="/dashboard" className="text-lg font-bold text-neutral-900">{process.env.NEXT_PUBLIC_BRAND_NAME || "Beatfy"}</Link>
           <NotificationCenter compact />
         </header>
 
@@ -132,12 +134,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           )}>
             {!collapsed && (
               <Link href="/dashboard" className="text-xl font-bold text-neutral-900 dark:text-neutral-500">
-                {process.env.NEXT_PUBLIC_BRAND_NAME || "Leadfy"}
+                {process.env.NEXT_PUBLIC_BRAND_NAME || "Beatfy"}
               </Link>
             )}
             {collapsed && (
               <Link href="/dashboard" className="text-lg font-bold text-neutral-900 dark:text-neutral-500">
-                {(process.env.NEXT_PUBLIC_BRAND_NAME || "Leadfy")[0]}
+                {(process.env.NEXT_PUBLIC_BRAND_NAME || "Beatfy")[0]}
               </Link>
             )}
             <div className={cn("flex items-center gap-1", !collapsed && "ml-auto")}>

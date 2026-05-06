@@ -154,8 +154,8 @@ export default function BillingPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">Facturación</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">Gestiona las facturas de tus proyectos</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">Gig Finance</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">Gestiona las facturas de tus bolos y lanzamientos</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" className="shrink-0" onClick={handleAutoGenerate}>
@@ -185,7 +185,7 @@ export default function BillingPage() {
 
       {/* Clientes Regulares */}
       <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-        <CardHeader><CardTitle className="text-slate-900 dark:text-slate-100">Clientes Regulares</CardTitle></CardHeader>
+        <CardHeader>        <CardTitle className="text-slate-900 dark:text-slate-100">Clientes Regulares / Salas Fijas</CardTitle></CardHeader>
         <CardContent>
           {(() => {
             const regularProjects = projects.filter(p => p.monthlyFee > 0);
@@ -203,7 +203,7 @@ export default function BillingPage() {
                   <table className="w-full text-sm mb-4 min-w-[400px]">
                     <thead>
                       <tr className="border-b border-slate-200 dark:border-slate-700">
-                        <th className="text-left py-2 px-2 text-slate-500 dark:text-slate-400 font-medium">Proyecto</th>
+                        <th className="text-left py-2 px-2 text-slate-500 dark:text-slate-400 font-medium">Lanzamiento</th>
                         <th className="text-right py-2 px-2 text-slate-500 dark:text-slate-400 font-medium">Cuota mensual</th>
                         <th className="text-center py-2 px-2 text-slate-500 dark:text-slate-400 font-medium">Estado</th>
                       </tr>
@@ -329,13 +329,13 @@ export default function BillingPage() {
       {/* Create dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-          <DialogHeader><DialogTitle className="text-slate-900 dark:text-slate-100">Nueva Factura</DialogTitle></DialogHeader>
+          <DialogHeader>          <DialogTitle className="text-slate-900 dark:text-slate-100">Nueva Factura de Bolo</DialogTitle></DialogHeader>
           <div className="space-y-4 pt-4">
             <div className="space-y-2">
-              <Label className="text-slate-700 dark:text-slate-300">Proyecto</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Lanzamiento / Bolo</Label>
               <Select value={form.projectId} onValueChange={(v) => setForm({ ...form, projectId: v })}>
                 <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
-                  <SelectValue placeholder="Seleccionar proyecto" />
+                  <SelectValue placeholder="Seleccionar lanzamiento" />
                 </SelectTrigger>
                 <SelectContent>
                   {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}

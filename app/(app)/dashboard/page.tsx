@@ -3,7 +3,8 @@
 import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckSquare, CheckCircle, AlertCircle, Loader2, FolderOpen, TrendingUp, BarChart3, Building2, Bot, Wrench, Zap } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CheckSquare, CheckCircle, AlertCircle, Loader2, FolderOpen, TrendingUp, BarChart3, Building2, Bot, Wrench, Zap, Disc3, Headphones } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -121,7 +122,7 @@ export default function DashboardPage() {
   const statCards = [
     { name: "Completadas esta semana", value: stats.completedThisWeek, icon: CheckCircle, color: "text-green-500", bg: "bg-green-50 dark:bg-green-900/20" },
     { name: "Completadas este mes", value: stats.completedThisMonth, icon: TrendingUp, color: "text-neutral-900", bg: "bg-neutral-50 dark:bg-indigo-900/20", change: monthChange },
-    { name: "Proyectos activos", value: stats.activeProjects, icon: FolderOpen, color: "text-violet-500", bg: "bg-violet-50 dark:bg-violet-900/20" },
+    { name: "Lanzamientos activos", value: stats.activeProjects, icon: FolderOpen, color: "text-violet-500", bg: "bg-violet-50 dark:bg-violet-900/20" },
     { name: "Tareas vencidas", value: stats.overdueTasks, icon: AlertCircle, color: "text-red-500", bg: "bg-red-50 dark:bg-red-900/20" },
     { name: "Total tareas", value: stats.totalTasks, icon: CheckSquare, color: "text-muted-foreground", bg: "bg-muted" },
   ];
@@ -180,6 +181,35 @@ export default function DashboardPage() {
           </Card>
         ))}
       </div>
+
+      {/* Spotify Widget Placeholder */}
+      <Card className="bg-gradient-to-br from-[#1DB954]/10 to-[#1DB954]/5 border-[#1DB954]/20">
+        <CardHeader>
+          <CardTitle className="text-foreground flex items-center gap-2">
+            <Disc3 className="h-5 w-5 text-[#1DB954]" />
+            Spotify for Artists
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-lg bg-[#1DB954]/20 flex items-center justify-center flex-shrink-0">
+              <Headphones className="h-8 w-8 text-[#1DB954]" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm text-foreground font-medium">Conecta tu Spotify for Artists</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Ve tus oyentes mensuales, streams y playlists directamente en tu dashboard.
+                Configura tu SPOTIFY_CLIENT_ID en las variables de entorno para activar esta integración.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" className="border-[#1DB954]/30 text-[#1DB954] hover:bg-[#1DB954]/10" asChild>
+              <a href="https://developer.spotify.com/dashboard" target="_blank">
+                Conectar
+              </a>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Ledy AI Metrics */}
       <Card className="bg-card border-border">

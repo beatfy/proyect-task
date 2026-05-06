@@ -54,12 +54,12 @@ interface Project {
 
 
 const PRESET_LABELS = [
-  { name: "Ads", color: "#f59e0b" },
-  { name: "SEO", color: "#10b981" },
-  { name: "SaaS", color: "#6366f1" },
-  { name: "Branding", color: "#ec4899" },
-  { name: "Social Media", color: "#3b82f6" },
-  { name: "Consultoría", color: "#8b5cf6" },
+  { name: "Single", color: "#f59e0b" },
+  { name: "EP", color: "#10b981" },
+  { name: "Album", color: "#6366f1" },
+  { name: "Remix", color: "#ec4899" },
+  { name: "Collab", color: "#3b82f6" },
+  { name: "Bolo", color: "#8b5cf6" },
 ];
 
 export default function ProjectsPage() {
@@ -87,7 +87,7 @@ export default function ProjectsPage() {
         setProjects(data);
       }
     } catch {
-      toast.error("Error al cargar proyectos");
+      toast.error("Error al cargar lanzamientos");
     } finally {
       setLoading(false);
     }
@@ -135,10 +135,10 @@ export default function ProjectsPage() {
         setDescription("");
         setSelectedLabels([]);
         setOpen(false);
-        toast.success("Proyecto creado");
+        toast.success("Lanzamiento creado");
       }
     } catch {
-      toast.error("Error al crear proyecto");
+      toast.error("Error al crear lanzamiento");
     }
   };
 
@@ -148,13 +148,13 @@ export default function ProjectsPage() {
       if (response.ok) {
         setProjects(projects.filter((p) => p.id !== project.id));
         setDeleteTarget(null);
-        toast.success("Proyecto eliminado");
+        toast.success("Lanzamiento eliminado");
       } else {
         const data = await response.json();
-        toast.error(data.error || "Error al eliminar proyecto");
+        toast.error(data.error || "Error al eliminar lanzamiento");
       }
     } catch {
-      toast.error("Error al eliminar proyecto");
+      toast.error("Error al eliminar lanzamiento");
     }
   };
 
@@ -164,13 +164,13 @@ export default function ProjectsPage() {
       if (response.ok) {
         const duplicated = await response.json();
         setProjects([...projects, duplicated]);
-        toast.success(`Proyecto duplicado como "${duplicated.name}"`);
+        toast.success(`Lanzamiento duplicado como "${duplicated.name}"`);
       } else {
         const data = await response.json();
-        toast.error(data.error || "Error al duplicar proyecto");
+        toast.error(data.error || "Error al duplicar lanzamiento");
       }
     } catch {
-      toast.error("Error al duplicar proyecto");
+      toast.error("Error al duplicar lanzamiento");
     }
   };
 
@@ -192,12 +192,12 @@ export default function ProjectsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Proyectos</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">Gestiona tus proyectos y tareas</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Lanzamientos</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">Gestiona tus singles, EPs y lanzamientos musicales</p>
         </div>
         <Button onClick={() => setOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Nuevo Proyecto
+          Nuevo Lanzamiento
         </Button>
       </div>
 
@@ -208,7 +208,7 @@ export default function ProjectsPage() {
             <Building2 className="h-4 w-4 text-slate-500 dark:text-slate-400" />
             <Select value={selectedOrg} onValueChange={(v) => { setSelectedOrg(v); setFilterLabel("all"); }}>
               <SelectTrigger className="w-[280px] bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100">
-                <SelectValue placeholder="Selecciona organización" />
+                <SelectValue placeholder="Selecciona agencia" />
               </SelectTrigger>
               <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
                 <SelectItem value="all" className="text-slate-900 dark:text-slate-100">Todas</SelectItem>
@@ -257,13 +257,13 @@ export default function ProjectsPage() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-slate-900 dark:text-slate-100">Crear Proyecto</DialogTitle>
+            <DialogTitle className="text-slate-900 dark:text-slate-100">Crear Lanzamiento</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             <div className="space-y-2">
               <Label className="text-slate-700 dark:text-slate-300">Nombre</Label>
               <Input
-                placeholder="Nombre del proyecto"
+                placeholder="Nombre del lanzamiento"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
@@ -310,7 +310,7 @@ export default function ProjectsPage() {
               </div>
             )}
             <Button onClick={handleCreate} className="w-full">
-              Crear Proyecto
+              Crear Lanzamiento
             </Button>
           </div>
         </DialogContent>
@@ -320,9 +320,9 @@ export default function ProjectsPage() {
       <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
           <DialogHeader>
-            <DialogTitle className="text-slate-900 dark:text-slate-100">Eliminar Proyecto</DialogTitle>
+            <DialogTitle className="text-slate-900 dark:text-slate-100">Eliminar Lanzamiento</DialogTitle>
             <DialogDescription className="text-slate-500 dark:text-slate-400">
-              ¿Eliminar este proyecto y todas sus tareas? Esta acción no se puede deshacer.
+              ¿Eliminar este lanzamiento y todas sus tareas? Esta acción no se puede deshacer.
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-3 pt-4">
@@ -341,8 +341,8 @@ export default function ProjectsPage() {
         <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <FolderOpen className="h-12 w-12 text-slate-400 dark:text-slate-500 mb-4" />
-            <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-1">No hay proyectos</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm">Crea tu primer proyecto para comenzar</p>
+            <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-1">No hay lanzamientos</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-sm">Crea tu primer lanzamiento para comenzar</p>
           </CardContent>
         </Card>
       ) : (

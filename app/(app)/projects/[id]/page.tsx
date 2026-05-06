@@ -776,7 +776,7 @@ export default function ProjectDetailPage() {
       <Dialog open={contextOpen} onOpenChange={setContextOpen}>
         <DialogContent className="bg-card border-border max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader className="flex-shrink-0">
-            <DialogTitle className="text-foreground">Contexto del proyecto</DialogTitle>
+            <DialogTitle className="text-foreground">Contexto del lanzamiento</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto space-y-3">
             <p className="text-sm text-muted-foreground">
@@ -1264,7 +1264,7 @@ export default function ProjectDetailPage() {
               {assigneeDropdownOpen && (
                 <div className="relative z-50 mt-1 w-full rounded-md border border-border bg-popover shadow-lg max-h-60 overflow-y-auto">
                   {members.length === 0 ? (
-                    <div className="p-3 text-sm text-muted-foreground text-center">No hay miembros en el proyecto</div>
+                    <div className="p-3 text-sm text-muted-foreground text-center">No hay miembros en el lanzamiento</div>
                   ) : (
                     members.map((m) => (
                       <label
@@ -1309,7 +1309,7 @@ export default function ProjectDetailPage() {
           </DialogHeader>
           <div className="flex-1 overflow-y-auto space-y-5 pt-4">
             <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">Genera un link único para invitar gente a este proyecto. Cualquiera con el link podrá unirse tras registrarse.</p>
+              <p className="text-sm text-muted-foreground">Genera un link único para invitar gente a este lanzamiento. Cualquiera con el link podrá unirse tras registrarse.</p>
               
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
@@ -1410,7 +1410,7 @@ export default function ProjectDetailPage() {
       <Dialog open={memberOpen} onOpenChange={setMemberOpen}>
         <DialogContent className="bg-card border-border max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader className="flex-shrink-0">
-            <DialogTitle className="text-foreground">Miembros del Proyecto</DialogTitle>
+            <DialogTitle className="text-foreground">Miembros del Lanzamiento</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto space-y-4 pt-4">
             <div className="flex gap-2">

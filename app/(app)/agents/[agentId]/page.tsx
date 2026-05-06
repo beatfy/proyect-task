@@ -9,52 +9,52 @@ import { cn } from "@/lib/utils";
 /* ── Metadatos de agentes ── */
 const AGENTS: Record<string, { name: string; emoji: string; description: string }> = {
   "ads-commander": {
-    name: "Ads Commander",
+    name: "Viral Track Promoter",
     emoji: "📢",
-    description: "Especialista en Google Ads y Meta Ads",
+    description: "Campañas Meta/TikTok Ads para pre-saves y tráfico a Spotify",
   },
   "social-pulse-agent": {
-    name: "Social Pulse",
+    name: "Club Content Creator",
     emoji: "📱",
-    description: "Especialista en Social Media",
+    description: "Contenido para DJs: Reels, TikToks, copys y estrategias virales",
   },
   "seofilo-agent": {
-    name: "SEOFilo",
+    name: "A&R / Label Pitcher",
     emoji: "🔍",
-    description: "Especialista en SEO",
+    description: "Emails persuasivos a sellos discográficos y A&Rs",
   },
   "design-agent": {
-    name: "Design Agent",
+    name: "Cover Art & Flyer",
     emoji: "🎨",
-    description: "Especialista en Diseño y Branding",
+    description: "Portadas de discos, carteles de eventos y branding",
   },
 };
 
 /* ── Templates por agente ── */
 const AGENT_TEMPLATES: Record<string, { label: string; prompt: string; emoji: string }[]> = {
   "ads-commander": [
-    { label: "Crear campaña Google Ads", prompt: "Crea una campaña de Google Ads para mi cliente", emoji: "📊" },
-    { label: "Analizar campañas activas", prompt: "Analiza el rendimiento de mis campañas activas", emoji: "📈" },
-    { label: "Optimizar presupuesto", prompt: "Revisa y optimiza el presupuesto de mis campañas de Ads", emoji: "💰" },
-    { label: "Redacción de anuncios", prompt: "Escribe copy persuasivo para mis anuncios de Google Ads", emoji: "✍️" },
+    { label: "Campaña Pre-save", prompt: "Crea una campaña de Meta Ads para conseguir pre-saves de mi próximo single en Spotify", emoji: "📊" },
+    { label: "Analizar campañas", prompt: "Analiza el rendimiento de mis campañas activas de promoción musical", emoji: "📈" },
+    { label: "Presupuesto promos", prompt: "Revisa y optimiza el presupuesto de mis campañas de promoción de tracks", emoji: "💰" },
+    { label: "Tráfico a Spotify", prompt: "Estrategia de ads para llevar tráfico a mi perfil de Spotify y conseguir seguidores", emoji: "🎵" },
   ],
   "social-pulse-agent": [
-    { label: "Calendario de contenido", prompt: "Genera un calendario de contenido para redes sociales", emoji: "📅" },
-    { label: "Ideas para Instagram", prompt: "Dame ideas de post para Instagram", emoji: "💡" },
-    { label: "Estrategia de contenido", prompt: "Crea una estrategia de contenido mensual para mis redes sociales", emoji: "📋" },
-    { label: "Hashtags trending", prompt: "Sugiere hashtags trending para mi sector", emoji: "#️⃣" },
+    { label: "Contenido desde el club", prompt: "Tengo un clip de 1 minuto pinchando en el club. Conviértelo en sugerencias de Reels y TikToks virales", emoji: "🎬" },
+    { label: "Calendario mensual", prompt: "Genera un calendario de contenido para redes sociales de un DJ para este mes", emoji: "📅" },
+    { label: "Copys para posts", prompt: "Escribe copys para mis próximos 5 posts de Instagram anunciando mi próximo evento", emoji: "✍️" },
+    { label: "Hashtags para DJs", prompt: "Sugiere hashtags trending para DJs de electrónica en Instagram y TikTok", emoji: "#️⃣" },
   ],
   "seofilo-agent": [
-    { label: "Auditoría SEO", prompt: "Haz una auditoría SEO de mi web", emoji: "🔎" },
-    { label: "Keywords sugeridas", prompt: "Sugiere keywords para posicionarme", emoji: "🔑" },
-    { label: "Análisis de competencia", prompt: "Analiza el SEO de mis competidores directos", emoji: "🏆" },
-    { label: "Plan de linkbuilding", prompt: "Crea un plan de linkbuilding para mejorar mi autoridad de dominio", emoji: "🔗" },
+    { label: "Email a un sello", prompt: "Redacta un email persuasivo para enviar mi demo a un sello discográfico A&R", emoji: "📧" },
+    { label: "Follow-up A&R", prompt: "Escribe un email de seguimiento para un sello que aún no ha respondido a mi demo", emoji: "🔄" },
+    { label: "Pitch a playlist", prompt: "Escribe un pitch para que me incluyan en una playlist curada de Spotify", emoji: "🎵" },
+    { label: "Bio para prensa", prompt: "Redacta una bio profesional para enviar a medios y blogs de música electrónica", emoji: "📝" },
   ],
   "design-agent": [
-    { label: "Diseñar logo", prompt: "Necesito un logo para mi cliente", emoji: "🎨" },
-    { label: "Imagen para Instagram", prompt: "Genera una imagen para un post de Instagram", emoji: "🖼️" },
-    { label: "Paleta de colores", prompt: "Crea una paleta de colores coherente para mi marca", emoji: "🎯" },
-    { label: "Mockup presentación", prompt: "Genera un mockup de presentación para un cliente", emoji: "📐" },
+    { label: "Portada de single", prompt: "Genera un prompt para crear una portada de single con estilo minimalista techno", emoji: "💿" },
+    { label: "Cartel de evento", prompt: "Genera un prompt para diseñar un cartel para mi próximo evento en una sala de Madrid", emoji: "🎪" },
+    { label: "Paleta para marca DJ", prompt: "Crea una paleta de colores coherente para mi marca personal como DJ", emoji: "🎯" },
+    { label: "Mockup para redes", prompt: "Genera un mockup de presentación para anunciar mi próximo lanzamiento", emoji: "📐" },
   ],
 };
 

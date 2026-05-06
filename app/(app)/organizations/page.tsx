@@ -109,9 +109,9 @@ export default function OrganizationsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Organizaciones</h1>
+          <h1 className="text-3xl font-bold text-foreground">Agencias & Managers</h1>
           <p className="text-muted-foreground mt-1">
-            Gestiona tus organizaciones y espacios de trabajo
+            Gestiona tus agencias, managers y espacios de trabajo
           </p>
         </div>
 
@@ -119,12 +119,12 @@ export default function OrganizationsPage() {
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Nueva organización</span>
+              <span className="hidden sm:inline">Nueva agencia</span>
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Crear organización</DialogTitle>
+              <DialogTitle>Crear agencia</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
@@ -133,7 +133,7 @@ export default function OrganizationsPage() {
                   id="org-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Nombre de la organización"
+                  placeholder="Nombre de la agencia"
                 />
               </div>
               <div>
@@ -159,7 +159,7 @@ export default function OrganizationsPage() {
                   id="org-desc"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Descripción de la organización"
+                  placeholder="Descripción de la agencia"
                   rows={3}
                 />
               </div>
@@ -169,7 +169,7 @@ export default function OrganizationsPage() {
                 ) : (
                   <Plus className="h-4 w-4 mr-2" />
                 )}
-                Crear organización
+                Crear agencia
               </Button>
             </div>
           </DialogContent>
@@ -181,14 +181,14 @@ export default function OrganizationsPage() {
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium text-foreground mb-2">
-              No tienes organizaciones
+              No tienes agencias registradas
             </h3>
             <p className="text-muted-foreground text-center mb-4">
-              Crea una organización para agrupar proyectos y colaborar con tu equipo
+              Crea una agencia para gestionar tus artistas y colaborar con tu equipo
             </p>
             <Button onClick={() => setDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
-              Crear primera organización
+              Crear primera agencia
             </Button>
           </CardContent>
         </Card>
@@ -228,7 +228,7 @@ export default function OrganizationsPage() {
                     </div>
                     <div className="flex items-center gap-1">
                       <FolderOpen className="h-4 w-4" />
-                      {org.projectCount} {org.projectCount === 1 ? "proyecto" : "proyectos"}
+                      {org.projectCount} {org.projectCount === 1 ? "lanzamiento" : "lanzamientos"}
                     </div>
                   </div>
                 </CardContent>

@@ -18,10 +18,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invitación no encontrada" }, { status: 404 });
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://leadfy.vercel.app";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://beatfy.app";
     const inviteUrl = `${appUrl}/join/${invitationId}`;
 
-    const targetName = orgName || "Leadfy";
+    const targetName = orgName || "Beatfy";
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 32px; border-radius: 12px 12px 0 0; text-align: center;">
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
         </div>
         <div style="padding: 32px; background: white; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
           <p style="color: #374151; font-size: 16px; line-height: 1.6;">
-            <strong>${inviterName}</strong> te ha invitado a unirte a la organización <strong>${targetName}</strong> en Leadfy.
+            <strong>${inviterName}</strong> te ha invitado a unirte a la organización <strong>${targetName}</strong> en Beatfy.
           </p>
           <div style="text-align: center; margin: 32px 0;">
             <a href="${inviteUrl}" style="background: #6366f1; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; display: inline-block;">
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: "Leadfy <noreply@leadfy.vercel.app>",
+          from: "Beatfy <noreply@beatfy.app>",
           to: [invitation.email],
           subject: `${inviterName} te ha invitado a ${targetName}`,
           html,

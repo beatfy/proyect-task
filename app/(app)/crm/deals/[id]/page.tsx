@@ -16,8 +16,9 @@ import {
 } from "@/components/ui/select";
 import {
   Loader2, ArrowLeft, Plus, Trash2, Check, Calendar, Clock, User,
-  DollarSign, Edit2, MessageSquare, Phone, Mail,
+  DollarSign, Edit2, MessageSquare, Phone, Mail, FileText, Download,
 } from "lucide-react";
+import { toast } from "sonner";
 
 // --- Types ---
 interface Deal {
@@ -112,6 +113,8 @@ export default function DealDetailPage() {
   const [saving, setSaving] = useState(false);
   const [deleteActivityId, setDeleteActivityId] = useState<string | null>(null);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
+  const [generatingContract, setGeneratingContract] = useState(false);
+  const [contracts, setContracts] = useState<{ id: string; fileName: string; status: string; createdAt: string; pdfUrl: string }[]>([]);
 
   const fetchDeal = useCallback(async () => {
     try {
@@ -139,6 +142,33 @@ export default function DealDetailPage() {
   useEffect(() => {
     fetchDeal();
   }, [fetchDeal]);
+
+  useEffect(() => {
+    fetch(`/api/crm/contracts?dealId=${dealId}`).then(r => r.ok ? r.json() : []).then(setContracts).catch(() => {});
+  }, [dealId]);
+
+  const handleGenerateContract = async () => {
+    setGeneratingContract(true);
+    try {
+      const res = await fetch("/api/crm/contracts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dealId }),
+      });
+      if (res.ok) {
+        const contract = await res.json();
+        setContracts([contract, ...contracts]);
+        toast.success("Contrato generado correctamente");
+      } else {
+        const data = await res.json();
+        toast.error(data.error || "Error al generar contrato");
+      }
+    } catch {
+      toast.error("Error al generar contrato");
+    } finally {
+      setGeneratingContract(false);
+    }
+  };
 
   const handleStageChange = async (newStageId: string) => {
     if (!deal) return;
@@ -263,9 +293,37 @@ export default function DealDetailPage() {
             {deal.contact.company && <span>{deal.contact.company}</span>}
           </div>
         </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <Button variant="outline" size="sm" onClick={handleGenerateContract} disabled={generatingContract}>
+            {generatingContract ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <FileText className="h-4 w-4 mr-1.5" />}
+            Generar Contrato
+          </Button>
+        </div>
       </div>
-
-      {/* Deal Info + Stage */}
+      {contracts.length > 0 && (
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2"><FileText className="h-4 w-4" /> Contratos Generados</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {contracts.map((c) => (
+                <div key={c.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{c.fileName}</p>
+                    <p className="text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleDateString("es-ES")}</p>
+                  </div>
+                  <Button variant="outline" size="sm" asChild>
+                    <a href={c.pdfUrl} download={c.fileName}>
+                      <Download className="h-3.5 w-3.5 mr-1.5" /> PDF
+                    </a>
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           {/* Deal Details Card */}

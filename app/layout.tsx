@@ -6,8 +6,8 @@ import { Providers } from "./providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Leadfy - Gestión de Tareas",
-  description: "Aplicación de gestión de tareas estilo Asana",
+  title: "Beatfy - Music Business Hub",
+  description: "Booking, releases y gestión para artistas y DJs",
 };
 
 export default function RootLayout({

@@ -74,7 +74,7 @@ export async function POST(
         },
       });
 
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || `https://xtask.space`;
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || `https://beatfy.app`;
       const inviteUrl = `${appUrl}/join/${token}`;
 
       return NextResponse.json({
@@ -103,7 +103,7 @@ export async function POST(
       where: { id: authResult.userId },
       select: { name: true },
     });
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://leadfy.vercel.app";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://beatfy.app";
     const inviteUrl = `${appUrl}/join/${id}`;
 
 
@@ -140,11 +140,11 @@ export async function POST(
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 32px; border-radius: 12px 12px 0 0; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 24px;">Has sido añadido a ${project?.name || "Leadfy"}</h1>
+            <h1 style="color: white; margin: 0; font-size: 24px;">Has sido añadido a ${project?.name || "Beatfy"}</h1>
           </div>
           <div style="padding: 32px; background: white; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
             <p style="color: #374151; font-size: 16px; line-height: 1.6;">
-              <strong>${inviter?.name || "Un usuario"}</strong> te ha añadido al proyecto <strong>${project?.name || ""}</strong> en Leadfy.
+              <strong>${inviter?.name || "Un usuario"}</strong> te ha añadido al proyecto <strong>${project?.name || ""}</strong> en Beatfy.
             </p>
             <div style="text-align: center; margin: 32px 0;">
               <a href="${inviteUrl}" style="background: #6366f1; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; display: inline-block;">
@@ -170,9 +170,9 @@ export async function POST(
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: "Leadfy <noreply@leadfy.vercel.app>",
+          from: "Beatfy <noreply@beatfy.app>",
           to: [user.email],
-          subject: `Has sido añadido a ${project?.name || "Leadfy"}`,
+          subject: `Has sido añadido a ${project?.name || "Beatfy"}`,
           html,
         }),
       });
