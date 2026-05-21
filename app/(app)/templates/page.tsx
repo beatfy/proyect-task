@@ -54,9 +54,9 @@ const priorityColors: Record<string, string> = {
 
 const templateIcons: Record<string, typeof LayoutTemplate> = {
   "Lanzamiento": Rocket,
-  "Bolo": Music,
+  "Oportunidad": Music,
   "Demo": Mic2,
-  "Pre-save": Megaphone,
+  "Lead": Megaphone,
   "Contenido": Video,
   "Remix": Disc3,
   "Colab": Users,
@@ -246,7 +246,7 @@ export default function TemplatesPage() {
       {/* Default templates */}
       {defaults.length > 0 && (
         <div>
-          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
+          <h2 className="text-sm font-medium text-muted-foreground uppercase proyectoing-wider mb-3">
             Plantillas predeterminadas
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -285,7 +285,7 @@ export default function TemplatesPage() {
 
       {/* Custom templates */}
       <div>
-        <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
+        <h2 className="text-sm font-medium text-muted-foreground uppercase proyectoing-wider mb-3">
           Mis Plantillas ({custom.length})
         </h2>
         {custom.length === 0 ? (
@@ -364,7 +364,7 @@ export default function TemplatesPage() {
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Ej: Lanzamiento, Bolo, Campaña..."
+                placeholder="Ej: Lanzamiento, Oportunidad, Campaña..."
                 className="bg-background border-border text-foreground"
               />
             </div>
@@ -373,7 +373,7 @@ export default function TemplatesPage() {
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Ej: Lanzar nuevo single en Spotify"
+                placeholder="Ej: Lanzar nuevo single en "
                 className="bg-background border-border text-foreground"
               />
             </div>
@@ -421,7 +421,7 @@ export default function TemplatesPage() {
               <Input
                 value={tagsInput}
                 onChange={(e) => setTagsInput(e.target.value)}
-                placeholder="Separadas por comas: lanzamiento, pre-save, spotify"
+                placeholder="Separadas por comas: lanzamiento, lead, spotify"
                 className="bg-background border-border text-foreground"
               />
             </div>

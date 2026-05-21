@@ -54,12 +54,13 @@ interface Project {
 
 
 const PRESET_LABELS = [
-  { name: "Single", color: "#f59e0b" },
-  { name: "EP", color: "#10b981" },
-  { name: "Album", color: "#6366f1" },
-  { name: "Remix", color: "#ec4899" },
-  { name: "Collab", color: "#3b82f6" },
-  { name: "Bolo", color: "#8b5cf6" },
+  { name: "Campaña SEO", color: "#C75B39" },
+  { name: "Campaña SEM", color: "#2E5C8A" },
+  { name: "Gestión Redes", color: "#D4A373" },
+  { name: "Rediseño Web", color: "#52796F" },
+  { name: "Branding", color: "#8B5CF6" },
+  { name: "Consultoría", color: "#EC4899" },
+  { name: "Mantenimiento", color: "#10B981" },
 ];
 
 export default function ProjectsPage() {
@@ -87,7 +88,7 @@ export default function ProjectsPage() {
         setProjects(data);
       }
     } catch {
-      toast.error("Error al cargar lanzamientos");
+      toast.error("Error al cargar clientes");
     } finally {
       setLoading(false);
     }
@@ -192,8 +193,8 @@ export default function ProjectsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Lanzamientos</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">Gestiona tus singles, EPs y lanzamientos musicales</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Clientes</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">Gestiona tus singles, EPs y clientes musicales</p>
         </div>
         <Button onClick={() => setOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
@@ -341,7 +342,7 @@ export default function ProjectsPage() {
         <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <FolderOpen className="h-12 w-12 text-slate-400 dark:text-slate-500 mb-4" />
-            <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-1">No hay lanzamientos</h3>
+            <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-1">No hay clientes</h3>
             <p className="text-slate-500 dark:text-slate-400 text-sm">Crea tu primer lanzamiento para comenzar</p>
           </CardContent>
         </Card>

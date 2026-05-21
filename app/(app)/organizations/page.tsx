@@ -184,7 +184,7 @@ export default function OrganizationsPage() {
               No tienes agencias registradas
             </h3>
             <p className="text-muted-foreground text-center mb-4">
-              Crea una agencia para gestionar tus artistas y colaborar con tu equipo
+              Crea una agencia para gestionar tus clientes y colaborar con tu equipo
             </p>
             <Button onClick={() => setDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
@@ -228,7 +228,7 @@ export default function OrganizationsPage() {
                     </div>
                     <div className="flex items-center gap-1">
                       <FolderOpen className="h-4 w-4" />
-                      {org.projectCount} {org.projectCount === 1 ? "lanzamiento" : "lanzamientos"}
+                      {org.projectCount} {org.projectCount === 1 ? "lanzamiento" : "clientes"}
                     </div>
                   </div>
                 </CardContent>

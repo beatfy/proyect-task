@@ -202,7 +202,7 @@ EMAIL_IMAP_PASSWORD=password
 ### Para Leadfy en general:
 1. **Dark mode** - ya tienes next-themes, solo falta toggle en UI
 2. **Exportar tareas a CSV/PDF**
-3. **Time tracking** - tiempo dedicado a cada tarea
+3. **Time proyectoing** - tiempo dedicado a cada tarea
 4. **Recurring tasks** - tareas recurrentes (RRULE)
 5. **Mobile responsive** - sidebar como drawer en móvil
 6. **Keyboard shortcuts** - para usuarios avanzados

@@ -25,10 +25,10 @@ interface CrmStats {
 }
 
 const statusLabels: Record<string, string> = {
-  LEAD: "Sala/Club",
+  LEAD: "Prospecto",
   CONTACTED: "Contactado",
-  QUALIFIED: "En negociación",
-  CUSTOMER: "Promotor",
+  QUALIFIED: "Calificado",
+  CUSTOMER: "Cliente Activo",
 };
 
 const statusColors: Record<string, string> = {
@@ -95,7 +95,7 @@ export default function CrmDashboardPage() {
         setStats(await response.json());
       }
     } catch (error) {
-      console.error("Error loading Booking stats:", error);
+      console.error("Error loading CRM stats:", error);
     } finally {
       setLoading(false);
     }
@@ -112,7 +112,7 @@ export default function CrmDashboardPage() {
   if (!stats) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-muted-foreground">Error al cargar estadísticas de Booking</p>
+        <p className="text-muted-foreground">Error al cargar estadísticas de CRM</p>
       </div>
     );
   }
@@ -134,8 +134,8 @@ export default function CrmDashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Booking</h1>
-          <p className="text-muted-foreground mt-1">Gestión de bolos, salas y pipeline de bookings</p>
+          <h1 className="text-3xl font-bold text-foreground">CRM</h1>
+          <p className="text-muted-foreground mt-1">Gestión de oportunidads, salas y pipeline de CRMs</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <CrmGlobalSearch />
@@ -169,12 +169,12 @@ export default function CrmDashboardPage() {
 
         <Card className="bg-card border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Bolos Abiertos</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Oportunidads Abiertos</CardTitle>
             <TrendingUp className="h-5 w-5 text-violet-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-foreground">{stats.openDealsCount}</div>
-            <p className="text-xs text-muted-foreground mt-1">En pipeline de booking</p>
+            <p className="text-xs text-muted-foreground mt-1">En pipeline de CRM</p>
           </CardContent>
         </Card>
 
@@ -185,7 +185,7 @@ export default function CrmDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-foreground">{formatCurrency(stats.pipelineValue)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Cachés totales pendientes</p>
+            <p className="text-xs text-muted-foreground mt-1">Presupuestos totales pendientes</p>
           </CardContent>
         </Card>
 
@@ -250,9 +250,9 @@ export default function CrmDashboardPage() {
             <Card className="bg-card border-border">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-foreground">Bolos por Etapa</CardTitle>
+                  <CardTitle className="text-foreground">Oportunidads por Etapa</CardTitle>
                   <Link href="/crm/pipeline" className="text-sm text-primary hover:underline flex items-center gap-1">
-                    Ver bolos <ArrowRight className="h-3 w-3" />
+                    Ver oportunidads <ArrowRight className="h-3 w-3" />
                   </Link>
                 </div>
               </CardHeader>
@@ -266,7 +266,7 @@ export default function CrmDashboardPage() {
                           <span className="text-sm text-foreground">{stage.name}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">{stage.dealCount} bolos</span>
+                          <span className="text-xs text-muted-foreground">{stage.dealCount} oportunidads</span>
                           <span className="text-sm font-medium text-foreground">{formatCurrency(stage.totalValue)}</span>
                         </div>
                       </div>
@@ -288,7 +288,7 @@ export default function CrmDashboardPage() {
         <TabsContent value="funnel">
           <Card className="bg-card border-border">
             <CardHeader>
-                  <CardTitle className="text-foreground">Funnel de Bolos</CardTitle>
+                  <CardTitle className="text-foreground">Funnel de Oportunidads</CardTitle>
             </CardHeader>
             <CardContent>
               <FunnelChart stages={enrichedStages} />
@@ -310,11 +310,11 @@ export default function CrmDashboardPage() {
 
             <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle className="text-foreground">Bolos más Valiosos</CardTitle>
+                <CardTitle className="text-foreground">Oportunidads más Valiosos</CardTitle>
               </CardHeader>
               <CardContent>
                 {topDeals.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">Sin bolos</p>
+                  <p className="text-sm text-muted-foreground text-center py-4">Sin oportunidads</p>
                 ) : (
                   <div className="space-y-3">
                     {topDeals.map((deal, idx) => (

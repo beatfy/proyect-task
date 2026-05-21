@@ -131,7 +131,7 @@ export default function CrmGlobalSearch() {
                 <div className="p-2">
                   <div className="flex items-center gap-2 px-2 py-1.5">
                     <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase proyectoing-wider">
                       Contactos ({results.contacts.length})
                     </span>
                   </div>
@@ -162,7 +162,7 @@ export default function CrmGlobalSearch() {
                 <div className="p-2 border-t border-border">
                   <div className="flex items-center gap-2 px-2 py-1.5">
                     <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase proyectoing-wider">
                       Deals ({results.deals.length})
                     </span>
                   </div>

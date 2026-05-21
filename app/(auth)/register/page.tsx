@@ -50,7 +50,7 @@ function RegisterForm() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="text-center">
-        <CardTitle className="text-3xl font-bold text-primary">{process.env.NEXT_PUBLIC_BRAND_NAME || "Beatfy"}</CardTitle>
+        <CardTitle className="text-3xl font-bold text-primary">{process.env.NEXT_PUBLIC_BRAND_NAME || "taskProject"}</CardTitle>
         <CardDescription>Crea tu cuenta</CardDescription>
       </CardHeader>
       <CardContent>

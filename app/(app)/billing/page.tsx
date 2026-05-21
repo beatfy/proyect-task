@@ -154,8 +154,8 @@ export default function BillingPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">Gig Finance</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">Gestiona las facturas de tus bolos y lanzamientos</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">Facturación</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">Gestiona las facturas de tus oportunidads y clientes</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" className="shrink-0" onClick={handleAutoGenerate}>
@@ -329,10 +329,10 @@ export default function BillingPage() {
       {/* Create dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-          <DialogHeader>          <DialogTitle className="text-slate-900 dark:text-slate-100">Nueva Factura de Bolo</DialogTitle></DialogHeader>
+          <DialogHeader>          <DialogTitle className="text-slate-900 dark:text-slate-100">Nueva Factura de Oportunidad</DialogTitle></DialogHeader>
           <div className="space-y-4 pt-4">
             <div className="space-y-2">
-              <Label className="text-slate-700 dark:text-slate-300">Lanzamiento / Bolo</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Lanzamiento / Oportunidad</Label>
               <Select value={form.projectId} onValueChange={(v) => setForm({ ...form, projectId: v })}>
                 <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
                   <SelectValue placeholder="Seleccionar lanzamiento" />

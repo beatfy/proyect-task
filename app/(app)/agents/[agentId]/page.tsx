@@ -8,53 +8,42 @@ import { cn } from "@/lib/utils";
 
 /* ── Metadatos de agentes ── */
 const AGENTS: Record<string, { name: string; emoji: string; description: string }> = {
-  "ads-commander": {
-    name: "Viral Track Promoter",
-    emoji: "📢",
-    description: "Campañas Meta/TikTok Ads para pre-saves y tráfico a Spotify",
-  },
-  "social-pulse-agent": {
-    name: "Club Content Creator",
-    emoji: "📱",
-    description: "Contenido para DJs: Reels, TikToks, copys y estrategias virales",
-  },
-  "seofilo-agent": {
-    name: "A&R / Label Pitcher",
+  "seo-agent": {
+    name: "SEO Specialist",
     emoji: "🔍",
-    description: "Emails persuasivos a sellos discográficos y A&Rs",
+    description: "Auditorías técnicas, keyword research, optimización on-page y estrategia de contenidos",
   },
-  "design-agent": {
-    name: "Cover Art & Flyer",
-    emoji: "🎨",
-    description: "Portadas de discos, carteles de eventos y branding",
+  "sem-agent": {
+    name: "SEM Specialist",
+    emoji: "📈",
+    description: "Campañas Google Ads, PPC, optimización de ROAS y análisis de performance",
+  },
+  "social-agent": {
+    name: "Social Media Specialist",
+    emoji: "📱",
+    description: "Calendarios editoriales, copywriting, community management y estrategia social",
   },
 };
 
 /* ── Templates por agente ── */
 const AGENT_TEMPLATES: Record<string, { label: string; prompt: string; emoji: string }[]> = {
-  "ads-commander": [
-    { label: "Campaña Pre-save", prompt: "Crea una campaña de Meta Ads para conseguir pre-saves de mi próximo single en Spotify", emoji: "📊" },
-    { label: "Analizar campañas", prompt: "Analiza el rendimiento de mis campañas activas de promoción musical", emoji: "📈" },
-    { label: "Presupuesto promos", prompt: "Revisa y optimiza el presupuesto de mis campañas de promoción de tracks", emoji: "💰" },
-    { label: "Tráfico a Spotify", prompt: "Estrategia de ads para llevar tráfico a mi perfil de Spotify y conseguir seguidores", emoji: "🎵" },
+  "seo-agent": [
+    { label: "Auditoría SEO", prompt: "Realiza una auditoría SEO técnica completa del sitio web del cliente. Analiza velocidad, indexación, mobile-friendly, estructura de URLs, meta tags, headings y backlinks. Proporcione un informe detallado con prioridades de acción.", emoji: "🔍" },
+    { label: "Keyword Research", prompt: "Realiza un keyword research estratégico para el cliente. Identifica keywords de alto volumen y baja competencia, keywords long-tail, intención de búsqueda y oportunidades de contenido.", emoji: "🎯" },
+    { label: "Optimización On-Page", prompt: "Optimiza la página [URL] del cliente. Mejora títulos SEO, meta descriptions, headings, estructura de contenido, internal linking y schema markup.", emoji: "⚡" },
+    { label: "Estrategia de Contenidos", prompt: "Crea una estrategia de content marketing para el cliente. Propón temas, calendario editorial, formatos de contenido y distribución por canales.", emoji: "📝" },
   ],
-  "social-pulse-agent": [
-    { label: "Contenido desde el club", prompt: "Tengo un clip de 1 minuto pinchando en el club. Conviértelo en sugerencias de Reels y TikToks virales", emoji: "🎬" },
-    { label: "Calendario mensual", prompt: "Genera un calendario de contenido para redes sociales de un DJ para este mes", emoji: "📅" },
-    { label: "Copys para posts", prompt: "Escribe copys para mis próximos 5 posts de Instagram anunciando mi próximo evento", emoji: "✍️" },
-    { label: "Hashtags para DJs", prompt: "Sugiere hashtags trending para DJs de electrónica en Instagram y TikTok", emoji: "#️⃣" },
+  "sem-agent": [
+    { label: "Campaña Google Ads", prompt: "Diseña una campaña de Google Ads para el cliente. Define estructura de campañas, grupos de anuncios, keywords, presupuesto y estrategia de pujas.", emoji: "🎯" },
+    { label: "Optimizar ROAS", prompt: "Analiza las campañas activas del cliente y propón optimizaciones para mejorar el ROAS. Revisa audiencias, creatividades, landing pages y presupuestos.", emoji: "📊" },
+    { label: "A/B Testing", prompt: "Diseña un plan de A/B testing para los anuncios del cliente. Propón variantes de copy, visuals, CTAs y estrategia de medición.", emoji: "🧪" },
+    { label: "Remarketing", prompt: "Crea una estrategia de remarketing para el cliente. Define segmentos de audiencia, mensajes por etapa del funnel y presupuesto recomendado.", emoji: "🔄" },
   ],
-  "seofilo-agent": [
-    { label: "Email a un sello", prompt: "Redacta un email persuasivo para enviar mi demo a un sello discográfico A&R", emoji: "📧" },
-    { label: "Follow-up A&R", prompt: "Escribe un email de seguimiento para un sello que aún no ha respondido a mi demo", emoji: "🔄" },
-    { label: "Pitch a playlist", prompt: "Escribe un pitch para que me incluyan en una playlist curada de Spotify", emoji: "🎵" },
-    { label: "Bio para prensa", prompt: "Redacta una bio profesional para enviar a medios y blogs de música electrónica", emoji: "📝" },
-  ],
-  "design-agent": [
-    { label: "Portada de single", prompt: "Genera un prompt para crear una portada de single con estilo minimalista techno", emoji: "💿" },
-    { label: "Cartel de evento", prompt: "Genera un prompt para diseñar un cartel para mi próximo evento en una sala de Madrid", emoji: "🎪" },
-    { label: "Paleta para marca DJ", prompt: "Crea una paleta de colores coherente para mi marca personal como DJ", emoji: "🎯" },
-    { label: "Mockup para redes", prompt: "Genera un mockup de presentación para anunciar mi próximo lanzamiento", emoji: "📐" },
+  "social-agent": [
+    { label: "Calendario Editorial", prompt: "Crea un calendario editorial mensual para el cliente. Incluye posts por red social, formatos, copy sugerido y hashtags.", emoji: "📅" },
+    { label: "Copywriting", prompt: "Escribe copy para 5 posts de [red social] del cliente. Adapta el tono a la marca y propón CTAs efectivos.", emoji: "✍️" },
+    { label: "Estrategia Viral", prompt: "Diseña una estrategia de contenido viral para el cliente. Identifica formatos trending, hooks efectivos y oportunidades de participación.", emoji: "🚀" },
+    { label: "Community Management", prompt: "Crea un plan de community management para el cliente. Define horarios de respuesta, tono de voz, protocolos de crisis y métricas de engagement.", emoji: "💬" },
   ],
 };
 

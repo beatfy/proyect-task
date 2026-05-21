@@ -32,13 +32,13 @@ export async function POST(req: NextRequest) {
       const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?token=${token}`;
 
       await getResend().emails.send({
-        from: "Beatfy <noreply@beatfy.app>",
+        from: "taskProject <noreply@taskProject.app>",
         to: email,
-        subject: "Reset your Beatfy password",
+        subject: "Reset your taskProject password",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #6366f1;">Reset your password</h2>
-            <p>We received a request to reset your Beatfy password.</p>
+            <p>We received a request to reset your taskProject password.</p>
             <p>Click the button below to set a new password. This link expires in 1 hour.</p>
             <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #6366f1; color: #ffffff; text-decoration: none; border-radius: 6px; margin: 16px 0;">
               Reset Password

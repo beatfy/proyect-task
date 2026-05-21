@@ -122,7 +122,7 @@ export default function DashboardPage() {
   const statCards = [
     { name: "Completadas esta semana", value: stats.completedThisWeek, icon: CheckCircle, color: "text-green-500", bg: "bg-green-50 dark:bg-green-900/20" },
     { name: "Completadas este mes", value: stats.completedThisMonth, icon: TrendingUp, color: "text-neutral-900", bg: "bg-neutral-50 dark:bg-indigo-900/20", change: monthChange },
-    { name: "Lanzamientos activos", value: stats.activeProjects, icon: FolderOpen, color: "text-violet-500", bg: "bg-violet-50 dark:bg-violet-900/20" },
+    { name: "Clientes activos", value: stats.activeProjects, icon: FolderOpen, color: "text-violet-500", bg: "bg-violet-50 dark:bg-violet-900/20" },
     { name: "Tareas vencidas", value: stats.overdueTasks, icon: AlertCircle, color: "text-red-500", bg: "bg-red-50 dark:bg-red-900/20" },
     { name: "Total tareas", value: stats.totalTasks, icon: CheckSquare, color: "text-muted-foreground", bg: "bg-muted" },
   ];
@@ -182,12 +182,12 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Spotify Widget Placeholder */}
+      {/*  Widget Placeholder */}
       <Card className="bg-gradient-to-br from-[#1DB954]/10 to-[#1DB954]/5 border-[#1DB954]/20">
         <CardHeader>
           <CardTitle className="text-foreground flex items-center gap-2">
             <Disc3 className="h-5 w-5 text-[#1DB954]" />
-            Spotify for Artists
+             for Artists
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -196,7 +196,7 @@ export default function DashboardPage() {
               <Headphones className="h-8 w-8 text-[#1DB954]" />
             </div>
             <div className="flex-1">
-              <p className="text-sm text-foreground font-medium">Conecta tu Spotify for Artists</p>
+              <p className="text-sm text-foreground font-medium">Conecta tu  for Artists</p>
               <p className="text-xs text-muted-foreground mt-1">
                 Ve tus oyentes mensuales, streams y playlists directamente en tu dashboard.
                 Configura tu SPOTIFY_CLIENT_ID en las variables de entorno para activar esta integración.

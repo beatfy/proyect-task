@@ -31,10 +31,7 @@ model User {
   organizations OrganizationMember[]
   apiKeys      ApiKey[]
   resetTokens  PasswordResetToken[]
-  downloadGates DownloadGate[]
-  epks         EPK[]
-  audioShares  AudioVaultShare[]
-  artistProfile ArtistProfile?
+
 }
 
 model Project {
@@ -444,7 +441,7 @@ model Deal {
   movedAt       DateTime      @updatedAt
   ownerId       String?
   organizationId String?
-  contracts     SmartContract[]
+
 }
 
 model Activity {
@@ -481,137 +478,3 @@ model EmailConfig {
   updatedAt        DateTime @updatedAt
 }
 
-// ========== SMART CONTRACTS ==========
-
-model SmartContract {
-  id             String    @id @default(cuid())
-  dealId         String
-  deal           Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
-  pdfUrl         String
-  fileName       String
-  venueName      String
-  artistName     String
-  eventDate      DateTime
-  fee            Float
-  currency       String    @default("EUR")
-  terms          String?
-  status         String    @default("GENERATED")
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-}
-
-// ========== DOWNLOAD GATE ==========
-
-model DownloadGate {
-  id             String           @id @default(cuid())
-  userId         String
-  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title          String
-  description    String?
-  fileUrl        String
-  fileName       String
-  fileType       String
-  fileSize       Int?
-  slug           String           @unique
-  isActive       Boolean          @default(true)
-  maxDownloads   Int?
-  downloadCount  Int              @default(0)
-  expiresAt      DateTime?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  organizationId String?
-  downloads      DownloadGateEntry[]
-}
-
-model DownloadGateEntry {
-  id           String        @id @default(cuid())
-  gateId       String
-  gate         DownloadGate  @relation(fields: [gateId], references: [id], onDelete: Cascade)
-  email        String
-  name         String?
-  createdAt    DateTime      @default(now())
-
-  @@unique([gateId, email])
-}
-
-// ========== SMART EPK (ELECTRONIC PRESS KIT) ==========
-
-model EPK {
-  id           String     @id @default(cuid())
-  userId       String
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  slug         String     @unique
-  artistName   String
-  bio          String?
-  photoUrl     String?
-  coverUrl     String?
-  soundcloudUrl String?
-  spotifyUrl    String?
-  instagramUrl  String?
-  websiteUrl    String?
-  tracks        Json?
-  highlights    Json?
-  isActive      Boolean    @default(true)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  views         EPKView[]
-}
-
-model EPKView {
-  id        String   @id @default(cuid())
-  epkId     String
-  epk       EPK      @relation(fields: [epkId], references: [id], onDelete: Cascade)
-  visitorIp String?
-  referrer  String?
-  createdAt DateTime @default(now())
-}
-
-// ========== AUDIO VAULT ==========
-
-model AudioVaultShare {
-  id           String            @id @default(cuid())
-  userId       String
-  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  fileUrl      String
-  fileName     String
-  title        String
-  artistName   String?
-  slug         String            @unique
-  isActive     Boolean           @default(true)
-  expiresAt    DateTime?
-  maxPlays     Int?
-  playCount    Int               @default(0)
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  organizationId String?
-  plays        AudioVaultPlay[]
-}
-
-model AudioVaultPlay {
-  id        String          @id @default(cuid())
-  shareId   String
-  share     AudioVaultShare @relation(fields: [shareId], references: [id], onDelete: Cascade)
-  visitorIp String?
-  referrer  String?
-  listenedAt DateTime       @default(now())
-}
-
-// ========== ARTIST PROFILE (RIDER) ==========
-
-model ArtistProfile {
-  id                String   @id @default(cuid())
-  userId            String   @unique
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  stageName         String?
-  genre             String?
-  techRiderUrl      String?
-  techRiderName     String?
-  hospitalityUrl    String?
-  hospitalityName   String?
-  spotifyUrl        String?
-  soundcloudUrl     String?
-  instagramUrl      String?
-  bio               String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-}

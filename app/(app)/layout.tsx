@@ -4,9 +4,9 @@ import { useSession, signOut } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Home, FolderOpen, CheckSquare, Calendar, Settings, LogOut,
-  ChevronLeft, ChevronRight, Mail, Sun, Moon, Building2, FileText,
-  Menu, Receipt, Bot, ChevronDown, MessageCircle, Megaphone,
-  BarChart3, Search, Palette, Users, Kanban, Download, Globe
+  ChevronLeft, ChevronRight, Mail, Sun, Moon, Building2,
+  Menu, Receipt, Bot, ChevronDown, BarChart3, Search, Megaphone,
+  TrendingUp, Share2, Users, Kanban, Globe
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -30,10 +30,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const agentItems = [
-  { name: "Viral Track", href: "/agents/ads-commander", icon: Megaphone },
-  { name: "Club Content", href: "/agents/social-pulse-agent", icon: MessageCircle },
-  { name: "A&R Pitcher", href: "/agents/seofilo-agent", icon: Search },
-  { name: "Cover Art", href: "/agents/design-agent", icon: Palette },
+  { name: "SEO Agent", href: "/agents/seo-agent", icon: Search },
+  { name: "SEM Agent", href: "/agents/sem-agent", icon: TrendingUp },
+  { name: "Social Agent", href: "/agents/social-agent", icon: Share2 },
 ];
 
 const sections = [
@@ -47,25 +46,23 @@ const sections = [
   {
     label: "Trabajo",
     items: [
-      { name: "Lanzamientos", href: "/projects", icon: FolderOpen },
+      { name: "Clientes", href: "/projects", icon: FolderOpen },
       { name: "Tareas", href: "/tasks", icon: CheckSquare },
       { name: "Calendario", href: "/calendar", icon: Calendar },
-      { name: "Audio Vault", href: "/files", icon: FileText },
       { name: "Mail", href: "/mail", icon: Mail },
     ],
   },
   {
-    label: "Agentes",
+    label: "Agentes IA",
     items: agentItems,
   },
   {
     label: "Negocio",
     items: [
-      { name: "Booking", href: "/crm", icon: Users },
-      { name: "Bolos", href: "/crm/pipeline", icon: Kanban },
-      { name: "Gig Finance", href: "/billing", icon: Receipt },
-      { name: "Download Gate", href: "/download-gate", icon: Download },
-      { name: "Press Kit", href: "/epk", icon: Globe },
+      { name: "CRM", href: "/crm", icon: Users },
+      { name: "Oportunidades", href: "/crm/pipeline", icon: Kanban },
+      { name: "Facturación", href: "/billing", icon: Receipt },
+      { name: "Reportes", href: "/reports", icon: BarChart3 },
     ],
   },
 ];
@@ -90,8 +87,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[var(--mediterranean-sand)]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--mediterranean-terracotta)]"></div>
       </div>
     );
   }
@@ -114,7 +111,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <button onClick={() => setMobileMenuOpen(true)} className="p-2 -ml-2">
             <Menu className="h-5 w-5" />
           </button>
-          <Link href="/dashboard" className="text-lg font-bold text-neutral-900">{process.env.NEXT_PUBLIC_BRAND_NAME || "Beatfy"}</Link>
+          <Link href="/dashboard" className="text-lg font-bold text-[var(--mediterranean-terracotta)]">
+            {process.env.NEXT_PUBLIC_BRAND_NAME || "taskProject"}
+          </Link>
           <NotificationCenter compact />
         </header>
 
@@ -133,13 +132,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             collapsed ? "justify-center px-2" : "justify-between px-4"
           )}>
             {!collapsed && (
-              <Link href="/dashboard" className="text-xl font-bold text-neutral-900 dark:text-neutral-500">
-                {process.env.NEXT_PUBLIC_BRAND_NAME || "Beatfy"}
+              <Link href="/dashboard" className="text-xl font-bold text-[var(--mediterranean-terracotta)]">
+                {process.env.NEXT_PUBLIC_BRAND_NAME || "taskProject"}
               </Link>
             )}
             {collapsed && (
-              <Link href="/dashboard" className="text-lg font-bold text-neutral-900 dark:text-neutral-500">
-                {(process.env.NEXT_PUBLIC_BRAND_NAME || "Beatfy")[0]}
+              <Link href="/dashboard" className="text-lg font-bold text-[var(--mediterranean-terracotta)]">
+                {(process.env.NEXT_PUBLIC_BRAND_NAME || "taskProject")[0]}
               </Link>
             )}
             <div className={cn("flex items-center gap-1", !collapsed && "ml-auto")}>
@@ -183,12 +182,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   )} />
                 )}
                 {!collapsed && (
-                  <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                  <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase proyectoing-wider text-muted-foreground/60">
                     {section.label}
                   </p>
                 )}
                 {section.items.map((item) => {
-                  const isActive = pathname === item.href;
+                  const isActive = pathname === item.href || pathname?.startsWith(item.href + "/");
                   const linkContent = (
                     <Link
                       key={item.name}
@@ -197,7 +196,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                         "flex items-center gap-3 rounded-lg text-sm font-medium transition-colors",
                         collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2",
                         isActive
-                          ? "bg-neutral-900 text-white dark:bg-neutral-900 dark:text-white"
+                          ? "sidebar-item-active"
                           : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                       )}
                     >
@@ -229,7 +228,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <div className="flex flex-col items-center gap-2 py-1">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="w-8 h-8 rounded-full bg-neutral-900 text-white flex items-center justify-center text-sm font-medium hover:opacity-90 transition-opacity">
+                    <button className="w-8 h-8 rounded-full bg-[var(--mediterranean-terracotta)] text-white flex items-center justify-center text-sm font-medium hover:opacity-90 transition-opacity">
                       {session.user?.name?.[0]?.toUpperCase() || "U"}
                     </button>
                   </DropdownMenuTrigger>
@@ -259,7 +258,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-accent transition-colors text-left">
-                    <div className="w-8 h-8 rounded-full bg-neutral-900 text-white flex items-center justify-center text-sm font-medium flex-shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-[var(--mediterranean-terracotta)] text-white flex items-center justify-center text-sm font-medium flex-shrink-0">
                       {session.user?.name?.[0]?.toUpperCase() || "U"}
                     </div>
                     <div className="flex-1 min-w-0">

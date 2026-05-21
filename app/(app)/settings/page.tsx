@@ -14,8 +14,8 @@ interface ArtistProfile {
   id: string;
   stageName: string | null;
   genre: string | null;
-  techRiderUrl: string | null;
-  techRiderName: string | null;
+  techUrl: string | null;
+  techName: string | null;
   hospitalityUrl: string | null;
   hospitalityName: string | null;
   spotifyUrl: string | null;
@@ -41,11 +41,11 @@ export default function SettingsPage() {
   const [stageName, setStageName] = useState("");
   const [genre, setGenre] = useState("");
   const [bio, setBio] = useState("");
-  const [spotifyUrl, setSpotifyUrl] = useState("");
+  const [spotifyUrl, setUrl] = useState("");
   const [soundcloudUrl, setSoundcloudUrl] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
-  const [techRiderUrl, setTechRiderUrl] = useState("");
-  const [techRiderName, setTechRiderName] = useState("");
+  const [techUrl, setTechUrl] = useState("");
+  const [techName, setTechName] = useState("");
   const [hospitalityUrl, setHospitalityUrl] = useState("");
   const [hospitalityName, setHospitalityName] = useState("");
 
@@ -58,11 +58,11 @@ export default function SettingsPage() {
           setStageName(p.stageName || "");
           setGenre(p.genre || "");
           setBio(p.bio || "");
-          setSpotifyUrl(p.spotifyUrl || "");
+          setUrl(p.spotifyUrl || "");
           setSoundcloudUrl(p.soundcloudUrl || "");
           setInstagramUrl(p.instagramUrl || "");
-          setTechRiderUrl(p.techRiderUrl || "");
-          setTechRiderName(p.techRiderName || "");
+          setTechUrl(p.techUrl || "");
+          setTechName(p.techName || "");
           setHospitalityUrl(p.hospitalityUrl || "");
           setHospitalityName(p.hospitalityName || "");
         }
@@ -120,14 +120,14 @@ export default function SettingsPage() {
           spotifyUrl: spotifyUrl || null,
           soundcloudUrl: soundcloudUrl || null,
           instagramUrl: instagramUrl || null,
-          techRiderUrl: techRiderUrl || null,
-          techRiderName: techRiderName || null,
+          techUrl: techUrl || null,
+          techName: techName || null,
           hospitalityUrl: hospitalityUrl || null,
           hospitalityName: hospitalityName || null,
         }),
       });
       if (res.ok) {
-        toast.success("Perfil de artista guardado");
+        toast.success("Perfil de cliente guardado");
         const updated = await res.json();
         setArtistProfile(updated);
       } else {
@@ -145,7 +145,7 @@ export default function SettingsPage() {
       <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
         <CardHeader>
           <CardTitle className="text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <Music className="h-5 w-5 text-purple-500" /> Perfil de Artista
+            <Music className="h-5 w-5 text-purple-500" /> Perfil de Cliente
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -156,7 +156,7 @@ export default function SettingsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Nombre artístico</Label>
-                  <Input value={stageName} onChange={(e) => setStageName(e.target.value)} placeholder="DJ / Producer name" className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600" />
+                  <Input value={stageName} onChange={(e) => setStageName(e.target.value)} placeholder=" / Producer name" className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600" />
                 </div>
                 <div className="space-y-2">
                   <Label>Género</Label>
@@ -168,8 +168,8 @@ export default function SettingsPage() {
                 <Textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Tu bio para press kits y contratos..." rows={3} className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600" />
               </div>
               <div className="space-y-2">
-                <Label className="flex items-center gap-1"><Headphones className="h-3.5 w-3.5" /> Spotify</Label>
-                <Input value={spotifyUrl} onChange={(e) => setSpotifyUrl(e.target.value)} placeholder="https://open.spotify.com/artist/..." className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600" />
+                <Label className="flex items-center gap-1"><Headphones className="h-3.5 w-3.5" /> </Label>
+                <Input value={spotifyUrl} onChange={(e) => setUrl(e.target.value)} placeholder="https://open.spotify.com/artist/..." className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -183,40 +183,40 @@ export default function SettingsPage() {
               </div>
               <Button onClick={handleSaveArtist} disabled={savingArtist}>
                 {savingArtist && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Guardar Perfil de Artista
+                Guardar Perfil de Cliente
               </Button>
             </>
           )}
         </CardContent>
       </Card>
 
-      {/* Rider Técnico & Hospitality */}
+      {/*  Técnico & Hospitality */}
       <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
         <CardHeader>
           <CardTitle className="text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <FileText className="h-5 w-5 text-orange-500" /> Rider Técnico & Hospitality
+            <FileText className="h-5 w-5 text-orange-500" />  Técnico & Hospitality
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">Sube tus riders. Se adjuntarán automáticamente cuando confirmes un bolo en el Booking Pipeline.</p>
+          <p className="text-sm text-muted-foreground">Sube tus s. Se adjuntarán automáticamente cuando confirmes un oportunidad en el CRM Pipeline.</p>
           <div className="space-y-4">
             <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 space-y-3">
               <Label className="text-sm font-semibold flex items-center gap-1">
-                <Upload className="h-3.5 w-3.5" /> Rider Técnico (PDF)
+                <Upload className="h-3.5 w-3.5" />  Técnico (PDF)
               </Label>
-              {techRiderUrl ? (
+              {techUrl ? (
                 <div className="flex items-center gap-3">
-                  <span className="text-sm text-slate-700 dark:text-slate-300">{techRiderName || "tech_rider.pdf"}</span>
-                  <a href={techRiderUrl} target="_blank" className="text-xs text-blue-500 hover:underline flex items-center gap-1"><ExternalLink className="h-3 w-3" /> Ver</a>
-                  <Button variant="ghost" size="sm" className="h-7 text-xs text-red-500" onClick={() => { setTechRiderUrl(""); setTechRiderName(""); }}>Quitar</Button>
+                  <span className="text-sm text-slate-700 dark:text-slate-300">{techName || "tech_.pdf"}</span>
+                  <a href={techUrl} target="_blank" className="text-xs text-blue-500 hover:underline flex items-center gap-1"><ExternalLink className="h-3 w-3" /> Ver</a>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs text-red-500" onClick={() => { setTechUrl(""); setTechName(""); }}>Quitar</Button>
                 </div>
               ) : null}
-              <Input value={techRiderUrl} onChange={(e) => setTechRiderUrl(e.target.value)} placeholder="Pega la URL de tu rider técnico (PDF)" className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600" />
-              <Input value={techRiderName} onChange={(e) => setTechRiderName(e.target.value)} placeholder="Nombre del archivo (ej: rider_tecnico_v2.pdf)" className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600" />
+              <Input value={techUrl} onChange={(e) => setTechUrl(e.target.value)} placeholder="Pega la URL de tu  técnico (PDF)" className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600" />
+              <Input value={techName} onChange={(e) => setTechName(e.target.value)} placeholder="Nombre del archivo (ej: _tecnico_v2.pdf)" className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600" />
             </div>
             <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 space-y-3">
               <Label className="text-sm font-semibold flex items-center gap-1">
-                <Upload className="h-3.5 w-3.5" /> Hospitality Rider
+                <Upload className="h-3.5 w-3.5" /> Hospitality 
               </Label>
               {hospitalityUrl ? (
                 <div className="flex items-center gap-3">
@@ -225,13 +225,13 @@ export default function SettingsPage() {
                   <Button variant="ghost" size="sm" className="h-7 text-xs text-red-500" onClick={() => { setHospitalityUrl(""); setHospitalityName(""); }}>Quitar</Button>
                 </div>
               ) : null}
-              <Input value={hospitalityUrl} onChange={(e) => setHospitalityUrl(e.target.value)} placeholder="Pega la URL de tu hospitality rider" className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600" />
-              <Input value={hospitalityName} onChange={(e) => setHospitalityName(e.target.value)} placeholder="Nombre del archivo (ej: hospitality_rider.pdf)" className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600" />
+              <Input value={hospitalityUrl} onChange={(e) => setHospitalityUrl(e.target.value)} placeholder="Pega la URL de tu hospitality " className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600" />
+              <Input value={hospitalityName} onChange={(e) => setHospitalityName(e.target.value)} placeholder="Nombre del archivo (ej: hospitality_.pdf)" className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600" />
             </div>
           </div>
           <Button onClick={handleSaveArtist} disabled={savingArtist}>
             {savingArtist && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Guardar Riders
+            Guardar s
           </Button>
         </CardContent>
       </Card>

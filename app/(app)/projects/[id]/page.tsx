@@ -1022,7 +1022,7 @@ export default function ProjectDetailPage() {
 
               {/* Detalles */}
               <div className="space-y-4">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-[#6B778C]">Detalles</h4>
+                <h4 className="text-xs font-semibold uppercase proyectoing-wider text-[#6B778C]">Detalles</h4>
 
                 {/* Persona asignada */}
                 <div>

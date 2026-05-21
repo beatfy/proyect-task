@@ -6,8 +6,8 @@ import { Providers } from "./providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Beatfy - Music Business Hub",
-  description: "Booking, releases y gestión para artistas y DJs",
+  title: "taskProject - Gestión de Proyectos de Marketing",
+  description: "Plataforma profesional para gestión de clientes, proyectos y campañas de marketing digital",
 };
 
 export default function RootLayout({

@@ -1184,7 +1184,7 @@ function TasksPageContent() {
 
               {/* Description */}
               <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Descripción</label>
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase proyectoing-wide">Descripción</label>
                 <textarea
                   placeholder="Añadir descripción..."
                   value={detailDescription}

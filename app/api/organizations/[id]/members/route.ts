@@ -129,7 +129,7 @@ export async function POST(
       });
 
       // Build invite URL
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://beatfy.app";
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://taskproject.app";
       const inviteUrl = `${appUrl}/join/${invitation.id}`;
 
       // Send invitation email via Resend
@@ -143,11 +143,11 @@ export async function POST(
         const html = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 32px; border-radius: 12px 12px 0 0; text-align: center;">
-              <h1 style="color: white; margin: 0; font-size: 24px;">Has sido invitado a ${org?.name || "Beatfy"}</h1>
+              <h1 style="color: white; margin: 0; font-size: 24px;">Has sido invitado a ${org?.name || "taskProject"}</h1>
             </div>
             <div style="padding: 32px; background: white; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
               <p style="color: #374151; font-size: 16px; line-height: 1.6;">
-                <strong>${inviter?.name || "Un usuario"}</strong> te ha invitado a unirte a la organización <strong>${org?.name || ""}</strong> en Beatfy.
+                <strong>${inviter?.name || "Un usuario"}</strong> te ha invitado a unirte a la organización <strong>${org?.name || ""}</strong> en taskProject.
               </p>
               <div style="text-align: center; margin: 32px 0;">
                 <a href="${inviteUrl}" style="background: #6366f1; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; display: inline-block;">
@@ -173,9 +173,9 @@ export async function POST(
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: "Beatfy <noreply@beatfy.app>",
+            from: "taskProject <noreply@taskproject.app>",
             to: [email],
-            subject: `${inviter?.name || "Un usuario"} te ha invitado a ${org?.name || "Beatfy"}`,
+            subject: `${inviter?.name || "Un usuario"} te ha invitado a ${org?.name || "taskProject"}`,
             html,
           }),
         }).catch((e) => console.error("Resend error:", e));

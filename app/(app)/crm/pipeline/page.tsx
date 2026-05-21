@@ -266,7 +266,7 @@ export default function PipelinePage() {
         <p className="text-muted-foreground mb-4">No se encontró pipeline para esta organización.</p>
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Crear primer bolo
+          Crear primer oportunidad
         </Button>
       </div>
     );
@@ -277,12 +277,12 @@ export default function PipelinePage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Bolos</h1>
-          <p className="text-muted-foreground mt-1">{pipeline.name} — {pipeline._count.deals} bolos totales</p>
+          <h1 className="text-3xl font-bold text-foreground">Oportunidads</h1>
+          <p className="text-muted-foreground mt-1">{pipeline.name} — {pipeline._count.deals} oportunidads totales</p>
         </div>
         <Button onClick={() => openNewDeal()}>
           <Plus className="h-4 w-4 mr-2" />
-          Nuevo Bolo
+          Nuevo Oportunidad
         </Button>
       </div>
 
@@ -372,7 +372,7 @@ export default function PipelinePage() {
                     {provided.placeholder}
                     {stage.deals?.length === 0 && !snapshot.isDraggingOver && (
                       <div className="text-center py-8 text-muted-foreground text-xs">
-                        Arrastra bolos aquí
+                        Arrastra oportunidads aquí
                       </div>
                     )}
                   </div>
@@ -387,7 +387,7 @@ export default function PipelinePage() {
       <Dialog open={!!deleteConfirm} onOpenChange={(open) => setDeleteConfirm(open ? deleteConfirm : null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>¿Eliminar bolo?</DialogTitle>
+            <DialogTitle>¿Eliminar oportunidad?</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">Esta acción no se puede deshacer.</p>
           <DialogFooter>
@@ -405,7 +405,7 @@ export default function PipelinePage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>{editingDeal ? "Editar Bolo" : "Nuevo Bolo"}</DialogTitle>
+            <DialogTitle>{editingDeal ? "Editar Oportunidad" : "Nuevo Oportunidad"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -414,12 +414,12 @@ export default function PipelinePage() {
                 id="deal-title"
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
-                placeholder="Nombre del bolo / evento"
+                placeholder="Nombre del oportunidad / evento"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="deal-value">Caché (€)</Label>
+                <Label htmlFor="deal-value">Presupuesto (€)</Label>
                 <Input
                   id="deal-value"
                   type="number"
@@ -495,7 +495,7 @@ export default function PipelinePage() {
                 id="deal-notes"
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                placeholder="Notas del bolo..."
+                placeholder="Notas del oportunidad..."
                 rows={3}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               />
