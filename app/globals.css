@@ -95,10 +95,14 @@
   }
   
   .badge-mediterranean {
-    @apply bg-[var(--mediterranean-terracotta)]/10 text-[var(--mediterranean-terracotta)] border border-[var(--mediterranean-terracotta)]/20;
+    background-color: rgba(199, 91, 57, 0.1);
+    color: #C75B39;
+    border: 1px solid rgba(199, 91, 57, 0.2);
   }
   
   .sidebar-item-active {
-    @apply bg-[var(--mediterranean-terracotta)]/10 text-[var(--mediterranean-terracotta)] border-r-2 border-[var(--mediterranean-terracotta)];
+    background-color: rgba(199, 91, 57, 0.1);
+    color: #C75B39;
+    border-right: 2px solid #C75B39;
   }
 }
