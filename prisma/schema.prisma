@@ -31,6 +31,8 @@ model User {
   organizations OrganizationMember[]
   apiKeys      ApiKey[]
   resetTokens  PasswordResetToken[]
+  metaConnection MetaConnection?
+  gaConnection GoogleAnalyticsConnection?
 
 }
 
@@ -476,5 +478,53 @@ model EmailConfig {
   ssl              Boolean  @default(true)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+}
+
+// ========== INTEGRATIONS: META ADS ==========
+
+model MetaConnection {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken   String
+  refreshToken  String?
+  expiresAt     DateTime?
+  adAccountId   String?
+  adAccountName String?
+  status        String    @default("CONNECTED")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// ========== INTEGRATIONS: GOOGLE ANALYTICS ==========
+
+model GoogleAnalyticsConnection {
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken  String
+  refreshToken String?
+  expiresAt    DateTime?
+  propertyId   String?
+  propertyName String?
+  status       String    @default("CONNECTED")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+// ========== INTEGRATION METRICS CACHE ==========
+
+model IntegrationMetric {
+  id            String   @id @default(cuid())
+  userId        String
+  source        String   // "META_ADS" | "GOOGLE_ANALYTICS"
+  metricName    String   // "spend", "impressions", "clicks", "sessions", etc.
+  metricValue   Float
+  metricDate    DateTime // fecha a la que corresponde la métrica
+  metadata      Json?    // datos adicionales
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId, source, metricDate])
 }
 
