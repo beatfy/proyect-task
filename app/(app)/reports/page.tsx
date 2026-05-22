@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { 
   BarChart3, 
   TrendingUp, 
@@ -15,7 +16,8 @@ import {
   ArrowDownRight,
   Link2,
   Unlink,
-  ExternalLink
+  ExternalLink,
+  Loader2
 } from "lucide-react";
 import { useOrganization } from "@/lib/organization-context";
 
@@ -70,6 +72,8 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [metaToken, setMetaToken] = useState("");
   const [gaToken, setGaToken] = useState("");
+  const [connectingMeta, setConnectingMeta] = useState(false);
+  const [connectingGA, setConnectingGA] = useState(false);
   const { selectedOrg } = useOrganization();
 
   useEffect(() => {
@@ -109,36 +113,58 @@ export default function ReportsPage() {
   };
 
   const connectMeta = async () => {
-    if (!metaToken) return;
+    if (!metaToken) {
+      toast.error("Introduce un token de acceso");
+      return;
+    }
+    setConnectingMeta(true);
     try {
       const res = await fetch("/api/integrations/meta", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ accessToken: metaToken }),
       });
+      const data = await res.json();
       if (res.ok) {
         setMetaToken("");
+        toast.success("✅ Meta Ads conectado correctamente");
         fetchAllData();
+      } else {
+        toast.error(data.error || "Error al conectar con Meta Ads");
       }
     } catch (error) {
+      toast.error("Error de conexión con Meta Ads");
       console.error("Error connecting Meta:", error);
+    } finally {
+      setConnectingMeta(false);
     }
   };
 
   const connectGA = async () => {
-    if (!gaToken) return;
+    if (!gaToken) {
+      toast.error("Introduce un token de acceso");
+      return;
+    }
+    setConnectingGA(true);
     try {
       const res = await fetch("/api/integrations/google-analytics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ accessToken: gaToken }),
       });
+      const data = await res.json();
       if (res.ok) {
         setGaToken("");
+        toast.success("✅ Google Analytics conectado correctamente");
         fetchAllData();
+      } else {
+        toast.error(data.error || "Error al conectar con Google Analytics");
       }
     } catch (error) {
+      toast.error("Error de conexión con Google Analytics");
       console.error("Error connecting GA:", error);
+    } finally {
+      setConnectingGA(false);
     }
   };
 
@@ -302,8 +328,16 @@ export default function ReportsPage() {
                     onChange={(e) => setMetaToken(e.target.value)}
                     className="flex-1 px-3 py-2 rounded-md border border-input bg-background text-sm"
                   />
-                  <Button onClick={connectMeta} disabled={!metaToken}>
-                    <Link2 className="h-4 w-4 mr-1" /> Conectar
+                  <Button onClick={connectMeta} disabled={!metaToken || connectingMeta}>
+                    {connectingMeta ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-1 animate-spin" /> Conectando...
+                      </>
+                    ) : (
+                      <>
+                        <Link2 className="h-4 w-4 mr-1" /> Conectar
+                      </>
+                    )}
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -365,8 +399,16 @@ export default function ReportsPage() {
                     onChange={(e) => setGaToken(e.target.value)}
                     className="flex-1 px-3 py-2 rounded-md border border-input bg-background text-sm"
                   />
-                  <Button onClick={connectGA} disabled={!gaToken}>
-                    <Link2 className="h-4 w-4 mr-1" /> Conectar
+                  <Button onClick={connectGA} disabled={!gaToken || connectingGA}>
+                    {connectingGA ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-1 animate-spin" /> Conectando...
+                      </>
+                    ) : (
+                      <>
+                        <Link2 className="h-4 w-4 mr-1" /> Conectar
+                      </>
+                    )}
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
