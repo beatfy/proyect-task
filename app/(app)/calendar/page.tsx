@@ -20,6 +20,7 @@ import {
   Plus,
   X,
   Flame,
+  CalendarDays,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -87,16 +88,16 @@ const statusLabels: Record<string, string> = {
 };
 
 const statusColors: Record<string, string> = {
-  TODO: "text-slate-400",
-  INPROGRESS: "text-blue-500",
-  INREVIEW: "text-yellow-500",
-  DONE: "text-green-500",
+  TODO: "text-muted-foreground",
+  INPROGRESS: "text-[var(--mediterranean-blue)]",
+  INREVIEW: "text-[var(--mediterranean-ocre)]",
+  DONE: "text-[var(--mediterranean-sage)]",
 };
 
 const priorityColors: Record<string, string> = {
   NONE: "",
-  LOW: "border-l-slate-400",
-  MEDIUM: "border-l-orange-500",
+  LOW: "border-l-[var(--mediterranean-ocre)]",
+  MEDIUM: "border-l-[var(--mediterranean-terracotta)]",
   HIGH: "border-l-red-500",
   URGENT: "border-l-purple-500 animate-pulse",
 };
@@ -104,9 +105,9 @@ const priorityColors: Record<string, string> = {
 const priorityBgColors: Record<string, string> = {
   NONE: "",
   LOW: "",
-  MEDIUM: "bg-orange-50 dark:bg-orange-950/30",
-  HIGH: "bg-red-50 dark:bg-red-950/30",
-  URGENT: "bg-purple-50 dark:bg-purple-950/30 ring-1 ring-purple-300 dark:ring-purple-700",
+  MEDIUM: "bg-[var(--mediterranean-terracotta)]/5",
+  HIGH: "bg-red-50 dark:bg-red-950/20",
+  URGENT: "bg-purple-50 dark:bg-purple-950/20 ring-1 ring-purple-200 dark:ring-purple-800",
 };
 
 const priorityLabels: Record<string, string> = {
@@ -130,14 +131,14 @@ function DraggableTaskChip({ task }: { task: Task }) {
       {...attributes}
       {...listeners}
       className={cn(
-        "text-[10px] px-1.5 py-0.5 rounded truncate cursor-grab active:cursor-grabbing transition-opacity",
+        "text-[10px] px-1.5 py-0.5 rounded truncate cursor-grab active:cursor-grabbing transition-opacity border",
         task.status === "DONE"
-          ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 line-through"
+          ? "bg-[var(--mediterranean-sage)]/10 text-[var(--mediterranean-sage)] border-[var(--mediterranean-sage)]/20 line-through"
           : task.priority === "URGENT"
-          ? "bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 font-semibold"
+          ? "bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800 font-semibold"
           : task.priority === "HIGH"
-          ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
-          : "bg-neutral-100 dark:bg-neutral-900/10 text-neutral-800 dark:text-neutral-500",
+          ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800"
+          : "bg-muted text-muted-foreground border-border",
         isDragging && "opacity-40"
       )}
     >
@@ -156,7 +157,7 @@ function DroppableDayCell({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: day });
   return (
-    <div ref={setNodeRef} className={cn(isOver && "bg-neutral-900/10")}>
+    <div ref={setNodeRef} className={cn(isOver && "bg-accent/50 rounded-lg")}>
       {children}
     </div>
   );
@@ -168,7 +169,7 @@ function TaskCard({ task }: { task: Task }) {
   return (
     <div
       className={cn(
-        "p-3 rounded-lg border border-border bg-background hover:bg-accent/50 transition-colors border-l-4",
+        "p-3 rounded-lg border border-border bg-card hover:bg-accent/30 transition-colors border-l-4",
         priorityColors[task.priority],
         priorityBgColors[task.priority]
       )}
@@ -210,21 +211,21 @@ function TaskCard({ task }: { task: Task }) {
             {task.priority !== "NONE" && (
               <span
                 className={cn(
-                  "text-[10px] px-1.5 py-0.5 rounded font-medium",
+                  "text-[10px] px-1.5 py-0.5 rounded font-medium border",
                   task.priority === "URGENT"
-                    ? "bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300"
+                    ? "bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800"
                     : task.priority === "HIGH"
-                    ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
+                    ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800"
                     : task.priority === "MEDIUM"
-                    ? "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400"
-                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                    ? "bg-[var(--mediterranean-terracotta)]/10 text-[var(--mediterranean-terracotta)] border-[var(--mediterranean-terracotta)]/20"
+                    : "bg-muted text-muted-foreground border-border"
                 )}
               >
                 {priorityLabels[task.priority]}
               </span>
             )}
             {task.project && (
-              <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+              <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
                 {task.project.name}
               </span>
             )}
@@ -280,7 +281,9 @@ export default function CalendarPage() {
   useEffect(() => {
     fetchTasks();
     fetchProjects();
-  }, [fetchTasks, fetchProjects]);  const monthStart = startOfMonth(currentDate);
+  }, [fetchTasks, fetchProjects]);
+
+  const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
   const weekDays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
@@ -377,12 +380,18 @@ export default function CalendarPage() {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      {/* Header - responsive */}
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-          Calendario
-        </h1>
-        <div className="flex items-center gap-1 md:gap-2">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground flex items-center gap-2">
+            <CalendarDays className="h-7 w-7 text-[var(--mediterranean-terracotta)]" />
+            Calendario
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Gestiona tus tareas arrastrándolas entre días
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="icon"
@@ -391,7 +400,7 @@ export default function CalendarPage() {
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-base md:text-lg font-medium text-center text-foreground capitalize min-w-[100px] md:min-w-[140px]">
+          <span className="text-base md:text-lg font-semibold text-center text-foreground capitalize min-w-[140px] md:min-w-[180px]">
             {format(currentDate, "MMMM yyyy", { locale: es })}
           </span>
           <Button
@@ -402,11 +411,10 @@ export default function CalendarPage() {
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
-          {/* Mobile FAB for creating task */}
           <Button
             size="icon"
             onClick={() => handleStartCreate(new Date())}
-            className="h-9 w-9 md:hidden"
+            className="h-9 w-9 md:hidden bg-[var(--mediterranean-terracotta)] hover:bg-[var(--mediterranean-terracotta)]/90"
           >
             <Plus className="h-4 w-4" />
           </Button>
@@ -435,12 +443,12 @@ export default function CalendarPage() {
       <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         {/* ========== MOBILE COMPACT GRID (< md) ========== */}
         <div className="md:hidden">
-          <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden border border-border">
-            {/* Day-of-week headers — 1 letter */}
+          <div className="grid grid-cols-7 gap-px bg-border rounded-xl overflow-hidden border border-border shadow-sm">
+            {/* Day-of-week headers */}
             {["L", "M", "X", "J", "V", "S", "D"].map((d) => (
               <div
                 key={d}
-                className="bg-card text-center text-[11px] font-semibold text-muted-foreground py-1.5"
+                className="bg-muted text-center text-[11px] font-semibold text-muted-foreground py-2"
               >
                 {d}
               </div>
@@ -448,7 +456,7 @@ export default function CalendarPage() {
 
             {/* Empty cells before month starts */}
             {Array.from({ length: (monthStart.getDay() + 6) % 7 }).map((_, i) => (
-              <div key={`e-${i}`} className="bg-card min-h-[48px]" />
+              <div key={`e-${i}`} className="bg-card min-h-[52px]" />
             ))}
 
             {/* Day cells */}
@@ -462,16 +470,15 @@ export default function CalendarPage() {
                   <button
                     onClick={() => setSelectedDay(day)}
                     className={cn(
-                      "bg-card min-h-[48px] w-full flex flex-col items-start p-1 relative transition-colors active:bg-accent",
-                      today && "bg-accent"
+                      "bg-card min-h-[52px] w-full flex flex-col items-start p-1.5 relative transition-colors",
+                      today && "bg-[var(--mediterranean-terracotta)]/5"
                     )}
                   >
-                    {/* Day number */}
                     <span
                       className={cn(
-                        "text-[11px] font-medium leading-none",
+                        "text-[11px] font-semibold leading-none mb-1",
                         today
-                          ? "bg-foreground text-background w-5 h-5 rounded-full flex items-center justify-center"
+                          ? "bg-[var(--mediterranean-terracotta)] text-white w-5 h-5 rounded-full flex items-center justify-center"
                           : "text-foreground"
                       )}
                     >
@@ -480,40 +487,26 @@ export default function CalendarPage() {
 
                     {/* Dot indicators */}
                     {dayTasks.length > 0 && (
-                      <div className="flex gap-0.5 mt-0.5 flex-wrap">
-                        {dayTasks.slice(0, 3).map((task) => {
+                      <div className="flex gap-0.5 flex-wrap">
+                        {dayTasks.slice(0, 4).map((task) => {
                           const dotColor =
                             task.priority === "URGENT"
-                              ? "bg-orange-500"
+                              ? "bg-purple-500"
                               : task.priority === "HIGH"
                               ? "bg-red-500"
                               : task.priority === "MEDIUM"
-                              ? "bg-yellow-500"
-                              : task.priority === "LOW"
-                              ? "bg-green-500"
-                              : task.project?.color
-                              ? undefined // handled below
-                              : "bg-muted-foreground/40";
+                              ? "bg-[var(--mediterranean-terracotta)]"
+                              : "bg-[var(--mediterranean-sage)]";
                           return (
                             <span
                               key={task.id}
-                              className={cn(
-                                "w-1.5 h-1.5 rounded-full flex-shrink-0",
-                                dotColor,
-                                !dotColor &&
-                                  "bg-muted-foreground/40"
-                              )}
-                              style={
-                                !dotColor && task.project?.color
-                                  ? { backgroundColor: task.project.color }
-                                  : undefined
-                              }
+                              className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", dotColor)}
                             />
                           );
                         })}
-                        {dayTasks.length > 3 && (
+                        {dayTasks.length > 4 && (
                           <span className="text-[7px] text-muted-foreground leading-none">
-                            +{dayTasks.length - 3}
+                            +{dayTasks.length - 4}
                           </span>
                         )}
                       </div>
@@ -528,30 +521,30 @@ export default function CalendarPage() {
         {/* ========== DESKTOP/TABLET GRID VIEW (>= md) ========== */}
         <div className="hidden md:grid md:grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Calendar grid */}
-          <Card className="lg:col-span-2 bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-foreground">Vista Mensual</CardTitle>
+          <Card className="lg:col-span-2 card-mediterranean">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-foreground text-lg">Vista Mensual</CardTitle>
             </CardHeader>
             <CardContent className="overflow-hidden -mx-6 px-6">
               <div className="min-w-0">
-                <div className="grid grid-cols-7 gap-1 mb-2">
+                <div className="grid grid-cols-7 gap-2 mb-3">
                   {weekDays.map((day) => (
                     <div
                       key={day}
-                      className="text-center text-sm font-medium text-muted-foreground py-2"
+                      className="text-center text-sm font-semibold text-muted-foreground py-2"
                     >
                       {day}
                     </div>
                   ))}
                 </div>
 
-                <div className="grid grid-cols-7 gap-1">
+                <div className="grid grid-cols-7 gap-2">
                   {Array.from({
                     length: (monthStart.getDay() + 6) % 7,
                   }).map((_, i) => (
                     <div
                       key={`empty-${i}`}
-                      className="aspect-[1.2] min-h-[80px]"
+                      className="aspect-[1.2] min-h-[100px]"
                     />
                   ))}
 
@@ -571,24 +564,27 @@ export default function CalendarPage() {
                         <div
                           onClick={() => setSelectedDay(day)}
                           className={cn(
-                            "aspect-[1.2] min-h-[80px] p-1 rounded-lg transition-colors border border-transparent flex flex-col cursor-pointer",
-                            isToday(day) &&
-                              "ring-2 ring-neutral-900 ring-offset-1 ring-offset-card",
+                            "aspect-[1.2] min-h-[100px] p-2 rounded-xl transition-all border flex flex-col cursor-pointer shadow-sm",
+                            isToday(day) && !isSelected &&
+                              "ring-2 ring-[var(--mediterranean-terracotta)] ring-offset-2 ring-offset-background",
                             isSelected
-                              ? "bg-neutral-900/10 border-neutral-900/40"
-                              : "hover:bg-accent",
+                              ? "bg-[var(--mediterranean-terracotta)]/10 border-[var(--mediterranean-terracotta)]/40 shadow-md"
+                              : "bg-card border-border hover:border-[var(--mediterranean-terracotta)]/30 hover:shadow-md",
                             hasUrgent &&
                               !isSelected &&
                               "border-purple-300 dark:border-purple-700 bg-purple-50/50 dark:bg-purple-950/20"
                           )}
                         >
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between mb-1">
                             <button
                               onClick={() => setSelectedDay(day)}
                               className={cn(
-                                "text-xs font-medium leading-none px-1 py-0.5 rounded hover:bg-neutral-900/20",
-                                isSelected &&
-                                  "bg-neutral-900 text-white hover:bg-neutral-900"
+                                "text-sm font-bold leading-none w-7 h-7 rounded-lg flex items-center justify-center transition-colors",
+                                isSelected
+                                  ? "bg-[var(--mediterranean-terracotta)] text-white"
+                                  : isToday(day)
+                                  ? "bg-[var(--mediterranean-terracotta)]/20 text-[var(--mediterranean-terracotta)]"
+                                  : "text-foreground hover:bg-muted"
                               )}
                             >
                               {format(day, "d")}
@@ -596,24 +592,24 @@ export default function CalendarPage() {
                             {!isCreating && (
                               <button
                                 onClick={() => handleStartCreate(day)}
-                                className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                                className="p-1 rounded-md hover:bg-[var(--mediterranean-terracotta)]/10 text-muted-foreground hover:text-[var(--mediterranean-terracotta)] transition-colors"
                                 title="Crear tarea"
                               >
-                                <Plus className="h-3 w-3" />
+                                <Plus className="h-3.5 w-3.5" />
                               </button>
                             )}
                           </div>
 
-                          <div className="flex-1 flex flex-col gap-0.5 mt-0.5 overflow-hidden">
-                            {dayTasks.slice(0, 3).map((task) => (
+                          <div className="flex-1 flex flex-col gap-1 mt-1 overflow-hidden">
+                            {dayTasks.slice(0, 4).map((task) => (
                               <DraggableTaskChip
                                 key={task.id}
                                 task={task}
                               />
                             ))}
-                            {dayTasks.length > 3 && (
-                              <span className="text-[9px] text-muted-foreground px-1">
-                                +{dayTasks.length - 3} más
+                            {dayTasks.length > 4 && (
+                              <span className="text-[10px] text-muted-foreground px-1">
+                                +{dayTasks.length - 4} más
                               </span>
                             )}
                           </div>
@@ -631,7 +627,7 @@ export default function CalendarPage() {
                                   if (e.key === "Escape")
                                     setCreatingOnDay(null);
                                 }}
-                                className="h-6 text-xs bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
+                                className="h-7 text-xs bg-background"
                               />
                               <div className="flex gap-1">
                                 <select
@@ -639,7 +635,7 @@ export default function CalendarPage() {
                                   onChange={(e) =>
                                     setNewPriority(e.target.value)
                                   }
-                                  className="h-5 text-[10px] bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-1"
+                                  className="h-6 text-[10px] bg-background border border-input rounded px-1"
                                 >
                                   {Object.entries(priorityLabels).map(
                                     ([v, l]) => (
@@ -652,13 +648,13 @@ export default function CalendarPage() {
                                 <button
                                   onClick={handleCreateTask}
                                   disabled={creating}
-                                  className="h-5 px-1.5 text-[10px] bg-neutral-900 text-white rounded hover:bg-neutral-900 disabled:opacity-50"
+                                  className="h-6 px-2 text-[10px] bg-[var(--mediterranean-terracotta)] text-white rounded-md hover:opacity-90 disabled:opacity-50"
                                 >
                                   {creating ? "..." : "OK"}
                                 </button>
                                 <button
                                   onClick={() => setCreatingOnDay(null)}
-                                  className="h-5 px-1 text-muted-foreground hover:text-foreground"
+                                  className="h-6 px-1 text-muted-foreground hover:text-foreground"
                                 >
                                   <X className="h-3 w-3" />
                                 </button>
@@ -675,19 +671,21 @@ export default function CalendarPage() {
           </Card>
 
           {/* Day detail panel - Desktop only (lg+) */}
-          <Card className="bg-card border-border hidden lg:block">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-foreground">
+          <Card className="card-mediterranean hidden lg:block">
+            <CardHeader className="pb-3 border-b border-border">
+              <CardTitle className="text-foreground text-lg">
                 {selectedDay
                   ? format(selectedDay, "EEEE, d 'de' MMMM", { locale: es })
                   : "Selecciona un día"}
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               {!selectedDay && (
-                <p className="text-sm text-muted-foreground">
-                  Haz clic en un día del calendario para ver sus tareas
-                </p>
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <CalendarDays className="h-12 w-12 mb-3 opacity-20" />
+                  <p className="text-sm">Haz clic en un día del calendario</p>
+                  <p className="text-xs mt-1">para ver sus tareas</p>
+                </div>
               )}
 
               {selectedDay && loading && (
@@ -701,9 +699,9 @@ export default function CalendarPage() {
                   <Circle className="h-8 w-8 mb-2 opacity-30" />
                   <p className="text-sm">Sin tareas para este día</p>
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    className="mt-2"
+                    className="mt-3"
                     onClick={() => handleStartCreate(selectedDay)}
                   >
                     <Plus className="h-4 w-4 mr-1" /> Crear tarea
@@ -713,10 +711,20 @@ export default function CalendarPage() {
 
               {selectedDay && !loading && selectedDayTasks.length > 0 && (
                 <div className="space-y-3">
-                  <p className="text-xs text-muted-foreground mb-2">
-                    {selectedDayTasks.length} tarea
-                    {selectedDayTasks.length !== 1 ? "s" : ""}
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">
+                      {selectedDayTasks.length} tarea
+                      {selectedDayTasks.length !== 1 ? "s" : ""}
+                    </p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleStartCreate(selectedDay)}
+                      className="h-7 text-xs"
+                    >
+                      <Plus className="h-3 w-3 mr-1" /> Añadir
+                    </Button>
+                  </div>
                   {selectedDayTasks.map((task) => (
                     <TaskCard key={task.id} task={task} />
                   ))}
@@ -752,7 +760,7 @@ export default function CalendarPage() {
                   <Circle className="h-8 w-8 mb-2 opacity-30" />
                   <p className="text-sm">Sin tareas para este día</p>
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     className="mt-2"
                     onClick={() => {
@@ -781,7 +789,7 @@ export default function CalendarPage() {
         {/* Drag overlay */}
         <DragOverlay>
           {activeTask ? (
-            <div className="bg-neutral-900 text-white px-3 py-1.5 rounded-lg shadow-lg text-sm font-medium max-w-[200px] truncate">
+            <div className="bg-[var(--mediterranean-terracotta)] text-white px-3 py-1.5 rounded-lg shadow-lg text-sm font-medium max-w-[200px] truncate">
               {activeTask.title}
             </div>
           ) : null}

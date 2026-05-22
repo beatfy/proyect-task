@@ -104,7 +104,7 @@ const columns = [
 
 const priorityColors: Record<string, string> = {
   NONE: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700",
-  LOW: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700",
+  LOW: "bg-muted text-slate-600 dark:text-muted-foreground border-border",
   MEDIUM: "bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800",
   HIGH: "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800",
   URGENT: "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800",
@@ -150,17 +150,17 @@ function DraggableTaskCard({ task, onOpenDetail, onEdit, onDelete }: { task: Tas
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id, data: { task } });
   const style = { transform: transform ? `translate3d(${transform.x}px,${transform.y}px,0)` : undefined, transition, opacity: isDragging ? 0.5 : 1 };
   return (
-    <Card ref={setNodeRef} style={style} {...attributes} {...listeners} onClick={onOpenDetail} className="cursor-pointer hover:shadow-md transition-shadow bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700">
+    <Card ref={setNodeRef} style={style} {...attributes} {...listeners} onClick={onOpenDetail} className="cursor-pointer hover:shadow-md transition-shadow bg-card border-border">
       <CardContent className="p-3">
         <div className="flex items-start justify-between gap-2 mb-2">
-          <h4 className="font-medium text-sm leading-tight text-slate-900 dark:text-slate-100">{task.title}</h4>
+          <h4 className="font-medium text-sm leading-tight text-foreground">{task.title}</h4>
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-slate-200 dark:hover:bg-slate-700">
-                <MoreHorizontal className="h-4 w-4 text-slate-400" />
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-accent">
+                <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+            <DropdownMenuContent align="end" className="bg-white dark:bg-slate-900 border-border">
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(); }} className="text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
                 <Pencil className="h-4 w-4 mr-2" /> Editar
               </DropdownMenuItem>
@@ -170,7 +170,7 @@ function DraggableTaskCard({ task, onOpenDetail, onEdit, onDelete }: { task: Tas
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        {task.description && <p className="text-xs text-slate-500 dark:text-slate-400 mb-3 line-clamp-2">{task.description}</p>}
+        {task.description && <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{task.description}</p>}
         <div className="flex items-center gap-2 flex-wrap mb-2">
           {task.priority !== "NONE" && (
             <Badge variant="secondary" className={cn("text-[10px] px-1.5 py-0 h-5 border", priorityColors[task.priority as keyof typeof priorityColors])}>
@@ -178,7 +178,7 @@ function DraggableTaskCard({ task, onOpenDetail, onEdit, onDelete }: { task: Tas
             </Badge>
           )}
           {task.dueDate && (
-            <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <Calendar className="h-3 w-3" />
               <span>{new Date(task.dueDate).toLocaleDateString()}</span>
             </div>
@@ -826,8 +826,8 @@ function TasksPageContent() {
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Tareas</h1>
-            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Gestiona todas tus tareas</p>
+            <h1 className="text-2xl font-semibold text-foreground">Tareas</h1>
+            <p className="text-muted-foreground text-sm mt-1">Gestiona todas tus tareas</p>
           </div>
           <Button onClick={() => { resetForm(); setOpen(true); }}>
             <Plus className="h-4 w-4 mr-2" /> <span className="hidden sm:inline">Nueva Tarea</span><span className="sm:hidden">+</span>
@@ -839,7 +839,7 @@ function TasksPageContent() {
             <SelectTrigger className="w-[140px] md:hidden">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+            <SelectContent className="bg-white dark:bg-slate-900 border-border">
               <SelectItem value="kanban">Kanban</SelectItem>
               <SelectItem value="table">Tabla</SelectItem>
               <SelectItem value="list">Lista</SelectItem>
@@ -847,7 +847,7 @@ function TasksPageContent() {
           </Select>
 
           {/* Desktop view selector - buttons */}
-          <div className="hidden md:flex items-center bg-white dark:bg-slate-900 rounded-lg p-1 border border-slate-200 dark:border-slate-700">
+          <div className="hidden md:flex items-center bg-white dark:bg-slate-900 rounded-lg p-1 border border-border">
             <Button variant={view === "kanban" ? "default" : "ghost"} size="sm" onClick={() => setView("kanban")} className="h-8 px-3">
               <LayoutGrid className="h-4 w-4 mr-1" /> Kanban
             </Button>
@@ -862,13 +862,13 @@ function TasksPageContent() {
           {/* Templates Dropdown - Desktop only */}
           <DropdownMenu open={templatesOpen} onOpenChange={setTemplatesOpen}>
             <DropdownMenuTrigger asChild className="hidden md:flex">
-              <Button variant="outline" className="border-slate-200 dark:border-slate-700 dark:text-slate-300">
+              <Button variant="outline" className="border-border dark:text-slate-300">
                 <LayoutTemplate className="h-4 w-4 mr-2" /> Templates
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 w-56">
+            <DropdownMenuContent align="end" className="bg-white dark:bg-slate-900 border-border w-56">
               {templates.length === 0 ? (
-                <DropdownMenuItem disabled className="text-slate-400 dark:text-slate-500">
+                <DropdownMenuItem disabled className="text-muted-foreground dark:text-slate-500">
                   No hay templates
                 </DropdownMenuItem>
               ) : (
@@ -880,7 +880,7 @@ function TasksPageContent() {
                   >
                     <div className="flex flex-col">
                       <span className="font-medium">{tmpl.name}</span>
-                      <span className="text-xs text-slate-400 dark:text-slate-500 truncate max-w-[200px]">{tmpl.title}</span>
+                      <span className="text-xs text-muted-foreground dark:text-slate-500 truncate max-w-[200px]">{tmpl.title}</span>
                     </div>
                   </DropdownMenuItem>
                 ))
@@ -889,10 +889,10 @@ function TasksPageContent() {
           </DropdownMenu>
 
           <Select value={filterProject} onValueChange={setFilterProject}>
-            <SelectTrigger className="w-[180px] border-slate-200 dark:border-slate-700 dark:text-slate-300">
+            <SelectTrigger className="w-[180px] border-border dark:text-slate-300">
               <SelectValue placeholder="Todos los proyectos" />
             </SelectTrigger>
-            <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+            <SelectContent className="bg-white dark:bg-slate-900 border-border">
               <SelectItem value="all">Todos los proyectos</SelectItem>
               {projects.map((p) => (
                 <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
@@ -902,12 +902,12 @@ function TasksPageContent() {
 
           {organizations.length > 0 && (
             <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+              <Building2 className="h-4 w-4 text-muted-foreground" />
               <Select value={selectedOrg} onValueChange={setSelectedOrg}>
-                <SelectTrigger className="w-[200px] border-slate-200 dark:border-slate-700 dark:text-slate-300">
+                <SelectTrigger className="w-[200px] border-border dark:text-slate-300">
                   <SelectValue placeholder="Filtrar por organización" />
                 </SelectTrigger>
-                <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                <SelectContent className="bg-white dark:bg-slate-900 border-border">
                   <SelectItem value="all">Todas</SelectItem>
                   {organizations.map((org) => (
                     <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>
@@ -919,11 +919,11 @@ function TasksPageContent() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="border-slate-200 dark:border-slate-700 dark:text-slate-300 hidden sm:flex" disabled={!projectId || projectId === "none"}>
+              <Button variant="outline" className="border-border dark:text-slate-300 hidden sm:flex" disabled={!projectId || projectId === "none"}>
                 <Download className="h-4 w-4 mr-2" /> <span className="hidden md:inline">Exportar</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+            <DropdownMenuContent align="end" className="bg-white dark:bg-slate-900 border-border">
               <DropdownMenuItem onClick={() => window.open(`/api/tasks/export?projectId=${projectId}&format=csv`)} className="cursor-pointer text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
                 Exportar CSV
               </DropdownMenuItem>
@@ -938,9 +938,9 @@ function TasksPageContent() {
 
       {/* Create Dialog */}
       <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
-        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="bg-white dark:bg-slate-900 border-border max-w-md max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader className="flex-shrink-0">
-            <DialogTitle className="text-slate-900 dark:text-slate-100">Crear Tarea</DialogTitle>
+            <DialogTitle className="text-foreground">Crear Tarea</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto space-y-4 pt-4">
             <div className="space-y-2">
@@ -949,7 +949,7 @@ function TasksPageContent() {
                 placeholder="Título de la tarea"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
+                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-foreground"
               />
             </div>
             <div className="space-y-2">
@@ -958,16 +958,16 @@ function TasksPageContent() {
                 placeholder="Descripción opcional"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
+                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-foreground"
               />
             </div>
             <div className="space-y-2">
               <Label className="text-slate-700 dark:text-slate-300">Proyecto</Label>
               <Select value={projectId} onValueChange={setProjectId}>
-                <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100">
+                <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-foreground">
                   <SelectValue placeholder="Sin proyecto" />
                 </SelectTrigger>
-                <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                <SelectContent className="bg-white dark:bg-slate-900 border-border">
                   <SelectItem value="none">Sin proyecto</SelectItem>
                   {projects.map((p) => (
                     <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
@@ -979,10 +979,10 @@ function TasksPageContent() {
               <div className="space-y-2">
                 <Label className="text-slate-700 dark:text-slate-300">Estado</Label>
                 <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100">
+                  <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-foreground">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                  <SelectContent className="bg-white dark:bg-slate-900 border-border">
                     {columns.map((col) => (
                       <SelectItem key={col.id} value={col.id}>{col.title}</SelectItem>
                     ))}
@@ -992,10 +992,10 @@ function TasksPageContent() {
               <div className="space-y-2">
                 <Label className="text-slate-700 dark:text-slate-300">Prioridad</Label>
                 <Select value={priority} onValueChange={setPriority}>
-                  <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100">
+                  <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-foreground">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                  <SelectContent className="bg-white dark:bg-slate-900 border-border">
                     {Object.entries(priorityLabels).map(([v, l]) => (
                       <SelectItem key={v} value={v}>{l}</SelectItem>
                     ))}
@@ -1009,7 +1009,7 @@ function TasksPageContent() {
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
+                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-foreground"
               />
             </div>
             <div className="space-y-2" ref={assigneeDropdownRef}>
@@ -1019,7 +1019,7 @@ function TasksPageContent() {
                   <button
                     type="button"
                     onClick={() => setAssigneeDropdownOpen(!assigneeDropdownOpen)}
-                    className="flex items-center justify-between w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700"
+                    className="flex items-center justify-between w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-foreground hover:bg-slate-50 dark:hover:bg-slate-700"
                   >
                     <span className="truncate">
                       {assigneeIds.length === 0
@@ -1043,7 +1043,7 @@ function TasksPageContent() {
                     </div>
                   )}
                   {assigneeDropdownOpen && (
-                    <div className="relative z-50 mt-1 w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg max-h-60 overflow-y-auto">
+                    <div className="relative z-50 mt-1 w-full rounded-md border border-border bg-white dark:bg-slate-900 shadow-lg max-h-60 overflow-y-auto">
                       {projectMembers.map((m) => (
                         <label key={m.user.id} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">
                           <input
@@ -1066,7 +1066,7 @@ function TasksPageContent() {
                   placeholder="Selecciona un proyecto primero"
                   value={assignedTo}
                   onChange={(e) => setAssignedTo(e.target.value)}
-                  className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
+                  className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-foreground"
                 />
               )}
             </div>
@@ -1081,9 +1081,9 @@ function TasksPageContent() {
 
       {/* Edit Dialog */}
       <Dialog open={editOpen} onOpenChange={(v) => { setEditOpen(v); if (!v) { resetForm(); setEditingTask(null); }}}>
-        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="bg-white dark:bg-slate-900 border-border max-w-md max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader className="flex-shrink-0">
-            <DialogTitle className="text-slate-900 dark:text-slate-100">Editar Tarea</DialogTitle>
+            <DialogTitle className="text-foreground">Editar Tarea</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto space-y-4 pt-4">
             <div className="space-y-2">
@@ -1092,7 +1092,7 @@ function TasksPageContent() {
                 placeholder="Título"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
+                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-foreground"
               />
             </div>
             <div className="space-y-2">
@@ -1101,17 +1101,17 @@ function TasksPageContent() {
                 placeholder="Descripción"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
+                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-foreground"
               />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-slate-700 dark:text-slate-300">Estado</Label>
                 <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100">
+                  <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-foreground">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                  <SelectContent className="bg-white dark:bg-slate-900 border-border">
                     {columns.map((col) => (
                       <SelectItem key={col.id} value={col.id}>{col.title}</SelectItem>
                     ))}
@@ -1121,10 +1121,10 @@ function TasksPageContent() {
               <div className="space-y-2">
                 <Label className="text-slate-700 dark:text-slate-300">Prioridad</Label>
                 <Select value={priority} onValueChange={setPriority}>
-                  <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100">
+                  <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-foreground">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                  <SelectContent className="bg-white dark:bg-slate-900 border-border">
                     {Object.entries(priorityLabels).map(([v, l]) => (
                       <SelectItem key={v} value={v}>{l}</SelectItem>
                     ))}
@@ -1138,7 +1138,7 @@ function TasksPageContent() {
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
+                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-foreground"
               />
             </div>
           </div>
@@ -1152,11 +1152,11 @@ function TasksPageContent() {
 
       {/* Detail Dialog - Jira/Linear Style */}
       <Dialog open={detailOpen} onOpenChange={(v) => { setDetailOpen(v); if (!v) { setDetailTask(null); setActiveTimer(null); setTimerSeconds(0); }}}>
-        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 w-[90vw] max-w-[1200px] max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0">
+        <DialogContent className="bg-white dark:bg-slate-900 border-border w-[90vw] max-w-[1200px] max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-3 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
+          <div className="flex items-center justify-between px-6 py-3 border-b border-border flex-shrink-0">
             <div className="flex items-center gap-3">
-              <span className="text-sm font-mono text-slate-500 dark:text-slate-400">TASK-{detailTask?.id?.slice(-5).toUpperCase()}</span>
+              <span className="text-sm font-mono text-muted-foreground">TASK-{detailTask?.id?.slice(-5).toUpperCase()}</span>
               <Badge variant="secondary" className="text-[10px] border dark:border-slate-600">Tarea</Badge>
             </div>
             <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => { setDetailOpen(false); setDetailTask(null); setActiveTimer(null); setTimerSeconds(0); }}>
@@ -1172,7 +1172,7 @@ function TasksPageContent() {
               <h1
                 contentEditable
                 suppressContentEditableWarning
-                className="text-2xl font-semibold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 focus:rounded px-1 -ml-1"
+                className="text-2xl font-semibold text-foreground outline-none focus:ring-2 focus:ring-blue-500 focus:rounded px-1 -ml-1"
                 onBlur={(e) => {
                   const newTitle = e.currentTarget.textContent?.trim() || "";
                   if (newTitle && newTitle !== detailTask?.title) {
@@ -1184,7 +1184,7 @@ function TasksPageContent() {
 
               {/* Description */}
               <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase proyectoing-wide">Descripción</label>
+                <label className="text-xs font-medium text-muted-foreground uppercase proyectoing-wide">Descripción</label>
                 <textarea
                   placeholder="Añadir descripción..."
                   value={detailDescription}
@@ -1195,7 +1195,7 @@ function TasksPageContent() {
                     }
                   }}
                   rows={5}
-                  className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 />
               </div>
 
@@ -1205,12 +1205,12 @@ function TasksPageContent() {
                   <h3 className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
                     <ChevronDown className={cn("h-4 w-4 transition-transform", !showSubtasks && "-rotate-90")} />
                     Subtareas ({subtasks.length}){subtasks.length > 0 && (
-                      <span className="text-xs text-slate-400">· {subtasks.filter(s => s.status === "DONE").length}/{subtasks.length} completadas</span>
+                      <span className="text-xs text-muted-foreground">· {subtasks.filter(s => s.status === "DONE").length}/{subtasks.length} completadas</span>
                     )}
                   </h3>
                 </div>
                 {subtasks.length > 0 && (
-                  <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5">
+                  <div className="w-full bg-muted rounded-full h-1.5">
                     <div className="bg-blue-500 h-1.5 rounded-full transition-all" style={{ width: `${subtasks.length > 0 ? (subtasks.filter(s => s.status === "DONE").length / subtasks.length * 100) : 0}%` }} />
                   </div>
                 )}
@@ -1219,17 +1219,17 @@ function TasksPageContent() {
                     {subtasks.map((st) => (
                       <div key={st.id} className="flex items-center gap-2 py-1 group">
                         <input type="checkbox" checked={st.status === "DONE"} onChange={() => handleToggleSubtask(st)} className="rounded-sm border-slate-300 dark:border-slate-600" />
-                        <span className={cn("text-sm flex-1", st.status === "DONE" && "text-slate-400 line-through dark:text-slate-500")}>{st.title}</span>
+                        <span className={cn("text-sm flex-1", st.status === "DONE" && "text-muted-foreground line-through dark:text-slate-500")}>{st.title}</span>
                         <Button variant="ghost" size="sm" className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100" onClick={async () => {
                           await fetch(`/api/tasks?id=${st.id}`, { method: "DELETE" });
                           setSubtasks(subtasks.filter(s => s.id !== st.id));
                         }}>
-                          <Trash2 className="h-3 w-3 text-slate-400" />
+                          <Trash2 className="h-3 w-3 text-muted-foreground" />
                         </Button>
                       </div>
                     ))}
                     <div className="flex gap-2 pt-1">
-                      <Input placeholder="Añadir subtarea..." value={subtaskTitle} onChange={(e) => setSubtaskTitle(e.target.value)} className="flex-1 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 h-8 text-sm" onKeyDown={(e) => { if (e.key === "Enter") handleCreateSubtask(); }} />
+                      <Input placeholder="Añadir subtarea..." value={subtaskTitle} onChange={(e) => setSubtaskTitle(e.target.value)} className="flex-1 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-foreground h-8 text-sm" onKeyDown={(e) => { if (e.key === "Enter") handleCreateSubtask(); }} />
                       {subtaskTitle.trim() && <Button size="sm" variant="ghost" onClick={handleCreateSubtask}>Añadir</Button>}
                     </div>
                   </div>
@@ -1244,19 +1244,19 @@ function TasksPageContent() {
                 </h3>
                 <div className="space-y-2">
                   {comments.map((c) => (
-                    <div key={c.id} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <div key={c.id} className="p-3 bg-card rounded-lg border border-border">
                       <div className="flex items-center gap-2 mb-1">
                         <div className="w-6 h-6 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xs">
                           {c.author.name?.[0]?.toUpperCase() || c.author.email[0].toUpperCase()}
                         </div>
                         <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{c.author.name || c.author.email}</span>
-                        <span className="text-xs text-slate-400">{new Date(c.createdAt).toLocaleDateString()}</span>
+                        <span className="text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleDateString()}</span>
                       </div>
-                      <p className="text-sm text-slate-600 dark:text-slate-400 pl-8">{c.content}</p>
+                      <p className="text-sm text-slate-600 dark:text-muted-foreground pl-8">{c.content}</p>
                     </div>
                   ))}
                   <div className="flex flex-col gap-2">
-                    <textarea placeholder="Añadir comentario..." value={newComment} onChange={(e) => setNewComment(e.target.value)} rows={3} className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+                    <textarea placeholder="Añadir comentario..." value={newComment} onChange={(e) => setNewComment(e.target.value)} rows={3} className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
                     <Button size="sm" onClick={handleAddComment} className="self-end">Enviar</Button>
                   </div>
                 </div>
@@ -1272,16 +1272,16 @@ function TasksPageContent() {
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {attachments.map((a) => (
                       a.type === "image" ? (
-                        <a key={a.id} href={`/api/attachments/${a.id}`} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 hover:opacity-80 transition-opacity">
+                        <a key={a.id} href={`/api/attachments/${a.id}`} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden border border-border hover:opacity-80 transition-opacity">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={`/api/attachments/${a.id}`} alt={a.name} className="w-full h-24 object-cover" />
-                          <div className="p-1.5 text-xs text-slate-600 dark:text-slate-400 truncate">{a.name}</div>
+                          <div className="p-1.5 text-xs text-slate-600 dark:text-muted-foreground truncate">{a.name}</div>
                         </a>
                       ) : (
-                        <div key={a.id} className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                        <div key={a.id} className="flex items-center gap-2 p-2 bg-card rounded-lg border border-border">
                           {a.type === "pdf" ? <FileText className="h-4 w-4 text-red-500" /> : <File className="h-4 w-4 text-slate-500" />}
                           <a href={`/api/attachments/${a.id}`} target="_blank" rel="noopener noreferrer" className="text-xs text-slate-700 dark:text-slate-300 hover:underline truncate flex-1">{a.name}</a>
-                          <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => handleDeleteAttachment(a.id)}><Trash2 className="h-3 w-3 text-slate-400" /></Button>
+                          <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => handleDeleteAttachment(a.id)}><Trash2 className="h-3 w-3 text-muted-foreground" /></Button>
                         </div>
                       )
                     ))}
@@ -1299,12 +1299,12 @@ function TasksPageContent() {
               <div className="space-y-2">
                 <h3 className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
                   <Timer className="h-4 w-4" />
-                  Tiempo{totalTaskTime > 0 && <span className="text-xs text-slate-400 ml-1">· {formatTimer(totalTaskTime)}</span>}
+                  Tiempo{totalTaskTime > 0 && <span className="text-xs text-muted-foreground ml-1">· {formatTimer(totalTaskTime)}</span>}
                 </h3>
                 {timeEntries.filter((e) => detailTask && e.taskId === detailTask.id).length > 0 && (
                   <div className="space-y-1">
                     {timeEntries.filter((e) => detailTask && e.taskId === detailTask.id).map((entry) => (
-                      <div key={entry.id} className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                      <div key={entry.id} className="flex items-center gap-2 text-xs text-muted-foreground">
                         <span>{new Date(entry.startTime).toLocaleString()}</span>
                         <span>→</span>
                         <span>{entry.endTime ? new Date(entry.endTime).toLocaleTimeString() : "..."}</span>
@@ -1317,12 +1317,12 @@ function TasksPageContent() {
             </div>
 
             {/* Right Column - Sidebar (30%) */}
-            <div className="md:w-[30%] md:min-w-[250px] bg-slate-50 dark:bg-slate-800/50 border-t md:border-t-0 md:border-l border-slate-200 dark:border-slate-700 p-5 space-y-5 overflow-y-auto">
+            <div className="md:w-[30%] md:min-w-[250px] bg-card/50 border-t md:border-t-0 md:border-l border-border p-5 space-y-5 overflow-y-auto">
               {/* Status */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Estado</label>
+                <label className="text-xs font-medium text-muted-foreground">Estado</label>
                 <Select value={detailTask?.status || "TODO"} onValueChange={(v) => autoSaveField("status", v)}>
-                  <SelectTrigger className="w-full h-9 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                  <SelectTrigger className="w-full h-9 bg-white dark:bg-slate-900 border-border">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1335,9 +1335,9 @@ function TasksPageContent() {
 
               {/* Priority */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Prioridad</label>
+                <label className="text-xs font-medium text-muted-foreground">Prioridad</label>
                 <Select value={detailTask?.priority || "NONE"} onValueChange={(v) => autoSaveField("priority", v)}>
-                  <SelectTrigger className="w-full h-9 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                  <SelectTrigger className="w-full h-9 bg-white dark:bg-slate-900 border-border">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1350,9 +1350,9 @@ function TasksPageContent() {
 
               {/* Assignee */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Asignado</label>
+                <label className="text-xs font-medium text-muted-foreground">Asignado</label>
                 <Select value={detailTask?.assignedTo || "_none"} onValueChange={(v) => autoSaveField("assignedTo", v === "_none" ? null : v)}>
-                  <SelectTrigger className="w-full h-9 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                  <SelectTrigger className="w-full h-9 bg-white dark:bg-slate-900 border-border">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1373,27 +1373,27 @@ function TasksPageContent() {
 
               {/* Due Date */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Fecha límite</label>
+                <label className="text-xs font-medium text-muted-foreground">Fecha límite</label>
                 <Input
                   type="date"
                   value={detailTask?.dueDate ? new Date(detailTask.dueDate).toISOString().split("T")[0] : ""}
                   onChange={(e) => autoSaveField("dueDate", e.target.value || null)}
-                  className="w-full h-9 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
+                  className="w-full h-9 bg-white dark:bg-slate-900 border-border"
                 />
               </div>
 
               {/* Project */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Proyecto</label>
-                <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-700 dark:text-slate-300">
-                  <FolderOpen className="h-4 w-4 text-slate-400" />
+                <label className="text-xs font-medium text-muted-foreground">Proyecto</label>
+                <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-border bg-white dark:bg-slate-900 text-sm text-slate-700 dark:text-slate-300">
+                  <FolderOpen className="h-4 w-4 text-muted-foreground" />
                   {detailTask?.project?.name || "Sin proyecto"}
                 </div>
               </div>
 
               {/* Creator */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Creador</label>
+                <label className="text-xs font-medium text-muted-foreground">Creador</label>
                 <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
                   <div className="w-6 h-6 rounded-full bg-neutral-700 text-white flex items-center justify-center text-[10px]">
                     {detailTask?.creator?.name?.[0]?.toUpperCase() || detailTask?.creator?.email?.[0]?.toUpperCase() || "?"}
@@ -1405,7 +1405,7 @@ function TasksPageContent() {
               {/* Created At */}
               {detailTask?.createdAt && (
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Creado</label>
+                  <label className="text-xs font-medium text-muted-foreground">Creado</label>
                   <p className="text-sm text-slate-700 dark:text-slate-300">{new Date(detailTask.createdAt).toLocaleDateString()}</p>
                 </div>
               )}
@@ -1423,12 +1423,12 @@ function TasksPageContent() {
               <div className="flex items-center gap-2 mb-3 px-1">
                 <div className={cn("w-3 h-3 rounded-full", column.color)} />
                 <h3 className="font-medium text-sm text-slate-700 dark:text-slate-300">{column.title}</h3>
-                <span className="text-xs text-slate-400 ml-auto">{getTasksByStatus(column.id).length}</span>
+                <span className="text-xs text-muted-foreground ml-auto">{getTasksByStatus(column.id).length}</span>
               </div>
               <DroppableColumn id={column.id}>
-              <div className="flex-1 bg-white dark:bg-slate-900 rounded-lg p-2 space-y-2 overflow-y-auto border border-slate-200 dark:border-slate-700">
+              <div className="flex-1 bg-white dark:bg-slate-900 rounded-lg p-2 space-y-2 overflow-y-auto border border-border">
                 {getTasksByStatus(column.id).length === 0 ? (
-                  <div className="text-center py-8 text-slate-400 dark:text-slate-500 text-sm">Sin tareas</div>
+                  <div className="text-center py-8 text-muted-foreground dark:text-slate-500 text-sm">Sin tareas</div>
                 ) : (
                   getTasksByStatus(column.id).map((task) => (
                     <DraggableTaskCard
@@ -1448,7 +1448,7 @@ function TasksPageContent() {
         <DragOverlay>
           {draggedTask ? (
             <div className="w-[280px] bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-300 dark:border-slate-600 p-3 opacity-90">
-              <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{draggedTask.title}</p>
+              <p className="text-sm font-medium text-foreground">{draggedTask.title}</p>
             </div>
           ) : null}
         </DragOverlay>
@@ -1457,30 +1457,30 @@ function TasksPageContent() {
 
       {/* TABLE VIEW */}
       {view === "table" && (
-        <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-900">
+        <div className="rounded-lg border border-border overflow-hidden bg-white dark:bg-slate-900">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[800px]">
-            <thead className="bg-slate-50 dark:bg-slate-800">
+            <thead className="bg-card">
               <tr>
-                <th className="text-left p-3 text-sm font-medium text-slate-600 dark:text-slate-400">Tarea</th>
-                <th className="text-left p-3 text-sm font-medium text-slate-600 dark:text-slate-400">Estado</th>
-                <th className="text-left p-3 text-sm font-medium text-slate-600 dark:text-slate-400">Prioridad</th>
-                <th className="text-left p-3 text-sm font-medium text-slate-600 dark:text-slate-400">Fecha límite</th>
-                <th className="text-left p-3 text-sm font-medium text-slate-600 dark:text-slate-400">Proyecto</th>
-                <th className="text-left p-3 text-sm font-medium text-slate-600 dark:text-slate-400">Asignado</th>
-                <th className="text-right p-3 text-sm font-medium text-slate-600 dark:text-slate-400">Acciones</th>
+                <th className="text-left p-3 text-sm font-medium text-slate-600 dark:text-muted-foreground">Tarea</th>
+                <th className="text-left p-3 text-sm font-medium text-slate-600 dark:text-muted-foreground">Estado</th>
+                <th className="text-left p-3 text-sm font-medium text-slate-600 dark:text-muted-foreground">Prioridad</th>
+                <th className="text-left p-3 text-sm font-medium text-slate-600 dark:text-muted-foreground">Fecha límite</th>
+                <th className="text-left p-3 text-sm font-medium text-slate-600 dark:text-muted-foreground">Proyecto</th>
+                <th className="text-left p-3 text-sm font-medium text-slate-600 dark:text-muted-foreground">Asignado</th>
+                <th className="text-right p-3 text-sm font-medium text-slate-600 dark:text-muted-foreground">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
               {filteredTasks.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-12 text-slate-500 dark:text-slate-400">No hay tareas</td></tr>
+                <tr><td colSpan={7} className="text-center py-12 text-muted-foreground">No hay tareas</td></tr>
               ) : (
                 filteredTasks.map((task) => (
                   <tr key={task.id} className="hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer" onClick={() => handleOpenDetail(task)}>
                     <td className="p-3">
                       <div>
-                        <p className="font-medium text-slate-900 dark:text-slate-100">{task.title}</p>
-                        {task.description && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate max-w-[300px]">{task.description}</p>}
+                        <p className="font-medium text-foreground">{task.title}</p>
+                        {task.description && <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[300px]">{task.description}</p>}
                       </div>
                     </td>
                     <td className="p-3">
@@ -1493,18 +1493,18 @@ function TasksPageContent() {
                     </td>
                     <td className="p-3">
                       {task.dueDate && (
-                        <div className="flex items-center gap-1 text-sm text-slate-600 dark:text-slate-400">
+                        <div className="flex items-center gap-1 text-sm text-slate-600 dark:text-muted-foreground">
                           <Calendar className="h-4 w-4" />
                           <span>{new Date(task.dueDate).toLocaleDateString()}</span>
                         </div>
                       )}
                     </td>
-                    <td className="p-3 text-sm text-slate-600 dark:text-slate-400">{task.project?.name || getProjectName(task.projectId) || "-"}</td>
-                    <td className="p-3 text-sm text-slate-600 dark:text-slate-400">{task.assignedTo || "-"}</td>
+                    <td className="p-3 text-sm text-slate-600 dark:text-muted-foreground">{task.project?.name || getProjectName(task.projectId) || "-"}</td>
+                    <td className="p-3 text-sm text-slate-600 dark:text-muted-foreground">{task.assignedTo || "-"}</td>
                     <td className="p-3 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleEdit(task); }} className="h-8 w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700">
-                          <Pencil className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                          <Pencil className="h-4 w-4 text-muted-foreground" />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleDelete(task.id); }} className="h-8 w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700">
                           <Trash2 className="h-4 w-4 text-red-500" />
@@ -1524,41 +1524,41 @@ function TasksPageContent() {
       {view === "list" && (
         <div className="space-y-2">
           {filteredTasks.length === 0 ? (
-            <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-              <CardContent className="py-12 text-center text-slate-500 dark:text-slate-400">No hay tareas</CardContent>
+            <Card className="bg-white dark:bg-slate-900 border-border">
+              <CardContent className="py-12 text-center text-muted-foreground">No hay tareas</CardContent>
             </Card>
           ) : (
             filteredTasks.map((task) => (
-              <Card key={task.id} className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 transition-colors cursor-pointer" onClick={() => handleOpenDetail(task)}>
+              <Card key={task.id} className="bg-white dark:bg-slate-900 border-border hover:border-slate-300 dark:hover:border-slate-600 transition-colors cursor-pointer" onClick={() => handleOpenDetail(task)}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4 flex-1 min-w-0">
                       <div className={cn("w-2 h-2 rounded-full flex-shrink-0", columns.find(c => c.id === task.status)?.color)} />
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-medium text-slate-900 dark:text-slate-100 truncate">{task.title}</h3>
+                        <h3 className="font-medium text-foreground truncate">{task.title}</h3>
                         <div className="flex items-center gap-2 md:gap-3 mt-1 flex-wrap">
                           <Badge variant="secondary" className={cn("text-[10px] border", statusColors[task.status])}>{statusLabels[task.status]}</Badge>
                           {task.priority !== "NONE" && (
                             <Badge variant="secondary" className={cn("text-[10px] border", priorityColors[task.priority])}>{priorityLabels[task.priority]}</Badge>
                           )}
                           {task.dueDate && (
-                            <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
                               {new Date(task.dueDate).toLocaleDateString()}
                             </span>
                           )}
                           {(task.project?.name || getProjectName(task.projectId)) && (
-                            <span className="hidden md:inline text-xs text-slate-500 dark:text-slate-400">{task.project?.name || getProjectName(task.projectId)}</span>
+                            <span className="hidden md:inline text-xs text-muted-foreground">{task.project?.name || getProjectName(task.projectId)}</span>
                           )}
                           {task.assignedTo && (
-                            <span className="hidden md:inline text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1"><User className="h-3 w-3" />{task.assignedTo}</span>
+                            <span className="hidden md:inline text-xs text-muted-foreground flex items-center gap-1"><User className="h-3 w-3" />{task.assignedTo}</span>
                           )}
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                       <Button variant="ghost" size="sm" onClick={() => handleEdit(task)} className="h-10 w-10 md:h-8 md:w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700">
-                        <Pencil className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                        <Pencil className="h-4 w-4 text-muted-foreground" />
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => handleDelete(task.id)} className="h-10 w-10 md:h-8 md:w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700">
                         <Trash2 className="h-4 w-4 text-red-500" />
