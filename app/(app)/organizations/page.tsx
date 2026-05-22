@@ -228,7 +228,7 @@ export default function OrganizationsPage() {
                     </div>
                     <div className="flex items-center gap-1">
                       <FolderOpen className="h-4 w-4" />
-                      {org.projectCount} {org.projectCount === 1 ? "lanzamiento" : "clientes"}
+                      {org.projectCount} {org.projectCount === 1 ? "cliente" : "clientes"}
                     </div>
                   </div>
                 </CardContent>

@@ -589,11 +589,11 @@ async function buildSystemPrompt(
 - Cuando el usuario proporcione información sobre el cliente (estilo, referencias, estrategia, etc.), usa client_context_update para guardarla.
 - Si el usuario dice algo como "añade una oportunidad en [empresa] por 1000€", interpreta que quiere crear un deal/oportunidad en el Pipeline y actúa en consecuencia.
 
-## Tareas del lanzamiento actual
-${taskList || "Sin lanzamiento activo."}
+## Tareas del cliente actual
+${taskList || "Sin cliente activo."}
 
 ## Miembros del proyecto
-${memberList || "Sin lanzamiento activo."}
+${memberList || "Sin cliente activo."}
 
 ${knowledgeBase ? `## Base de conocimiento de la organización
 ${knowledgeBase}` : ""}

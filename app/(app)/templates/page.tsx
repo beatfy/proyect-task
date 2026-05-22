@@ -53,7 +53,7 @@ const priorityColors: Record<string, string> = {
 };
 
 const templateIcons: Record<string, typeof LayoutTemplate> = {
-  "Lanzamiento": Rocket,
+  "Cliente": Rocket,
   "Oportunidad": Music,
   "Demo": Mic2,
   "Lead": Megaphone,
@@ -364,7 +364,7 @@ export default function TemplatesPage() {
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Ej: Lanzamiento, Oportunidad, Campaña..."
+                placeholder="Ej: Cliente, Oportunidad, Campaña..."
                 className="bg-background border-border text-foreground"
               />
             </div>
@@ -421,7 +421,7 @@ export default function TemplatesPage() {
               <Input
                 value={tagsInput}
                 onChange={(e) => setTagsInput(e.target.value)}
-                placeholder="Separadas por comas: lanzamiento, lead, spotify"
+                placeholder="Separadas por comas: cliente, lead, seo"
                 className="bg-background border-border text-foreground"
               />
             </div>

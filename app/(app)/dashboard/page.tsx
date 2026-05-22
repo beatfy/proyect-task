@@ -182,36 +182,7 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/*  Widget Placeholder */}
-      <Card className="bg-gradient-to-br from-[#1DB954]/10 to-[#1DB954]/5 border-[#1DB954]/20">
-        <CardHeader>
-          <CardTitle className="text-foreground flex items-center gap-2">
-            <Disc3 className="h-5 w-5 text-[#1DB954]" />
-             for Artists
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-lg bg-[#1DB954]/20 flex items-center justify-center flex-shrink-0">
-              <Headphones className="h-8 w-8 text-[#1DB954]" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm text-foreground font-medium">Conecta tu  for Artists</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Ve tus oyentes mensuales, streams y playlists directamente en tu dashboard.
-                Configura tu SPOTIFY_CLIENT_ID en las variables de entorno para activar esta integración.
-              </p>
-            </div>
-            <Button variant="outline" size="sm" className="border-[#1DB954]/30 text-[#1DB954] hover:bg-[#1DB954]/10" asChild>
-              <a href="https://developer.spotify.com/dashboard" target="_blank">
-                Conectar
-              </a>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Ledy AI Metrics */}
+      {/* AI Metrics */}
       <Card className="bg-card border-border">
         <CardHeader>
           <CardTitle className="text-foreground flex items-center gap-2">

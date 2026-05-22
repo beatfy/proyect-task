@@ -203,7 +203,7 @@ export default function BillingPage() {
                   <table className="w-full text-sm mb-4 min-w-[400px]">
                     <thead>
                       <tr className="border-b border-slate-200 dark:border-slate-700">
-                        <th className="text-left py-2 px-2 text-slate-500 dark:text-slate-400 font-medium">Lanzamiento</th>
+                        <th className="text-left py-2 px-2 text-slate-500 dark:text-slate-400 font-medium">Cliente</th>
                         <th className="text-right py-2 px-2 text-slate-500 dark:text-slate-400 font-medium">Cuota mensual</th>
                         <th className="text-center py-2 px-2 text-slate-500 dark:text-slate-400 font-medium">Estado</th>
                       </tr>
@@ -332,10 +332,10 @@ export default function BillingPage() {
           <DialogHeader>          <DialogTitle className="text-slate-900 dark:text-slate-100">Nueva Factura de Oportunidad</DialogTitle></DialogHeader>
           <div className="space-y-4 pt-4">
             <div className="space-y-2">
-              <Label className="text-slate-700 dark:text-slate-300">Lanzamiento / Oportunidad</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Cliente / Oportunidad</Label>
               <Select value={form.projectId} onValueChange={(v) => setForm({ ...form, projectId: v })}>
                 <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
-                  <SelectValue placeholder="Seleccionar lanzamiento" />
+                  <SelectValue placeholder="Seleccionar cliente" />
                 </SelectTrigger>
                 <SelectContent>
                   {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}

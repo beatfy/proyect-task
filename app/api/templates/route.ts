@@ -25,7 +25,7 @@ async function seedDefaults() {
       name: "Setup Campaña Google Ads",
       title: "Configurar campaña SEM para [CLIENTE]",
       description:
-        "## Configuración de Campaña SEM\n\n- [ ] Definición de objetivos y KPIs\n- [ ] Investigación de keywords (intención de búsqueda)\n- [ ] Estructura de campañas y grupos de anuncios\n- [ ] Redacción de anuncios (3 variantes mínimo)\n- [ ] Configuración de extensiones\n- [ ] Definición de presupuesto diario\n- [ ] Configuración de pujas automáticas\n- [ ] Implementación de conversion proyectoing\n- [ ] Revisión de landing pages\n- [ ] Lanzamiento y monitorización inicial",
+        "## Configuración de Campaña SEM\n\n- [ ] Definición de objetivos y KPIs\n- [ ] Investigación de keywords (intención de búsqueda)\n- [ ] Estructura de campañas y grupos de anuncios\n- [ ] Redacción de anuncios (3 variantes mínimo)\n- [ ] Configuración de extensiones\n- [ ] Definición de presupuesto diario\n- [ ] Configuración de pujas automáticas\n- [ ] Implementación de conversion proyectoing\n- [ ] Revisión de landing pages\n- [ ] Cliente y monitorización inicial",
       status: "TODO",
       priority: "HIGH",
       tags: ["sem", "google-ads", "ppc"],
