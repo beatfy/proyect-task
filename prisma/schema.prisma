@@ -33,6 +33,8 @@ model User {
   resetTokens  PasswordResetToken[]
   metaConnection MetaConnection?
   gaConnection GoogleAnalyticsConnection?
+  journalEntries BulletJournalEntry[]
+  journalHabits BulletJournalHabit[]
 
 }
 
@@ -324,6 +326,7 @@ model ChatMessage {
   createdAt      DateTime      @default(now())
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agentId        String?       // nullable: agent conversations (seo-agent, sem-agent, social-agent)
 }
 
 model RateLimit {
@@ -526,5 +529,53 @@ model IntegrationMetric {
   updatedAt     DateTime @updatedAt
 
   @@index([userId, source, metricDate])
+}
+
+// ========== BULLET JOURNAL ==========
+
+model BulletJournalEntry {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          String   // "daily" | "weekly" | "monthly" | "note" | "braindump"
+  title         String?
+  content       String   @default("")
+  date          DateTime // fecha de la entrada
+  mood          String?  // opcional: emoji o estado de ánimo
+  completed     Boolean  @default(false)
+  priority      String   @default("NONE") // "NONE" | "LOW" | "MEDIUM" | "HIGH"
+  tags          String[] @default([])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId, type, date])
+}
+
+model BulletJournalHabit {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  color         String   @default("#C75B39")
+  icon          String?  // emoji o nombre de icono
+  targetDays    Int      @default(7) // días objetivo por semana
+  active        Boolean  @default(true)
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  logs          BulletJournalHabitLog[]
+}
+
+model BulletJournalHabitLog {
+  id            String   @id @default(cuid())
+  habitId       String
+  habit         BulletJournalHabit @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  date          DateTime // fecha del log
+  completed     Boolean  @default(false)
+  value         Int?     // valor opcional (ej: minutos ejercicio)
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  @@unique([habitId, date])
 }
 

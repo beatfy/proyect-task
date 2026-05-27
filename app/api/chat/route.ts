@@ -6,6 +6,7 @@ import crypto from "crypto";
 import { notifyTaskWebhook } from "@/lib/webhook";
 import { put } from "@vercel/blob";
 import { cuid } from "@/lib/utils";
+import { estimateTokens, enforceTokenBudget } from "@/lib/token-budget";
 
 export const dynamic = 'force-dynamic';
 
@@ -203,6 +204,99 @@ const TOOLS = [
       },
     },
   },
+  // ---- CRM Tools ----
+  {
+    type: "function" as const,
+    function: {
+      name: "contact_create",
+      description: "Crear un nuevo contacto en el CRM de la organización activa",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Nombre del contacto" },
+          email: { type: "string", description: "Email (opcional)" },
+          phone: { type: "string", description: "Teléfono (opcional)" },
+          company: { type: "string", description: "Empresa (opcional)" },
+          notes: { type: "string", description: "Notas adicionales (opcional)" },
+          tags: { type: "array", items: { type: "string" }, description: "Tags/etiquetas (opcional)" },
+          status: { type: "string", enum: ["LEAD", "PROSPECT", "CLIENT", "CHURNED"], default: "LEAD" },
+        },
+        required: ["name"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "contact_list",
+      description: "Listar contactos del CRM de la organización activa con filtros opcionales",
+      parameters: {
+        type: "object",
+        properties: {
+          search: { type: "string", description: "Buscar por nombre, email o empresa" },
+          status: { type: "string", enum: ["LEAD", "PROSPECT", "CLIENT", "CHURNED"] },
+          limit: { type: "number", default: 20, maximum: 50 },
+        },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "pipeline_list",
+      description: "Listar pipelines y sus etapas del CRM de la organización activa",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "deal_create",
+      description: "Crear un nuevo deal/oportunidad en el pipeline del CRM. Requiere un contacto existente y una etapa del pipeline.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Título del deal" },
+          value: { type: "number", description: "Valor estimado del deal" },
+          contactId: { type: "string", description: "ID del contacto asociado" },
+          stageId: { type: "string", description: "ID de la etapa del pipeline" },
+          probability: { type: "number", description: "Probabilidad de cierre 0-100 (opcional)" },
+          expectedClose: { type: "string", description: "Fecha estimada de cierre ISO 8601 (opcional)" },
+          notes: { type: "string", description: "Notas del deal (opcional)" },
+        },
+        required: ["title", "contactId", "stageId"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "deal_list",
+      description: "Listar deals/oportunidades del CRM de la organización activa",
+      parameters: {
+        type: "object",
+        properties: {
+          stageId: { type: "string", description: "Filtrar por etapa del pipeline (opcional)" },
+          limit: { type: "number", default: 20, maximum: 50 },
+        },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "deal_move",
+      description: "Mover un deal/oportunidad a otra etapa del pipeline",
+      parameters: {
+        type: "object",
+        properties: {
+          dealId: { type: "string", description: "ID del deal" },
+          stageId: { type: "string", description: "ID de la etapa destino" },
+        },
+        required: ["dealId", "stageId"],
+      },
+    },
+  },
 ];
 
 // ---- Tool execution ----
@@ -213,19 +307,22 @@ async function executeTool(
   projectId?: string,
   organizationId?: string
 ): Promise<unknown> {
-  // Helper: verify user is project member with write access
   const canModify = async (taskId?: string): Promise<string | null> => {
     if (!projectId) return "No hay proyecto activo";
     const membership = await prisma.projectMember.findFirst({
       where: { projectId, userId },
     });
     if (!membership) return "No eres miembro de este proyecto";
-    // For task-specific ops, verify task belongs to this project
     if (taskId) {
       const task = await prisma.task.findUnique({ where: { id: taskId }, select: { projectId: true } });
       if (!task || task.projectId !== projectId) return "Tarea no encontrada en este proyecto";
     }
-    return null; // no error = allowed
+    return null;
+  };
+
+  const requireOrg = (): string | null => {
+    if (!organizationId) return "No hay organización activa. Se necesita una organización para usar el CRM.";
+    return null;
   };
 
   switch (name) {
@@ -245,7 +342,6 @@ async function executeTool(
         if (projectId) data.projectId = projectId;
 
         const task = await prisma.task.create({ data });
-        // Notify via webhook if assigned to someone
         if (data.assigneeId) {
           await notifyTaskWebhook({ id: task.id, title: task.title, description: task.description, priority: task.priority, dueDate: task.dueDate?.toISOString() || null, assigneeId: data.assigneeId, creatorId: userId });
         }
@@ -298,7 +394,6 @@ async function executeTool(
     }
 
     case "task_list": {
-      // BUG 1 FIX: combine search OR with user filter using AND instead of overwriting
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const where: any = {
         OR: [
@@ -313,7 +408,6 @@ async function executeTool(
       if (args.assigneeId) where.assigneeId = args.assigneeId;
       if (args.parentId) where.parentId = args.parentId;
       if (args.search) {
-        // Combine search OR with the existing user/project filter using AND
         const userFilter = where.OR;
         const searchFilter = [
           { title: { contains: args.search as string, mode: "insensitive" } },
@@ -355,7 +449,6 @@ async function executeTool(
       return { client: project.name, context: project.clientContext };
     }
 
-    // BUG 5 FIX: new tool to update client context
     case "client_context_update": {
       if (!projectId) return { error: "No hay proyecto activo" };
       const contextText = args.context as string;
@@ -426,13 +519,11 @@ async function executeTool(
       }
     }
 
-    // BUG 3 FIX: resolve memberId — accept both userId and ProjectMember ID
     case "member_assign": {
       try {
         const permErr = await canModify(args.taskId as string);
         if (permErr) return { error: permErr };
         let resolvedUserId = args.memberId as string;
-        // If the LLM passed a ProjectMember ID instead of a userId, resolve it
         const pm = await prisma.projectMember.findUnique({ where: { id: resolvedUserId } });
         if (pm) {
           resolvedUserId = pm.userId;
@@ -478,14 +569,12 @@ async function executeTool(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const data: any = {
           name: args.name as string,
-          createdById: userId,
         };
         if (args.description) data.description = args.description;
         if (args.organizationId || organizationId)
           data.organizationId = (args.organizationId as string) || organizationId;
 
         const project = await prisma.project.create({ data });
-        // Add creator as member
         await prisma.projectMember.create({
           data: { id: crypto.randomUUID(), projectId: project.id, userId, role: "ADMIN" },
         });
@@ -503,13 +592,11 @@ async function executeTool(
         const mimeType = (args.mimeType as string) || "text/plain";
         const filename = (args.filename as string) || `nota-${taskId.slice(0, 8)}.txt`;
 
-        // Verify task exists
         const task = await prisma.task.findUnique({ where: { id: taskId } });
         if (!task) {
           return { error: `Tarea ${taskId} no encontrada` };
         }
 
-        // Create blob from text content
         const blob = new Blob([content], { type: mimeType });
         const timestamp = Date.now();
         const safeName = filename.replace(/[^\w.\- ]/g, "").substring(0, 100);
@@ -532,6 +619,161 @@ async function executeTool(
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
         return { error: `Error al crear adjunto: ${msg}` };
+      }
+    }
+
+    // ---- CRM Tool Execution ----
+    case "contact_create": {
+      const orgErr = requireOrg();
+      if (orgErr) return { error: orgErr };
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const data: any = {
+          id: cuid(),
+          name: args.name as string,
+          organizationId,
+        };
+        if (args.email) data.email = args.email as string;
+        if (args.phone) data.phone = args.phone as string;
+        if (args.company) data.company = args.company as string;
+        if (args.notes) data.notes = args.notes as string;
+        if (args.tags) data.tags = args.tags as string[];
+        if (args.status) data.status = args.status as string;
+
+        const contact = await prisma.contact.create({ data });
+        return {
+          success: true,
+          contact: { id: contact.id, name: contact.name, email: contact.email, status: contact.status },
+        };
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { error: `Error al crear contacto: ${msg}` };
+      }
+    }
+
+    case "contact_list": {
+      const orgErr = requireOrg();
+      if (orgErr) return { error: orgErr };
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const where: any = { organizationId };
+        if (args.status) where.status = args.status as string;
+        if (args.search) {
+          where.OR = [
+            { name: { contains: args.search as string, mode: "insensitive" } },
+            { email: { contains: args.search as string, mode: "insensitive" } },
+            { company: { contains: args.search as string, mode: "insensitive" } },
+          ];
+        }
+        const limit = (args.limit as number) || 20;
+        const contacts = await prisma.contact.findMany({
+          where,
+          take: limit,
+          orderBy: { createdAt: "desc" },
+          select: { id: true, name: true, email: true, phone: true, company: true, status: true, tags: true },
+        });
+        return { contacts, count: contacts.length };
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { error: `Error al listar contactos: ${msg}` };
+      }
+    }
+
+    case "pipeline_list": {
+      const orgErr = requireOrg();
+      if (orgErr) return { error: orgErr };
+      try {
+        const pipelines = await prisma.pipeline.findMany({
+          where: { organizationId },
+          select: {
+            id: true,
+            name: true,
+            stages: {
+              orderBy: { position: "asc" },
+              select: { id: true, name: true, position: true, color: true },
+            },
+          },
+        });
+        return { pipelines };
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { error: `Error al listar pipelines: ${msg}` };
+      }
+    }
+
+    case "deal_create": {
+      const orgErr = requireOrg();
+      if (orgErr) return { error: orgErr };
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const data: any = {
+          id: cuid(),
+          title: args.title as string,
+          contactId: args.contactId as string,
+          stageId: args.stageId as string,
+          pipelineId: (args.pipelineId as string) || "",
+          organizationId,
+        };
+        if (args.value !== undefined) data.value = args.value as number;
+        if (args.probability !== undefined) data.probability = args.probability as number;
+        if (args.expectedClose) data.expectedClose = new Date(args.expectedClose as string);
+        if (args.notes) data.notes = args.notes as string;
+
+        const stage = await prisma.pipelineStage.findUnique({
+          where: { id: args.stageId as string },
+          select: { pipelineId: true },
+        });
+        if (stage) data.pipelineId = stage.pipelineId;
+
+        const deal = await prisma.deal.create({ data });
+        return { success: true, deal: { id: deal.id, title: deal.title, value: deal.value } };
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { error: `Error al crear deal: ${msg}` };
+      }
+    }
+
+    case "deal_list": {
+      const orgErr = requireOrg();
+      if (orgErr) return { error: orgErr };
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const where: any = { organizationId };
+        if (args.stageId) where.stageId = args.stageId as string;
+        const limit = (args.limit as number) || 20;
+        const deals = await prisma.deal.findMany({
+          where,
+          take: limit,
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            title: true,
+            value: true,
+            probability: true,
+            stage: { select: { id: true, name: true } },
+            contact: { select: { id: true, name: true } },
+          },
+        });
+        return { deals, count: deals.length };
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { error: `Error al listar deals: ${msg}` };
+      }
+    }
+
+    case "deal_move": {
+      const orgErr = requireOrg();
+      if (orgErr) return { error: orgErr };
+      try {
+        const deal = await prisma.deal.update({
+          where: { id: args.dealId as string },
+          data: { stageId: args.stageId as string },
+          select: { id: true, title: true, stage: { select: { name: true } } },
+        });
+        return { success: true, deal: { id: deal.id, title: deal.title, stage: deal.stage.name } };
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { error: `Error al mover deal: ${msg}` };
       }
     }
 
@@ -583,11 +825,15 @@ async function buildSystemPrompt(
 - Respuestas concisas. Máximo 3-4 líneas salvo que se pida detalle.
 - Para acciones destructivas (eliminar), confirma brevemente antes.
 - MUY IMPORTANTE: Para actualizar/mover/eliminar tareas, usa SIEMPRE el ID exacto del listado de tareas actual. NUNCA inventes IDs.
-- AUNTOS AUTOMÁTICOS: Cuando generes contenido extenso (más de 200 caracteres) como reportes, documentos, análisis, resúmenes detallados, posts, emails, copys o cualquier contenido textual largo, DEBES: (1) Crear el contenido como archivo adjunto usando la tool task_attachment, (2) Responder al usuario con un resumen breve de 2-3 líneas indicando que has creado un archivo adjunto con el contenido completo.
+- ADJUNTOS AUTOMÁTICOS: Cuando generes contenido extenso (más de 200 caracteres) como reportes, documentos, análisis, resúmenes detallados, posts, emails, copys o cualquier contenido textual largo, DEBES: (1) Crear el contenido como archivo adjunto usando la tool task_attachment, (2) Responder al usuario con un resumen breve de 2-3 líneas indicando que has creado un archivo adjunto con el contenido completo.
 - ANTES DE CREAR CONTENIDO para un cliente, usa la tool client_context para obtener información del contexto. Siempre adapta el contenido a la estrategia del cliente.
 - Si el usuario menciona un cliente por nombre y no coincide con el cliente activo, avísale.
 - Cuando el usuario proporcione información sobre el cliente (estilo, referencias, estrategia, etc.), usa client_context_update para guardarla.
-- Si el usuario dice algo como "añade una oportunidad en [empresa] por 1000€", interpreta que quiere crear un deal/oportunidad en el Pipeline y actúa en consecuencia.
+## CRM — Gestión de contactos y oportunidades
+- Puedes crear contactos, deals/oportunidades y gestionar el pipeline del CRM.
+- Para crear un deal, primero necesitas un contacto y una etapa del pipeline. Usa contact_list y pipeline_list para obtener los IDs necesarios.
+- Cuando el usuario diga algo como "añade una oportunidad", "crea un lead", "nuevo cliente potencial", usa las tools de CRM.
+- Si el usuario menciona una empresa o persona que no está en el CRM, sugiere crearla como contacto.
 
 ## Tareas del cliente actual
 ${taskList || "Sin cliente activo."}
@@ -601,6 +847,101 @@ ${clientContext ? `## Contexto del cliente (${projectName})
 ${clientContext}` : ""}`;
 }
 
+// ---- Streaming LLM helper ----
+async function streamCompletion(
+  url: string,
+  apiKey: string,
+  body: Record<string, unknown>,
+  onToken: (token: string) => void,
+): Promise<{
+  content: string;
+  toolCalls: Array<{ id: string; function: { name: string; arguments: string } }>;
+  usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+}> {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text().catch(() => "Unknown error");
+    throw new Error(`LLM API error ${response.status}: ${errText}`);
+  }
+
+  const result = {
+    content: "",
+    toolCalls: [] as Array<{ id: string; function: { name: string; arguments: string } }>,
+    usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+  };
+
+  if (!body.stream) {
+    const data = await response.json();
+    result.content = data.choices?.[0]?.message?.content || "";
+    result.usage = data.usage || result.usage;
+    if (data.choices?.[0]?.message?.tool_calls) {
+      result.toolCalls = data.choices[0].message.tool_calls;
+    }
+    return result;
+  }
+
+  const reader = response.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("data: ")) continue;
+      const jsonStr = trimmed.slice(6).trim();
+      if (jsonStr === "[DONE]") continue;
+
+      try {
+        const parsed = JSON.parse(jsonStr);
+        const delta = parsed.choices?.[0]?.delta;
+
+        if (delta?.content) {
+          result.content += delta.content;
+          onToken(delta.content);
+        }
+
+        if (delta?.tool_calls) {
+          for (const tc of delta.tool_calls) {
+            const idx = tc.index ?? 0;
+            if (!result.toolCalls[idx]) {
+              result.toolCalls[idx] = {
+                id: tc.id || "",
+                function: { name: "", arguments: "" },
+              };
+            }
+            if (tc.id) result.toolCalls[idx].id = tc.id;
+            if (tc.function?.name) result.toolCalls[idx].function.name += tc.function.name;
+            if (tc.function?.arguments) result.toolCalls[idx].function.arguments += tc.function.arguments;
+          }
+        }
+
+        if (parsed.usage) {
+          result.usage = parsed.usage;
+        }
+      } catch {
+        // skip malformed chunks
+      }
+    }
+  }
+
+  return result;
+}
+
 // ---- GET: chat history ----
 export async function GET(request: NextRequest) {
   try {
@@ -609,13 +950,22 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
+    const agentId = searchParams.get("agentId");
     const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = { userId: authResult.userId };
+    if (projectId) where.projectId = projectId;
+    if (agentId) where.agentId = agentId;
+    if (!projectId && !agentId) {
+      where.agentId = null;
+    }
+
     const messages = await prisma.chatMessage.findMany({
-      where: { userId: authResult.userId, ...(projectId ? { projectId } : {}) },
+      where,
       orderBy: { createdAt: "desc" },
       take: limit,
-      select: { id: true, role: true, content: true, createdAt: true, projectId: true },
+      select: { id: true, role: true, content: true, createdAt: true, projectId: true, agentId: true },
     });
 
     return NextResponse.json(messages.reverse());
@@ -624,275 +974,278 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// ---- POST: main handler ----
+// ---- POST: main handler (streaming) ----
 export async function POST(request: NextRequest) {
-  try {
-    const authResult = await authenticateRequest(request);
-    if (!authResult) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
-
-    const rateCheck = await aiRateLimit(authResult.userId);
-    if (!rateCheck.allowed) {
-      return NextResponse.json(
-        { error: "Has alcanzado el límite de mensajes. Espera un momento.", remaining: rateCheck.remaining },
-        { status: 429 }
-      );
-    }
-
-    const body = await request.json();
-    const { message, projectId, organizationId, history } = body as {
-      message: string;
-      projectId?: string;
-      organizationId?: string;
-      history?: Array<{ role: string; content: string }>;
-    };
-
-    if (!message || typeof message !== "string") {
-      return NextResponse.json({ error: "Mensaje requerido" }, { status: 400 });
-    }
-
-    // Load context
-    let projectName: string | undefined;
-    let orgName: string | undefined;
-
-    if (projectId) {
-      const project = await prisma.project.findUnique({
-        where: { id: projectId },
-        select: { name: true, organizationId: true },
-      });
-      if (project) {
-        projectName = project.name;
-        if (project.organizationId) {
-          const org = await prisma.organization.findUnique({
-            where: { id: project.organizationId },
-            select: { name: true },
-          });
-          orgName = org?.name;
-        }
-      }
-    }
-
-    // Get user name
-    const user = await prisma.user.findUnique({
-      where: { id: authResult.userId },
-      select: { name: true },
-    });
-
-    // Load project tasks and members for context
-    let taskList = "Sin proyecto activo.";
-    let memberList = "Sin proyecto activo.";
-
-    if (projectId) {
-      const tasks = await prisma.task.findMany({
-        where: { projectId },
-        select: { id: true, title: true, status: true, priority: true, dueDate: true, assigneeId: true },
-        orderBy: { createdAt: "desc" },
-        take: 20,
-      });
-      taskList = tasks.map((t: { id: string; title: string; status: string; priority: string; dueDate: Date | null }) => `- [${t.id}] "${t.title}" | ${t.status} | ${t.priority} | vence: ${t.dueDate?.toISOString().split("T")[0] || "sin fecha"}`).join("\n") || "No hay tareas.";
-
-      const members = await prisma.projectMember.findMany({
-        where: { projectId },
-        select: { userId: true, role: true, user: { select: { name: true, email: true } } },
-      });
-      memberList = members.map((m: { userId: string; role: string; user: { name: string | null; email: string | null } | null }) => `- [${m.userId}] ${m.user?.name || m.user?.email} (${m.role})`).join("\n") || "No hay miembros.";
-    }
-
-    // Fetch organization knowledge base
-    let knowledgeBase: string | undefined;
-    if (organizationId) {
-      const kb = await prisma.knowledgeBase.findUnique({
-        where: { organizationId },
-      });
-      if (kb?.content) {
-        knowledgeBase = kb.content;
-      }
-    }
-
-    // Fetch client context (per-project branding/docs — strict isolation)
-    let clientContext: string | undefined;
-    if (projectId) {
-      const proj = await prisma.project.findUnique({
-        where: { id: projectId },
-        select: { name: true, clientContext: true },
-      });
-      if (proj?.clientContext) {
-        clientContext = proj.clientContext;
-      }
-    }
-
-    const systemPrompt = await buildSystemPrompt(
-      user?.name || "Usuario",
-      authResult.userId,
-      projectName,
-      projectId,
-      orgName,
-      organizationId,
-      taskList,
-      memberList,
-      knowledgeBase,
-      clientContext
-    );
-
-    // Build messages for OpenAI
-    const messages: Array<{ role: string; content: string }> = [
-      { role: "system", content: systemPrompt },
-    ];
-
-    // Add history (max 20 messages)
-    if (history && Array.isArray(history)) {
-      const recentHistory = history.slice(-20);
-      messages.push(...recentHistory);
-    }
-
-    messages.push({ role: "user", content: message });
-
-    // Save user message
-    await prisma.chatMessage.create({ data: { userId: authResult.userId, projectId: projectId || null, role: "user", content: message, organizationId: organizationId || null } });
-
-    const startTime = Date.now();
-
-    // Call LLM (GLM via OpenAI-compatible API)
-    const apiKey = process.env.GLM_API_KEY || process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: "API key no configurada (GLM_API_KEY o OPENAI_API_KEY)" },
-        { status: 500 }
-      );
-    }
-
-    const baseUrl = process.env.GLM_BASE_URL || process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
-    const model = process.env.CHAT_MODEL || "glm-4.5-air";
-
-    // First call — may return tool calls
-    const firstResponse = await fetch(`${baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        tools: TOOLS,
-        tool_choice: "auto",
-        max_tokens: 2000,
-        temperature: 0.7,
-      }),
-    });
-
-    if (!firstResponse.ok) {
-      const err = await firstResponse.text();
-      console.error("LLM API error:", err);
-      return NextResponse.json({ error: "Error del modelo de IA" }, { status: 502 });
-    }
-
-    const firstData = await firstResponse.json();
-    const choice = firstData.choices[0];
-    const assistantMessage = choice.message;
-
-    // If no tool calls, return directly
-    if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
-      const reply = assistantMessage.content || "";
-      await prisma.chatMessage.create({ data: { userId: authResult.userId, projectId: projectId || null, role: "assistant", content: reply, organizationId: organizationId || null } });
-      // Proyecto usage
-      const duration = Date.now() - startTime;
-      await prisma.taskyUsage.create({
-        data: {
-          userId: authResult.userId,
-          organizationId: organizationId || null,
-          projectId: projectId || null,
-          prompt: message,
-          toolsUsed: [],
-          responseTokens: firstData.usage?.completion_tokens || null,
-          duration,
-        },
-      }).catch(() => {});
-      return NextResponse.json({ reply, actions: [] });
-    }
-
-    // Execute tool calls
-    const actions: Array<{ tool: string; result: unknown }> = [];
-    const toolResults: Array<{ role: string; tool_call_id: string; content: string }> = [];
-
-    for (const toolCall of assistantMessage.tool_calls) {
-      const toolName = toolCall.function.name;
-      let toolArgs: Record<string, unknown>;
-      try {
-        toolArgs = JSON.parse(toolCall.function.arguments);
-      } catch {
-        toolArgs = {};
-      }
-
-      const result = await executeTool(
-        toolName,
-        toolArgs,
-        authResult.userId,
-        projectId,
-        organizationId
-      );
-
-      actions.push({ tool: toolName, result });
-      toolResults.push({
-        role: "tool",
-        tool_call_id: toolCall.id,
-        content: JSON.stringify(result),
-      });
-    }
-
-    // Second call with tool results
-    const secondMessages = [
-      ...messages,
-      assistantMessage,
-      ...toolResults,
-    ];
-
-    const secondResponse = await fetch(`${baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: secondMessages,
-        max_tokens: 2000,
-        temperature: 0.7,
-      }),
-    });
-
-    if (!secondResponse.ok) {
-      // Return tool results with a fallback message
-      return NextResponse.json({
-        reply: "Acción completada.",
-        actions,
-      });
-    }
-
-    const secondData = await secondResponse.json();
-    const finalReply = secondData.choices[0]?.message?.content || "Acción completada.";
-
-    await prisma.chatMessage.create({ data: { userId: authResult.userId, projectId: projectId || null, role: "assistant", content: finalReply, organizationId: organizationId || null } });
-
-    // Proyecto usage
-    const duration = Date.now() - startTime;
-    const toolsUsed = actions.map(a => a.tool);
-    await prisma.taskyUsage.create({
-      data: {
-        userId: authResult.userId,
-        organizationId: organizationId || null,
-        projectId: projectId || null,
-        prompt: message,
-        toolsUsed,
-        responseTokens: (firstData.usage?.completion_tokens || 0) + (secondData.usage?.completion_tokens || 0),
-        duration,
-      },
-    }).catch(() => {});
-
-    return NextResponse.json({ reply: finalReply, actions });
-  } catch (error) {
-    console.error("Chat API error:", error);
-    return NextResponse.json({ error: `Error interno: ${error instanceof Error ? error.message : String(error)}` }, { status: 500 });
+  const authResult = await authenticateRequest(request);
+  if (!authResult) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
+
+  const rateCheck = await aiRateLimit(authResult.userId);
+  if (!rateCheck.allowed) {
+    return NextResponse.json(
+      { error: "Has alcanzado el límite de mensajes. Espera un momento.", remaining: rateCheck.remaining },
+      { status: 429 }
+    );
+  }
+
+  const body = await request.json();
+  const { message, projectId, organizationId, history } = body as {
+    message: string;
+    projectId?: string;
+    organizationId?: string;
+    history?: Array<{ role: string; content: string }>;
+  };
+
+  if (!message || typeof message !== "string") {
+    return NextResponse.json({ error: "Mensaje requerido" }, { status: 400 });
+  }
+
+  let projectName: string | undefined;
+  let orgName: string | undefined;
+
+  if (projectId) {
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { name: true, organizationId: true },
+    });
+    if (project) {
+      projectName = project.name;
+      if (project.organizationId) {
+        const org = await prisma.organization.findUnique({
+          where: { id: project.organizationId },
+          select: { name: true },
+        });
+        orgName = org?.name;
+      }
+    }
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: authResult.userId },
+    select: { name: true },
+  });
+
+  let taskList = "Sin proyecto activo.";
+  let memberList = "Sin proyecto activo.";
+
+  if (projectId) {
+    const tasks = await prisma.task.findMany({
+      where: { projectId },
+      select: { id: true, title: true, status: true, priority: true, dueDate: true, assigneeId: true },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    });
+    taskList = tasks.map((t: { id: string; title: string; status: string; priority: string; dueDate: Date | null }) => `- [${t.id}] "${t.title}" | ${t.status} | ${t.priority} | vence: ${t.dueDate?.toISOString().split("T")[0] || "sin fecha"}`).join("\n") || "No hay tareas.";
+
+    const members = await prisma.projectMember.findMany({
+      where: { projectId },
+      select: { userId: true, role: true, user: { select: { name: true, email: true } } },
+    });
+    memberList = members.map((m: { userId: string; role: string; user: { name: string | null; email: string | null } | null }) => `- [${m.userId}] ${m.user?.name || m.user?.email} (${m.role})`).join("\n") || "No hay miembros.";
+  }
+
+  let knowledgeBase: string | undefined;
+  if (organizationId) {
+    const kb = await prisma.knowledgeBase.findUnique({
+      where: { organizationId },
+    });
+    if (kb?.content) {
+      knowledgeBase = kb.content;
+    }
+  }
+
+  let clientContext: string | undefined;
+  if (projectId) {
+    const proj = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { name: true, clientContext: true },
+    });
+    if (proj?.clientContext) {
+      clientContext = proj.clientContext;
+    }
+  }
+
+  let systemPrompt = await buildSystemPrompt(
+    user?.name || "Usuario",
+    authResult.userId,
+    projectName,
+    projectId,
+    orgName,
+    organizationId,
+    taskList,
+    memberList,
+    knowledgeBase,
+    clientContext
+  );
+
+  systemPrompt = enforceTokenBudget(systemPrompt);
+
+  const messages: Array<{ role: string; content: string | null; tool_calls?: unknown }> = [
+    { role: "system", content: systemPrompt },
+  ];
+
+  if (history && Array.isArray(history)) {
+    const recentHistory = history.slice(-20);
+    messages.push(...recentHistory.map((m) => ({ role: m.role, content: m.content })));
+  }
+
+  messages.push({ role: "user", content: message });
+
+  await prisma.chatMessage.create({
+    data: {
+      userId: authResult.userId,
+      projectId: projectId || null,
+      role: "user",
+      content: message,
+      organizationId: organizationId || null,
+    },
+  });
+
+  const apiKey = process.env.GLM_API_KEY || process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: "API key no configurada (GLM_API_KEY o OPENAI_API_KEY)" },
+      { status: 500 }
+    );
+  }
+
+  const baseUrl = process.env.GLM_BASE_URL || process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
+  const model = process.env.CHAT_MODEL || "glm-4.5-air";
+
+  const encoder = new TextEncoder();
+  const startTime = Date.now();
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (data: Record<string, unknown>) => {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+      };
+
+      try {
+        const firstResult = await streamCompletion(
+          `${baseUrl}/chat/completions`,
+          apiKey,
+          { model, messages, tools: TOOLS, tool_choice: "auto", max_tokens: 2000, temperature: 0.7, stream: true },
+          (token) => send({ type: "token", content: token })
+        );
+
+        if (firstResult.toolCalls.length === 0) {
+          const reply = firstResult.content || "";
+          await prisma.chatMessage.create({
+            data: {
+              userId: authResult.userId,
+              projectId: projectId || null,
+              role: "assistant",
+              content: reply,
+              organizationId: organizationId || null,
+            },
+          });
+          const duration = Date.now() - startTime;
+          await prisma.taskyUsage.create({
+            data: {
+              userId: authResult.userId,
+              organizationId: organizationId || null,
+              projectId: projectId || null,
+              prompt: message,
+              toolsUsed: [],
+              responseTokens: firstResult.usage.completion_tokens || null,
+              duration,
+            },
+          }).catch(() => {});
+          send({ type: "done", actions: [] });
+          controller.close();
+          return;
+        }
+
+        const actions: Array<{ tool: string; result: unknown }> = [];
+        const toolResults: Array<{ role: string; tool_call_id: string; content: string }> = [];
+
+        for (const toolCall of firstResult.toolCalls) {
+          const toolName = toolCall.function.name;
+          let toolArgs: Record<string, unknown>;
+          try {
+            toolArgs = JSON.parse(toolCall.function.arguments);
+          } catch {
+            toolArgs = {};
+          }
+
+          const result = await executeTool(
+            toolName,
+            toolArgs,
+            authResult.userId,
+            projectId,
+            organizationId
+          );
+
+          actions.push({ tool: toolName, result });
+          toolResults.push({
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content: JSON.stringify(result),
+          });
+          send({ type: "action", tool: toolName, result });
+        }
+
+        const assistantMsg = {
+          role: "assistant" as const,
+          content: firstResult.content || null,
+          tool_calls: firstResult.toolCalls,
+        };
+
+        const secondMessages = [
+          ...messages,
+          assistantMsg,
+          ...toolResults,
+        ];
+
+        const secondResult = await streamCompletion(
+          `${baseUrl}/chat/completions`,
+          apiKey,
+          { model, messages: secondMessages, max_tokens: 2000, temperature: 0.7, stream: true },
+          (token) => send({ type: "token", content: token })
+        );
+
+        const finalReply = secondResult.content || "Acción completada.";
+        await prisma.chatMessage.create({
+          data: {
+            userId: authResult.userId,
+            projectId: projectId || null,
+            role: "assistant",
+            content: finalReply,
+            organizationId: organizationId || null,
+          },
+        });
+
+        const duration = Date.now() - startTime;
+        const toolsUsed = actions.map((a) => a.tool);
+        await prisma.taskyUsage.create({
+          data: {
+            userId: authResult.userId,
+            organizationId: organizationId || null,
+            projectId: projectId || null,
+            prompt: message,
+            toolsUsed,
+            responseTokens: (firstResult.usage.completion_tokens || 0) + (secondResult.usage.completion_tokens || 0),
+            duration,
+          },
+        }).catch(() => {});
+
+        send({ type: "done", actions });
+        controller.close();
+      } catch (error) {
+        console.error("Chat streaming error:", error);
+        send({ type: "error", error: `Error interno: ${error instanceof Error ? error.message : String(error)}` });
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
 }

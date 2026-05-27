@@ -35,13 +35,11 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Extract projectId from URL /projects/[id]
   useEffect(() => {
     const match = pathname.match(/\/projects\/([^/]+)/);
     if (match) {
       const id = match[1];
       setProjectId(id);
-      // Fetch project name
       fetch(`/api/projects/${id}`)
         .then((r) => r.json())
         .then((data) => {
@@ -58,7 +56,6 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
     }
   }, [pathname]);
 
-  // Load chat history from backend when project changes
   useEffect(() => {
     setMessages([]);
     if (projectId) {
@@ -78,9 +75,7 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
             );
           }
         })
-        .catch(() => {
-          // Silently fail — chat works without history
-        });
+        .catch(() => {});
     }
   }, [projectId]);
 
@@ -110,7 +105,6 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
       }));
 
       if (chatMode === "openclaw") {
-        // OpenClaw proxy mode
         const res = await fetch("/api/chat/openclaw", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -139,7 +133,6 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
           ]);
         }
       } else {
-        // Original GLM mode
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -151,22 +144,111 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
           }),
         });
 
-        const data = await res.json();
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({ error: "Error desconocido" }));
+          setMessages((prev) => [
+            ...prev,
+            { role: "assistant", content: `⚠️ Error: ${errData.error || "Error del servidor"}` },
+          ]);
+          setIsLoading(false);
+          return;
+        }
 
-        if (data.error) {
-          setMessages((prev) => [
-            ...prev,
-            { role: "assistant", content: `⚠️ Error: ${data.error}` },
-          ]);
-        } else {
-          setMessages((prev) => [
-            ...prev,
-            {
-              role: "assistant",
-              content: data.reply,
-              actions: data.actions || [],
-            },
-          ]);
+        const contentType = res.headers.get("content-type") || "";
+        const isStreaming = contentType.includes("text/event-stream");
+
+        if (!isStreaming) {
+          const data = await res.json();
+          if (data.error) {
+            setMessages((prev) => [
+              ...prev,
+              { role: "assistant", content: `⚠️ Error: ${data.error}` },
+            ]);
+          } else {
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: "assistant",
+                content: data.reply,
+                actions: data.actions || [],
+              },
+            ]);
+          }
+          setIsLoading(false);
+          return;
+        }
+
+        const placeholder: Message = { role: "assistant", content: "", actions: [] };
+        setMessages((prev) => [...prev, placeholder]);
+
+        const reader = res.body!.getReader();
+        const decoder = new TextDecoder();
+        let fullContent = "";
+        const actions: Array<{ tool: string; result: unknown }> = [];
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith("data: ")) continue;
+            const jsonStr = trimmed.slice(6).trim();
+            if (jsonStr === "[DONE]") continue;
+
+            try {
+              const data = JSON.parse(jsonStr);
+
+              if (data.type === "token" && data.content) {
+                fullContent += data.content as string;
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  updated[updated.length - 1] = {
+                    ...updated[updated.length - 1],
+                    content: fullContent,
+                  };
+                  return updated;
+                });
+              } else if (data.type === "action") {
+                actions.push({ tool: data.tool as string, result: data.result });
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  updated[updated.length - 1] = {
+                    ...updated[updated.length - 1],
+                    actions: [...actions],
+                  };
+                  return updated;
+                });
+              } else if (data.type === "done") {
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  updated[updated.length - 1] = {
+                    ...updated[updated.length - 1],
+                    content: fullContent,
+                    actions,
+                  };
+                  return updated;
+                });
+              } else if (data.type === "error") {
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  updated[updated.length - 1] = {
+                    role: "assistant",
+                    content: `⚠️ Error: ${data.error}`,
+                    actions: [],
+                  };
+                  return updated;
+                });
+              }
+            } catch {
+              // skip malformed chunks
+            }
+          }
         }
       }
     } catch {
@@ -208,6 +290,12 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
         return `⏱️ ${(result.entry as Record<string, number>)?.hours || 0}h registradas`;
       case "project_create":
         return `📁 Proyecto creado: ${(result.project as Record<string, string>)?.name || ""}`;
+      case "contact_create":
+        return `👤 Contacto creado: ${(result.contact as Record<string, string>)?.name || ""}`;
+      case "deal_create":
+        return `💰 Deal creado: ${(result.deal as Record<string, string>)?.title || ""}`;
+      case "deal_move":
+        return `🔄 Deal movido a: ${(result.deal as Record<string, string>)?.stage || ""}`;
       default:
         return `⚡ ${action.tool}`;
     }
@@ -215,15 +303,16 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
 
   if (!isOpen) return null;
 
+  const lastMsg = messages[messages.length - 1];
+  const isStreaming = lastMsg?.role === "assistant" && lastMsg.content === "" && isLoading;
+
   return (
     <>
-      {/* Backdrop on mobile */}
       <div
         className="fixed inset-0 bg-black/40 z-40 lg:hidden"
         onClick={onClose}
       />
 
-      {/* Sidebar */}
       <div className="fixed right-0 top-0 h-full w-full sm:w-96 bg-background border-l border-border z-50 flex flex-col shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
@@ -296,56 +385,52 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
             </div>
           )}
 
-          {messages.map((msg, i) => (
-            <div
-              key={i}
-              className={`flex gap-2 ${
-                msg.role === "user" ? "justify-end" : "justify-start"
-              }`}
-            >
-              {msg.role === "assistant" && (
-                <div className="w-6 h-6 rounded-full bg-neutral-900/10 flex items-center justify-center flex-shrink-0 mt-1">
-                  <span className="text-xs">🤖</span>
-                </div>
-              )}
+          {messages.map((msg, i) => {
+            const isLastAssistantStreaming = msg.role === "assistant" && i === messages.length - 1 && msg.content === "" && isLoading;
+            return (
               <div
-                className={`max-w-[80%] rounded-xl px-3 py-2 text-sm ${
-                  msg.role === "user"
-                    ? "bg-neutral-900 text-white"
-                    : "bg-muted"
+                key={i}
+                className={`flex gap-2 ${
+                  msg.role === "user" ? "justify-end" : "justify-start"
                 }`}
               >
-                <p className="whitespace-pre-wrap">{msg.content}</p>
-                {msg.actions && msg.actions.length > 0 && (
-                  <div className="mt-2 flex flex-col gap-1">
-                    {msg.actions.map((action, j) => (
-                      <span
-                        key={j}
-                        className="text-xs bg-background/50 px-2 py-1 rounded-md"
-                      >
-                        {formatAction(action)}
-                      </span>
-                    ))}
+                {msg.role === "assistant" && (
+                  <div className="w-6 h-6 rounded-full bg-neutral-900/10 flex items-center justify-center flex-shrink-0 mt-1">
+                    <span className="text-xs">🤖</span>
                   </div>
                 )}
-              </div>
-            </div>
-          ))}
-
-          {isLoading && (
-            <div className="flex gap-2 items-start">
-              <div className="w-6 h-6 rounded-full bg-neutral-900/10 flex items-center justify-center flex-shrink-0">
-                <span className="text-xs">🤖</span>
-              </div>
-              <div className="bg-muted rounded-xl px-3 py-2">
-                <div className="flex gap-1">
-                  <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                  <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                  <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                <div
+                  className={`max-w-[80%] rounded-xl px-3 py-2 text-sm ${
+                    msg.role === "user"
+                      ? "bg-neutral-900 text-white"
+                      : "bg-muted"
+                  }`}
+                >
+                  {msg.content ? (
+                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                  ) : isLastAssistantStreaming ? (
+                    <div className="flex gap-1">
+                      <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                    </div>
+                  ) : null}
+                  {msg.actions && msg.actions.length > 0 && (
+                    <div className="mt-2 flex flex-col gap-1">
+                      {msg.actions.map((action, j) => (
+                        <span
+                          key={j}
+                          className="text-xs bg-background/50 px-2 py-1 rounded-md"
+                        >
+                          {formatAction(action)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })}
 
           <div ref={messagesEndRef} />
         </div>

@@ -113,6 +113,27 @@ export default function AgentChatPage() {
     }
   }, [agentId]);
 
+  /* Cargar historial de chat persistido cuando hay cliente seleccionado */
+  useEffect(() => {
+    if (!selectedClient) return;
+    fetch(`/api/agents/chat?agentId=${agentId}&projectId=${selectedClient.id}&limit=50`)
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to load history");
+        return r.json();
+      })
+      .then((data: Array<{ role: string; content: string }>) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setMessages(
+            data.map((m) => ({
+              role: m.role as "user" | "assistant",
+              content: m.content,
+            }))
+          );
+        }
+      })
+      .catch(() => {});
+  }, [agentId, selectedClient?.id]);
+
   /* Cargar proyectos */
   const fetchProjects = useCallback(async () => {
     setLoadingProjects(true);

@@ -2,8 +2,43 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateRequest } from "@/lib/api-auth";
 import { agentRateLimit } from "@/lib/ai-rate-limit";
+import { cuid } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
+
+export async function GET(request: NextRequest) {
+  try {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const agentId = searchParams.get("agentId");
+    const projectId = searchParams.get("projectId");
+    const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
+
+    if (!agentId) {
+      return NextResponse.json({ error: "agentId es requerido" }, { status: 400 });
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = { userId: authResult.userId, agentId };
+    if (projectId) where.projectId = projectId;
+
+    const messages = await prisma.chatMessage.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      select: { id: true, role: true, content: true, createdAt: true },
+    });
+
+    return NextResponse.json(messages.reverse());
+  } catch (error) {
+    console.error("Agent chat GET error:", error);
+    return NextResponse.json({ error: "Error al cargar historial" }, { status: 500 });
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,17 +72,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "OPENCLAW_AUTH_TOKEN no configurado" }, { status: 500 });
     }
 
-    // Buscar contexto del proyecto/cliente si se proporciona projectId
+    let organizationId: string | null = null;
+
     let clientContext = "";
     if (projectId && typeof projectId === "string") {
       try {
         const project = await prisma.project.findUnique({
           where: { id: projectId },
-          select: { id: true, name: true, description: true, clientContext: true },
+          select: { id: true, name: true, description: true, clientContext: true, organizationId: true },
         });
 
         if (project) {
-          // Fetch task counts by status
+          organizationId = project.organizationId;
+
           const taskCountByStatus = await prisma.task.groupBy({
             by: ["status"],
             where: { projectId },
@@ -61,7 +98,6 @@ export async function POST(req: NextRequest) {
           const inProgressCount = statusCounts["IN_PROGRESS"] ?? 0;
           const doneCount = statusCounts["DONE"] ?? 0;
 
-          // Last 5 completed tasks
           const recentDoneTasks = await prisma.task.findMany({
             where: { projectId, status: "DONE" },
             orderBy: { updatedAt: "desc" },
@@ -69,7 +105,6 @@ export async function POST(req: NextRequest) {
             select: { title: true },
           });
 
-          // Recent chat messages for this project
           const recentChatMessages = await prisma.chatMessage.findMany({
             where: { projectId },
             orderBy: { createdAt: "desc" },
@@ -77,7 +112,6 @@ export async function POST(req: NextRequest) {
             select: { role: true, content: true },
           });
 
-          // Recent comments on tasks in this project
           const recentComments = await prisma.comment.findMany({
             where: { task: { projectId } },
             orderBy: { createdAt: "desc" },
@@ -103,10 +137,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Construir mensajes
+    // Save user message
+    await prisma.chatMessage.create({
+      data: {
+        id: cuid(),
+        userId: authResult.userId,
+        projectId: projectId || null,
+        role: "user",
+        content: message,
+        organizationId: organizationId || null,
+        agentId,
+      },
+    });
+
     const messages: Array<{ role: string; content: string }> = [];
 
-    // Anadir historial (ultimos 20 mensajes)
     if (Array.isArray(history) && history.length > 0) {
       const contextMsg = history.slice(-20).map((m: { role: string; content: string }) => ({
         role: m.role === "user" ? "user" : "assistant",
@@ -115,7 +160,6 @@ export async function POST(req: NextRequest) {
       messages.push(...contextMsg);
     }
 
-    // Anadir mensaje actual con contexto del cliente
     const finalMessage = clientContext
       ? `${message}${clientContext}`
       : message;
@@ -179,6 +223,19 @@ export async function POST(req: NextRequest) {
 
     const gatewayData = await gatewayRes.json();
     const response = gatewayData.choices?.[0]?.message?.content || "Sin respuesta del agente";
+
+    // Save assistant message
+    await prisma.chatMessage.create({
+      data: {
+        id: cuid(),
+        userId: authResult.userId,
+        projectId: projectId || null,
+        role: "assistant",
+        content: response,
+        organizationId: organizationId || null,
+        agentId,
+      },
+    });
 
     return NextResponse.json({ response });
 

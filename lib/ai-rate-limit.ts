@@ -1,59 +1,46 @@
 import { prisma } from "@/lib/prisma";
 
-const WINDOW_MS = 60 * 1000; // 1 minute
-const MAX_MESSAGES = 20; // 20 AI messages per minute per user
-const MAX_AGENT_CALLS = 10; // 10 agent calls per minute per user
+const WINDOW_MS = 60 * 1000;
+const MAX_MESSAGES = 20;
+const MAX_AGENT_CALLS = 10;
 
-export async function aiRateLimit(userId: string): Promise<{ allowed: boolean; remaining: number }> {
-  const key = `ai-chat:${userId}`;
-  const now = new Date(Date.now() - WINDOW_MS);
+async function rateLimitWithTx(
+  key: string,
+  maxLimit: number
+): Promise<{ allowed: boolean; remaining: number }> {
+  return prisma.$transaction(async (tx) => {
+    const cutoff = new Date(Date.now() - WINDOW_MS);
 
-  // Clean old entries
-  await prisma.$executeRaw`
-    DELETE FROM "RateLimit" WHERE "updatedAt" < ${now} AND "key" = ${key}
-  `;
+    await tx.$executeRaw`
+      DELETE FROM "RateLimit" WHERE "updatedAt" < ${cutoff} AND "key" = ${key}
+    `;
 
-  // Get current count
-  const row = await prisma.rateLimit.findUnique({ where: { key } }) as { count: number; updatedAt: Date } | null;
+    const row = await tx.rateLimit.findUnique({ where: { key } });
 
-  if (row) {
-    if (row.count >= MAX_MESSAGES) {
-      return { allowed: false, remaining: 0 };
+    if (row) {
+      if (row.count >= maxLimit) {
+        return { allowed: false, remaining: 0 };
+      }
+      await tx.rateLimit.update({
+        where: { key },
+        data: { count: { increment: 1 }, updatedAt: new Date() },
+      });
+      return { allowed: true, remaining: maxLimit - row.count - 1 };
     }
-    await prisma.rateLimit.update({
-      where: { key },
-      data: { count: { increment: 1 }, updatedAt: new Date() },
-    });
-    return { allowed: true, remaining: MAX_MESSAGES - row.count - 1 };
-  }
 
-  await prisma.rateLimit.create({ data: { key } });
-  return { allowed: true, remaining: MAX_MESSAGES - 1 };
+    await tx.rateLimit.create({ data: { key } });
+    return { allowed: true, remaining: maxLimit - 1 };
+  });
 }
 
-export async function agentRateLimit(userId: string): Promise<{ allowed: boolean; remaining: number }> {
-  const key = `ai-agent:${userId}`;
-  const now = new Date(Date.now() - WINDOW_MS);
+export async function aiRateLimit(
+  userId: string
+): Promise<{ allowed: boolean; remaining: number }> {
+  return rateLimitWithTx(`ai-chat:${userId}`, MAX_MESSAGES);
+}
 
-  // Clean old entries
-  await prisma.$executeRaw`
-    DELETE FROM "RateLimit" WHERE "updatedAt" < ${now} AND "key" = ${key}
-  `;
-
-  // Get current count
-  const row = await prisma.rateLimit.findUnique({ where: { key } }) as { count: number; updatedAt: Date } | null;
-
-  if (row) {
-    if (row.count >= MAX_AGENT_CALLS) {
-      return { allowed: false, remaining: 0 };
-    }
-    await prisma.rateLimit.update({
-      where: { key },
-      data: { count: { increment: 1 }, updatedAt: new Date() },
-    });
-    return { allowed: true, remaining: MAX_AGENT_CALLS - row.count - 1 };
-  }
-
-  await prisma.rateLimit.create({ data: { key } });
-  return { allowed: true, remaining: MAX_AGENT_CALLS - 1 };
+export async function agentRateLimit(
+  userId: string
+): Promise<{ allowed: boolean; remaining: number }> {
+  return rateLimitWithTx(`ai-agent:${userId}`, MAX_AGENT_CALLS);
 }
