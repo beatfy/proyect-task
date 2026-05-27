@@ -433,8 +433,8 @@ model Deal {
   value         Float         @default(0)
   stageId       String
   stage         PipelineStage @relation(fields: [stageId], references: [id])
-  contactId     String
-  contact       Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId     String?
+  contact       Contact?       @relation(fields: [contactId], references: [id], onDelete: Cascade)
   pipelineId    String
   pipeline      Pipeline      @relation(fields: [pipelineId], references: [id])
   probability   Int           @default(0)

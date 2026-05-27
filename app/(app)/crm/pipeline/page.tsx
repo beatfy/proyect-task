@@ -40,7 +40,7 @@ interface Deal {
   probability: number;
   expectedClose: string | null;
   notes: string | null;
-  contact: { id: string; name: string; email: string; company: string };
+  contact: { id: string; name: string; email: string; company: string } | null;
   stage: { id: string; name: string; color: string; position: number };
   _count: { activities: number };
   movedAt: string;
@@ -84,6 +84,7 @@ export default function PipelinePage() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [contactSearch, setContactSearch] = useState("");
   const [contacts, setContacts] = useState<{ id: string; name: string; email: string | null }[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { selectedOrg, loading: orgLoading } = useOrganization();
 
   const fetchPipeline = useCallback(async () => {
@@ -176,15 +177,18 @@ export default function PipelinePage() {
   };
 
   const handleSubmit = async () => {
-    if (!form.title.trim() || !form.stageId) return;
+    if (!form.title.trim() || !form.stageId) {
+      setErrorMessage("El título y la etapa son obligatorios.");
+      return;
+    }
     setSaving(true);
+    setErrorMessage(null);
 
     try {
-      const payload = {
+      const payload: Record<string, unknown> = {
         title: form.title.trim(),
         value: Number(form.value) || 0,
         stageId: form.stageId,
-        contactId: form.contactId,
         pipelineId: pipeline?.id,
         probability: Number(form.probability) || 0,
         expectedClose: form.expectedClose || undefined,
@@ -192,18 +196,29 @@ export default function PipelinePage() {
         ...(selectedOrg && selectedOrg !== "all" ? { organizationId: selectedOrg } : {}),
       };
 
+      if (form.contactId) {
+        payload.contactId = form.contactId;
+      }
+
+      let response: Response;
       if (editingDeal) {
-        await fetch(`/api/crm/deals`, {
+        response = await fetch(`/api/crm/deals`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: editingDeal.id, ...payload }),
         });
       } else {
-        await fetch(`/api/crm/deals`, {
+        response = await fetch(`/api/crm/deals`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
+      }
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        setErrorMessage((data as { error?: string }).error || `Error del servidor (${response.status})`);
+        return;
       }
 
       setDialogOpen(false);
@@ -212,6 +227,7 @@ export default function PipelinePage() {
       fetchPipeline();
     } catch (error) {
       console.error("Error saving deal:", error);
+      setErrorMessage("Error de conexión. Intenta de nuevo.");
     } finally {
       setSaving(false);
     }
@@ -230,6 +246,7 @@ export default function PipelinePage() {
   const openNewDeal = (stageId?: string) => {
     setEditingDeal(null);
     setForm({ ...emptyDealForm, stageId: stageId || (pipeline?.stages[0]?.id || "") });
+    setErrorMessage(null);
     setDialogOpen(true);
   };
 
@@ -239,8 +256,8 @@ export default function PipelinePage() {
       title: deal.title,
       value: deal.value,
       stageId: deal.stage.id,
-      contactId: deal.contact.id,
-      contactName: deal.contact.name,
+      contactId: deal.contact?.id || "",
+      contactName: deal.contact?.name || "",
       probability: deal.probability,
       expectedClose: deal.expectedClose ? deal.expectedClose.split("T")[0] : "",
       notes: deal.notes || "",
@@ -264,9 +281,9 @@ export default function PipelinePage() {
     return (
       <div className="text-center py-16">
         <p className="text-muted-foreground mb-4">No se encontró pipeline para esta organización.</p>
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Crear primer oportunidad
+        <p className="text-sm text-muted-foreground mb-6">Necesitas al menos un pipeline con etapas para crear oportunidades. Verifica la configuración del CRM.</p>
+        <Button variant="outline" onClick={() => fetchPipeline()}>
+          Reintentar
         </Button>
       </div>
     );
@@ -338,7 +355,7 @@ export default function PipelinePage() {
                                 <div className="flex items-center gap-2 mt-1.5 ml-6">
                                   <span className="flex items-center gap-1 text-xs text-muted-foreground">
                                     <User className="h-3 w-3" />
-                                    {deal.contact.name}
+                                    {deal.contact?.name || "Sin contacto"}
                                   </span>
                                 </div>
                               </div>
@@ -454,9 +471,9 @@ export default function PipelinePage() {
               </Select>
             </div>
             <div>
-              <Label htmlFor="deal-contact">Contacto *</Label>
+              <Label htmlFor="deal-contact">Contacto</Label>
               {editingDeal ? (
-                <Input value={form.contactName} disabled />
+                <Input value={form.contactName || "Sin contacto"} disabled />
               ) : (
                 <>
                   <Input
@@ -502,8 +519,11 @@ export default function PipelinePage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSubmit} disabled={saving || !form.title.trim() || !form.contactId}>
+            {errorMessage && (
+              <p className="text-sm text-red-500 flex-1">{errorMessage}</p>
+            )}
+            <Button variant="outline" onClick={() => { setDialogOpen(false); setErrorMessage(null); }}>Cancelar</Button>
+            <Button onClick={handleSubmit} disabled={saving || !form.title.trim()}>
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {editingDeal ? "Guardar" : "Crear"}
             </Button>

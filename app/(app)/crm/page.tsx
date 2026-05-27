@@ -20,7 +20,7 @@ interface CrmStats {
   weightedValue: number;
   pipelineStages: { id: string; name: string; color: string; position: number; dealCount: number; totalValue: number }[];
   recentContacts: { id: string; name: string; email: string | null; company: string | null; status: string; createdAt: string }[];
-  recentDeals: { id: string; title: string; value: number; contact: { name: string }; stage: { name: string; color: string } }[];
+  recentDeals: { id: string; title: string; value: number; contact: { name: string } | null; stage: { name: string; color: string } }[];
   recentActivities: { id: string; type: string; title: string; createdAt: string; contact: { name: string } }[];
 }
 
@@ -325,7 +325,7 @@ export default function CrmDashboardPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-foreground truncate">{deal.title}</p>
-                            <p className="text-xs text-muted-foreground">{deal.contact.name} · {deal.stage.name}</p>
+                            <p className="text-xs text-muted-foreground">{deal.contact?.name || "Sin contacto"} · {deal.stage.name}</p>
                           </div>
                           <span className="text-sm font-semibold text-foreground flex-shrink-0">
                             {formatCurrency(deal.value)}

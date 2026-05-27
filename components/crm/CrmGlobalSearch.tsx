@@ -179,7 +179,7 @@ export default function CrmGlobalSearch() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-foreground truncate">{deal.title}</p>
                         <p className="text-xs text-muted-foreground truncate">
-                          {deal.contact.name} · {deal.stage.name}
+                          {deal.contact?.name || "Sin contacto"} · {deal.stage.name}
                         </p>
                       </div>
                       <span className="text-sm font-medium text-foreground flex-shrink-0">

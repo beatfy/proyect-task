@@ -28,7 +28,7 @@ interface Deal {
   probability: number;
   expectedClose: string | null;
   notes: string | null;
-  contact: { id: string; name: string; email: string; company: string };
+  contact: { id: string; name: string; email: string; company: string } | null;
   stage: { id: string; name: string; color: string; position: number };
   pipeline: { id: string; name: string };
   activities: Activity[];
@@ -209,7 +209,7 @@ export default function DealDetailPage() {
             title: activityForm.title.trim(),
             description: activityForm.description.trim() || undefined,
             dueDate: activityForm.dueDate || undefined,
-            contactId: deal.contact.id,
+            contactId: deal.contact?.id,
             dealId: deal.id,
           }),
         });
@@ -289,8 +289,8 @@ export default function DealDetailPage() {
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-bold text-foreground">{deal.title}</h1>
           <div className="flex items-center gap-3 mt-0.5 flex-wrap text-sm text-muted-foreground">
-            <span className="flex items-center gap-1"><User className="h-3.5 w-3.5" />{deal.contact.name}</span>
-            {deal.contact.company && <span>{deal.contact.company}</span>}
+            <span className="flex items-center gap-1"><User className="h-3.5 w-3.5" />{deal.contact?.name || "Sin contacto"}</span>
+            {deal.contact?.company && <span>{deal.contact.company}</span>}
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -330,7 +330,7 @@ export default function DealDetailPage() {
           <Card className="bg-card border-border">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Detalles del Deal</CardTitle>
-              <Button variant="outline" size="sm" onClick={() => router.push(`/crm/contacts/${deal.contact.id}`)}>
+              <Button variant="outline" size="sm" onClick={() => deal.contact ? router.push(`/crm/contacts/${deal.contact.id}`) : undefined}>
                 <User className="h-4 w-4 mr-1.5" /> Ver contacto
               </Button>
             </CardHeader>
@@ -540,28 +540,32 @@ export default function DealDetailPage() {
               <CardTitle className="text-base">Contacto</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                    {deal.contact.name[0].toUpperCase()}
+              {deal.contact ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                      {deal.contact.name[0].toUpperCase()}
+                    </div>
+                    <div>
+                      <Button variant="link" className="p-0 h-auto text-sm font-medium text-foreground"
+                        onClick={() => deal.contact && router.push(`/crm/contacts/${deal.contact.id}`)}>
+                        {deal.contact!.name}
+                      </Button>
+                      {deal.contact.company && (
+                        <p className="text-xs text-muted-foreground">{deal.contact.company}</p>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <Button variant="link" className="p-0 h-auto text-sm font-medium text-foreground"
-                      onClick={() => router.push(`/crm/contacts/${deal.contact.id}`)}>
-                      {deal.contact.name}
-                    </Button>
-                    {deal.contact.company && (
-                      <p className="text-xs text-muted-foreground">{deal.contact.company}</p>
-                    )}
-                  </div>
+                  {deal.contact.email && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Mail className="h-4 w-4" />
+                      <a href={`mailto:${deal.contact.email}`} className="text-primary hover:underline">{deal.contact.email}</a>
+                    </div>
+                  )}
                 </div>
-                {deal.contact.email && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Mail className="h-4 w-4" />
-                    <a href={`mailto:${deal.contact.email}`} className="text-primary hover:underline">{deal.contact.email}</a>
-                  </div>
-                )}
-              </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Sin contacto asignado</p>
+              )}
             </CardContent>
           </Card>
 
