@@ -91,8 +91,10 @@ export async function POST(req: NextRequest) {
     }
 
     const agentUrl = `${INNIX_HOST}:${agentConfig.port}/v1/chat/completions`;
+    const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://proyect-task.vercel.app";
 
     let organizationId: string | null = null;
+    let orgApiKey: string | null = null;
 
     let clientContext = "";
     if (projectId && typeof projectId === "string") {
@@ -157,6 +159,41 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (!organizationId && projectId) {
+      try {
+        const project = await prisma.project.findUnique({
+          where: { id: projectId },
+          select: { organizationId: true },
+        });
+        if (project) organizationId = project.organizationId;
+      } catch {}
+    }
+
+    if (organizationId) {
+      try {
+        const org = await prisma.organization.findUnique({
+          where: { id: organizationId },
+          select: { apiKey: true },
+        });
+        if (org?.apiKey) orgApiKey = org.apiKey;
+      } catch {}
+    }
+
+    let agentApiContext = "";
+    if (orgApiKey) {
+      agentApiContext = `\n\n---\n[API DE ACCESO — PUEDES CONSULTAR Y MODIFICAR DATOS DEL CLIENTE]\n` +
+        `URL base: ${appBaseUrl}/api/v1\n` +
+        `Autenticacion: Bearer ${orgApiKey}\n` +
+        `Endpoints disponibles:\n` +
+        `- GET/POST ${appBaseUrl}/api/v1/projects — Listar/crear proyectos (?id=X para detalle)\n` +
+        `- GET/POST/PATCH/DELETE ${appBaseUrl}/api/v1/tasks — Gestionar tareas (?id=X, ?projectId=X, ?status=TODO|IN_PROGRESS|DONE)\n` +
+        `- GET/POST/PATCH/DELETE ${appBaseUrl}/api/v1/contacts — Gestionar contactos (?id=X, ?search=...)\n` +
+        `- GET/POST/PATCH ${appBaseUrl}/api/v1/deals — Gestionar oportunidades (?id=X, ?stageId=X)\n` +
+        `- GET ${appBaseUrl}/api/v1/pipeline — Ver pipeline completo con etapas y deals\n` +
+        `Usa estas APIs cuando necesites informacion actual del cliente o para crear/actualizar datos.\n` +
+        `[FIN API DE ACCESO]`;
+    }
+
     // Save user message
     await prisma.chatMessage.create({
       data: {
@@ -181,8 +218,8 @@ export async function POST(req: NextRequest) {
     }
 
     const finalMessage = clientContext
-      ? `${message}${clientContext}`
-      : message;
+      ? `${message}${clientContext}${agentApiContext}`
+      : `${message}${agentApiContext}`;
 
     messages.push({ role: "user", content: finalMessage });
 
