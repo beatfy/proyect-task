@@ -6,6 +6,26 @@ import { cuid } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
+const INNIX_HOST = process.env.INNIX_HOST || "http://83.143.109.249";
+
+const AGENT_CONFIG: Record<string, { port: number; apiKey: string; model: string }> = {
+  "seo-agent": {
+    port: 8642,
+    apiKey: process.env.INNIX_SEO_KEY || "sk-seo-3088502f40cffb7ec560eefb2db5d0c2",
+    model: "kimi-k2.6",
+  },
+  "sem-agent": {
+    port: 8643,
+    apiKey: process.env.INNIX_SEM_KEY || "sk-sem-7d4f8a9e2b1c5d6e3f0a8b7c4d2e1f5a6b3c8d9e0f1a2b3c4d5e6f7a8b9c0d1e",
+    model: "kimi-k2.6",
+  },
+  "social-agent": {
+    port: 8644,
+    apiKey: process.env.INNIX_SOCIAL_KEY || "sk-social-f8e7d6c5b4a3928170654433221100ffeeddccbbaa99887766554433221100",
+    model: "kimi-k2.6",
+  },
+};
+
 export async function GET(request: NextRequest) {
   try {
     const authResult = await authenticateRequest(request);
@@ -65,12 +85,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "message es requerido" }, { status: 400 });
     }
 
-    const gatewayUrl = process.env.OPENCLAW_GATEWAY_URL || "http://127.0.0.1:18789";
-    const authToken = process.env.OPENCLAW_AUTH_TOKEN || "";
-
-    if (!authToken) {
-      return NextResponse.json({ error: "OPENCLAW_AUTH_TOKEN no configurado" }, { status: 500 });
+    const agentConfig = AGENT_CONFIG[agentId];
+    if (!agentConfig) {
+      return NextResponse.json({ error: "Agente no reconocido" }, { status: 400 });
     }
+
+    const agentUrl = `${INNIX_HOST}:${agentConfig.port}/v1/chat/completions`;
 
     let organizationId: string | null = null;
 
@@ -166,9 +186,7 @@ export async function POST(req: NextRequest) {
 
     messages.push({ role: "user", content: finalMessage });
 
-    const model = `openclaw/${agentId}`;
-
-    async function gatewayCallWithRetry(url: string, body: unknown, retries = 3, delayMs = 2000): Promise<Response> {
+    async function callAgentWithRetry(url: string, body: unknown, key: string, retries = 3, delayMs = 2000): Promise<Response> {
       let lastErr: Error | null = null;
       for (let attempt = 1; attempt <= retries; attempt++) {
         try {
@@ -176,14 +194,14 @@ export async function POST(req: NextRequest) {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "Authorization": `Bearer ${authToken}`
+              "Authorization": `Bearer ${key}`
             },
             body: JSON.stringify(body),
             signal: AbortSignal.timeout(300000)
           });
           if (res.ok) return res;
           if (res.status >= 500 && attempt < retries) {
-            console.warn(`Gateway returned ${res.status}, retrying (${attempt}/${retries})...`);
+            console.warn(`Agent returned ${res.status}, retrying (${attempt}/${retries})...`);
             await new Promise(r => setTimeout(r, delayMs * attempt));
             continue;
           }
@@ -191,38 +209,39 @@ export async function POST(req: NextRequest) {
         } catch (err) {
           lastErr = err as Error;
           if (attempt < retries) {
-            console.warn(`Gateway fetch error, retrying (${attempt}/${retries})...`, err);
+            console.warn(`Agent fetch error, retrying (${attempt}/${retries})...`, err);
             await new Promise(r => setTimeout(r, delayMs * attempt));
           }
         }
       }
-      throw lastErr || new Error("Gateway call failed after retries");
+      throw lastErr || new Error("Agent call failed after retries");
     }
 
-    let gatewayRes: Response;
+    let agentRes: Response;
     try {
-      gatewayRes = await gatewayCallWithRetry(
-        `${gatewayUrl}/v1/chat/completions`,
-        { model, messages, temperature: 0.7, max_tokens: 16000 }
+      agentRes = await callAgentWithRetry(
+        agentUrl,
+        { model: agentConfig.model, messages, temperature: 0.7, max_tokens: 16000 },
+        agentConfig.apiKey
       );
     } catch (err) {
       console.error("Agent chat error after retries:", err);
       return NextResponse.json({ error: "El agente no esta disponible. Intenta de nuevo en unos segundos." }, { status: 503 });
     }
 
-    if (!gatewayRes.ok) {
-      const errText = await gatewayRes.text().catch(() => "Error gateway");
-      console.error(`Gateway error [${gatewayRes.status}]:`, errText);
-      const errorMsg = gatewayRes.status === 429
+    if (!agentRes.ok) {
+      const errText = await agentRes.text().catch(() => "Error agente");
+      console.error(`Agent error [${agentRes.status}]:`, errText);
+      const errorMsg = agentRes.status === 429
         ? "El agente esta ocupado. Intenta de nuevo en unos segundos."
-        : gatewayRes.status === 503
+        : agentRes.status === 503
         ? "El agente no esta disponible temporalmente."
         : "Error al conectar con el agente.";
       return NextResponse.json({ error: errorMsg }, { status: 502 });
     }
 
-    const gatewayData = await gatewayRes.json();
-    const response = gatewayData.choices?.[0]?.message?.content || "Sin respuesta del agente";
+    const agentData = await agentRes.json();
+    const response = agentData.choices?.[0]?.message?.content || "Sin respuesta del agente";
 
     // Save assistant message
     await prisma.chatMessage.create({
