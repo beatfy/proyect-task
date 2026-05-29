@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -65,16 +66,37 @@ interface GAMetrics {
   error?: string;
 }
 
-export default function ReportsPage() {
+function ReportsContent() {
   const [stats, setStats] = useState<ReportStats | null>(null);
   const [metaData, setMetaData] = useState<MetaMetrics | null>(null);
   const [gaData, setGaData] = useState<GAMetrics | null>(null);
   const [loading, setLoading] = useState(true);
-  const [metaToken, setMetaToken] = useState("");
   const [gaToken, setGaToken] = useState("");
-  const [connectingMeta, setConnectingMeta] = useState(false);
   const [connectingGA, setConnectingGA] = useState(false);
+  const [connectingMeta, setConnectingMeta] = useState(false);
   const { selectedOrg } = useOrganization();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const metaConnected = searchParams.get("meta_connected");
+    const metaError = searchParams.get("meta_error");
+
+    if (metaConnected === "true") {
+      toast.success("Meta Ads conectado correctamente");
+      window.history.replaceState({}, "", "/reports");
+    }
+    if (metaError) {
+      const errorMessages: Record<string, string> = {
+        user_denied: "Cancelaste la autorización de Meta",
+        no_code: "No se recibió el código de autorización",
+        token_exchange: "Error al intercambiar el token con Meta",
+        server_config: "Error de configuración del servidor",
+        unknown: "Error desconocido al conectar con Meta",
+      };
+      toast.error(errorMessages[metaError] || "Error al conectar con Meta");
+      window.history.replaceState({}, "", "/reports");
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     fetchAllData();
@@ -113,29 +135,21 @@ export default function ReportsPage() {
   };
 
   const connectMeta = async () => {
-    if (!metaToken) {
-      toast.error("Introduce un token de acceso");
-      return;
-    }
     setConnectingMeta(true);
     try {
-      const res = await fetch("/api/integrations/meta", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken: metaToken }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setMetaToken("");
-        toast.success("✅ Meta Ads conectado correctamente");
-        fetchAllData();
-      } else {
-        toast.error(data.error || "Error al conectar con Meta Ads");
-      }
+      const appId = "26660198940346902";
+      const redirectUri = `${window.location.origin}/api/integrations/meta/callback`;
+      const scope = "ads_read,pages_show_list,pages_read_engagement,business_management";
+      const authUrl =
+        `https://www.facebook.com/v18.0/dialog/oauth?` +
+        `client_id=${appId}&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+        `scope=${encodeURIComponent(scope)}&` +
+        `response_type=code`;
+      window.location.href = authUrl;
     } catch (error) {
-      toast.error("Error de conexión con Meta Ads");
+      toast.error("Error al iniciar conexión con Meta");
       console.error("Error connecting Meta:", error);
-    } finally {
       setConnectingMeta(false);
     }
   };
@@ -320,28 +334,19 @@ export default function ReportsPage() {
                 <p className="text-sm text-muted-foreground">
                   Conecta tu cuenta de Meta Business para ver métricas de campañas
                 </p>
-                <div className="flex gap-2">
-                  <input
-                    type="password"
-                    placeholder="Access Token de Meta"
-                    value={metaToken}
-                    onChange={(e) => setMetaToken(e.target.value)}
-                    className="flex-1 px-3 py-2 rounded-md border border-input bg-background text-sm"
-                  />
-                  <Button onClick={connectMeta} disabled={!metaToken || connectingMeta}>
-                    {connectingMeta ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-1 animate-spin" /> Conectando...
-                      </>
-                    ) : (
-                      <>
-                        <Link2 className="h-4 w-4 mr-1" /> Conectar
-                      </>
-                    )}
-                  </Button>
-                </div>
+                <Button onClick={connectMeta} disabled={connectingMeta} className="w-full">
+                  {connectingMeta ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Redirigiendo a Meta...
+                    </>
+                  ) : (
+                    <>
+                      <Link2 className="h-4 w-4 mr-2" /> Conectar con Meta
+                    </>
+                  )}
+                </Button>
                 <p className="text-xs text-muted-foreground">
-                  Obtén tu token en: developers.facebook.com/tools/explorer
+                  Serás redirigido a Facebook para autorizar el acceso
                 </p>
               </div>
             )}
@@ -495,5 +500,19 @@ export default function ReportsPage() {
         </Card>
       </div>
     </div>
+    );
+  }
+
+export default function ReportsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--mediterranean-terracotta)]"></div>
+        </div>
+      }
+    >
+      <ReportsContent />
+    </Suspense>
   );
 }

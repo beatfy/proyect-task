@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 
-// GET - Obtener estado de conexión y métricas
 export async function GET(request: NextRequest) {
   try {
     const authResult = await authenticateRequest(request);
@@ -13,27 +12,17 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const action = searchParams.get("action");
 
-    // Obtener conexión existente
     const connection = await prisma.metaConnection.findUnique({
       where: { userId: authResult.userId },
     });
 
     if (!connection) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         connected: false,
-        message: "No conectado a Meta Ads"
+        message: "No conectado a Meta Ads",
       });
     }
 
-    // Verificar si el token expiró
-    if (connection.expiresAt && connection.expiresAt < new Date()) {
-      return NextResponse.json({ 
-        connected: false,
-        message: "Token expirado, reconecta"
-      });
-    }
-
-    // Si solo quieren verificar estado
     if (action === "status") {
       return NextResponse.json({
         connected: true,
@@ -42,8 +31,29 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Obtener métricas de Meta Ads API
-    const metrics = await fetchMetaMetrics(connection.accessToken, connection.adAccountId);
+    let accessToken = connection.accessToken;
+
+    if (connection.expiresAt && connection.expiresAt < new Date()) {
+      const refreshed = await refreshMetaToken(accessToken);
+      if (refreshed) {
+        accessToken = refreshed.accessToken;
+        await prisma.metaConnection.update({
+          where: { userId: authResult.userId },
+          data: {
+            accessToken: refreshed.accessToken,
+            expiresAt: refreshed.expiresAt,
+            updatedAt: new Date(),
+          },
+        });
+      } else {
+        return NextResponse.json({
+          connected: false,
+          message: "Token expirado, reconecta tu cuenta",
+        });
+      }
+    }
+
+    const metrics = await fetchMetaMetrics(accessToken, connection.adAccountId);
 
     return NextResponse.json({
       connected: true,
@@ -56,7 +66,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Guardar token de acceso
 export async function POST(request: NextRequest) {
   try {
     const authResult = await authenticateRequest(request);
@@ -70,13 +79,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Token requerido" }, { status: 400 });
     }
 
-    // Validar token con Meta
     const isValid = await validateMetaToken(accessToken);
     if (!isValid) {
       return NextResponse.json({ error: "Token inválido" }, { status: 400 });
     }
 
-    // Guardar o actualizar conexión
     await prisma.metaConnection.upsert({
       where: { userId: authResult.userId },
       create: {
@@ -102,7 +109,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE - Desconectar
 export async function DELETE(request: NextRequest) {
   try {
     const authResult = await authenticateRequest(request);
@@ -121,7 +127,6 @@ export async function DELETE(request: NextRequest) {
   }
 }
 
-// Helper: Validar token con Meta
 async function validateMetaToken(token: string): Promise<boolean> {
   try {
     const res = await fetch(
@@ -133,21 +138,52 @@ async function validateMetaToken(token: string): Promise<boolean> {
   }
 }
 
-// Helper: Obtener métricas de Meta Ads
+async function refreshMetaToken(currentToken: string): Promise<{
+  accessToken: string;
+  expiresAt: Date;
+} | null> {
+  try {
+    const appId = process.env.META_APP_ID;
+    const appSecret = process.env.META_APP_SECRET;
+    if (!appId || !appSecret) return null;
+
+    const res = await fetch(
+      `https://graph.facebook.com/v18.0/oauth/access_token?` +
+        `grant_type=fb_exchange_token&` +
+        `client_id=${appId}&` +
+        `client_secret=${appSecret}&` +
+        `fb_exchange_token=${currentToken}`
+    );
+
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    if (!data.access_token) return null;
+
+    const expiresAt = data.expires_in
+      ? new Date(Date.now() + data.expires_in * 1000)
+      : new Date(Date.now() + 60 * 24 * 3600 * 1000);
+
+    return { accessToken: data.access_token, expiresAt };
+  } catch {
+    return null;
+  }
+}
+
 async function fetchMetaMetrics(token: string, adAccountId?: string | null) {
   try {
     if (!adAccountId) {
       return { error: "No hay cuenta publicitaria configurada" };
     }
 
-    // Obtener insights básicos
     const since = new Date();
     since.setDate(since.getDate() - 30);
     const until = new Date();
 
-    const insightsUrl = `https://graph.facebook.com/v18.0/${adAccountId}/insights?` +
+    const insightsUrl =
+      `https://graph.facebook.com/v18.0/${adAccountId}/insights?` +
       `fields=spend,impressions,clicks,ctr,cpc&` +
-      `time_range={'since':'${since.toISOString().split('T')[0]}','until':'${until.toISOString().split('T')[0]}'}&` +
+      `time_range={'since':'${since.toISOString().split("T")[0]}','until':'${until.toISOString().split("T")[0]}'}&` +
       `access_token=${token}`;
 
     const res = await fetch(insightsUrl);
@@ -157,13 +193,15 @@ async function fetchMetaMetrics(token: string, adAccountId?: string | null) {
     }
 
     const data = await res.json();
-    
-    // Calcular totales
-    const totals = data.data?.reduce((acc: any, item: any) => ({
-      spend: (acc.spend || 0) + parseFloat(item.spend || 0),
-      impressions: (acc.impressions || 0) + parseInt(item.impressions || 0),
-      clicks: (acc.clicks || 0) + parseInt(item.clicks || 0),
-    }), {});
+
+    const totals = data.data?.reduce(
+      (acc: any, item: any) => ({
+        spend: (acc.spend || 0) + parseFloat(item.spend || 0),
+        impressions: (acc.impressions || 0) + parseInt(item.impressions || 0),
+        clicks: (acc.clicks || 0) + parseInt(item.clicks || 0),
+      }),
+      {}
+    );
 
     return {
       campaigns: data.data?.length || 0,
