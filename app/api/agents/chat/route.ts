@@ -6,22 +6,22 @@ import { cuid } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-const INNIX_HOST = process.env.INNIX_HOST || "http://83.143.109.249";
+const INNIX_BASE = process.env.INNIX_BASE || "https://agents.beatfy.net/agent";
 
-const AGENT_CONFIG: Record<string, { port: number; apiKey: string; model: string }> = {
+const AGENT_CONFIG: Record<string, { path: string; apiKey: string; model: string }> = {
   "seo-agent": {
-    port: 8642,
-    apiKey: process.env.INNIX_SEO_KEY || "sk-seo-3088502f40cffb7ec560eefb2db5d0c2",
+    path: "seo",
+    apiKey: process.env.INNIX_SEO_KEY || "",
     model: "kimi-k2.6",
   },
   "sem-agent": {
-    port: 8643,
-    apiKey: process.env.INNIX_SEM_KEY || "sk-sem-7d4f8a9e2b1c5d6e3f0a8b7c4d2e1f5a6b3c8d9e0f1a2b3c4d5e6f7a8b9c0d1e",
+    path: "sem",
+    apiKey: process.env.INNIX_SEM_KEY || "",
     model: "kimi-k2.6",
   },
   "social-agent": {
-    port: 8644,
-    apiKey: process.env.INNIX_SOCIAL_KEY || "sk-social-f8e7d6c5b4a3928170654433221100ffeeddccbbaa99887766554433221100",
+    path: "social",
+    apiKey: process.env.INNIX_SOCIAL_KEY || "",
     model: "kimi-k2.6",
   },
 };
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Agente no reconocido" }, { status: 400 });
     }
 
-    const agentUrl = `${INNIX_HOST}:${agentConfig.port}/v1/chat/completions`;
+    const agentUrl = `${INNIX_BASE}/${agentConfig.path}/v1/chat/completions`;
     const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://proyect-task.vercel.app";
 
     let organizationId: string | null = null;
