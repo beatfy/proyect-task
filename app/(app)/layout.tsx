@@ -6,7 +6,7 @@ import {
   Home, FolderOpen, CheckSquare, Calendar, Settings, LogOut,
   ChevronLeft, ChevronRight, Mail, Sun, Moon, Building2,
   Menu, Receipt, Bot, ChevronDown, BarChart3, Search, Megaphone,
-  TrendingUp, Share2, Users, Kanban, Globe
+  TrendingUp, Share2, Users, Kanban, Globe, BookOpen
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,7 @@ const sections = [
       { name: "Clientes", href: "/projects", icon: FolderOpen },
       { name: "Tareas", href: "/tasks", icon: CheckSquare },
       { name: "Calendario", href: "/calendar", icon: Calendar },
+      { name: "Journal", href: "/journal", icon: BookOpen },
       { name: "Mail", href: "/mail", icon: Mail },
     ],
   },
