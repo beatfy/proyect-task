@@ -8,6 +8,11 @@ import { cn } from "@/lib/utils";
 
 /* ── Metadatos de agentes ── */
 const AGENTS: Record<string, { name: string; emoji: string; description: string }> = {
+  "ele": {
+    name: "Ele",
+    emoji: "⚡",
+    description: "Asistente personal estratégico: planificación, análisis y automatización",
+  },
   "seo-agent": {
     name: "SEO Specialist",
     emoji: "🔍",
@@ -27,6 +32,12 @@ const AGENTS: Record<string, { name: string; emoji: string; description: string 
 
 /* ── Templates por agente ── */
 const AGENT_TEMPLATES: Record<string, { label: string; prompt: string; emoji: string }[]> = {
+  "ele": [
+    { label: "Planificación estratégica", prompt: "Analiza los proyectos y tareas activos del cliente y genera un plan de acción prioritario para la próxima semana. Incluye deadlines, dependencias y recursos necesarios.", emoji: "🎯" },
+    { label: "Automatización de tareas", prompt: "Identifica procesos repetitivos en el flujo de trabajo del cliente y propón automatizaciones usando herramientas disponibles (APIs, scripts, integraciones).", emoji: "⚙️" },
+    { label: "Análisis de rendimiento", prompt: "Revisa los datos del cliente (tareas completadas, tiempos, pipeline) y genera un informe de rendimiento con KPIs y áreas de mejora.", emoji: "📊" },
+    { label: "Resumen ejecutivo", prompt: "Genera un resumen ejecutivo del estado actual de todos los proyectos del cliente: avance, bloqueos, próximos hitos y decisiones pendientes.", emoji: "📋" },
+  ],
   "seo-agent": [
     { label: "Auditoría SEO", prompt: "Realiza una auditoría SEO técnica completa del sitio web del cliente. Analiza velocidad, indexación, mobile-friendly, estructura de URLs, meta tags, headings y backlinks. Proporcione un informe detallado con prioridades de acción.", emoji: "🔍" },
     { label: "Keyword Research", prompt: "Realiza un keyword research estratégico para el cliente. Identifica keywords de alto volumen y baja competencia, keywords long-tail, intención de búsqueda y oportunidades de contenido.", emoji: "🎯" },
@@ -98,25 +109,33 @@ export default function AgentChatPage() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   /* ── Cliente/Proyecto seleccionado ── */
+  const isPersonalAgent = agentId === "ele";
   const [selectedClient, setSelectedClient] = useState<ProjectOption | null>(null);
-  const [showClientSelector, setShowClientSelector] = useState(true);
+  const [showClientSelector, setShowClientSelector] = useState(!isPersonalAgent);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [projectSearch, setProjectSearch] = useState("");
 
-  /* Restaurar cliente desde localStorage */
+  /* Restaurar cliente desde localStorage (solo para agentes no personales) */
   useEffect(() => {
+    if (isPersonalAgent) {
+      setShowClientSelector(false);
+      return;
+    }
     const stored = getStoredProject(agentId);
     if (stored) {
       setSelectedClient(stored);
       setShowClientSelector(false);
     }
-  }, [agentId]);
+  }, [agentId, isPersonalAgent]);
 
-  /* Cargar historial de chat persistido cuando hay cliente seleccionado */
+  /* Cargar historial de chat persistido */
   useEffect(() => {
-    if (!selectedClient) return;
-    fetch(`/api/agents/chat?agentId=${agentId}&projectId=${selectedClient.id}&limit=50`)
+    if (!isPersonalAgent && !selectedClient) return;
+    const url = isPersonalAgent
+      ? `/api/agents/chat?agentId=${agentId}&limit=50`
+      : `/api/agents/chat?agentId=${agentId}&projectId=${selectedClient!.id}&limit=50`;
+    fetch(url)
       .then((r) => {
         if (!r.ok) throw new Error("Failed to load history");
         return r.json();
@@ -250,15 +269,18 @@ export default function AgentChatPage() {
     setIsLoading(true);
 
     try {
+      const body: Record<string, unknown> = {
+        agentId,
+        message: prefixedMessage,
+        history: messages.slice(-20).map((m) => ({ role: m.role, content: m.content })),
+      };
+      if (!isPersonalAgent && selectedClient) {
+        body.projectId = selectedClient.id;
+      }
       const res = await fetch("/api/agents/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          agentId,
-          message: prefixedMessage,
-          projectId: selectedClient?.id || null,
-          history: messages.slice(-20).map((m) => ({ role: m.role, content: m.content })),
-        }),
+        body: JSON.stringify(body),
       });
 
       const data = await res.json();
@@ -454,8 +476,8 @@ export default function AgentChatPage() {
         </div>
       </div>
 
-      {/* Badge de cliente seleccionado */}
-      {selectedClient && (
+      {/* Badge de cliente seleccionado (solo para agentes no personales) */}
+      {!isPersonalAgent && selectedClient && (
         <div className="flex items-center gap-2 mb-3 px-1 flex-shrink-0">
           <div className="flex items-center gap-2 rounded-full bg-muted px-3 py-1.5 text-sm">
             <span>📋</span>
@@ -476,7 +498,7 @@ export default function AgentChatPage() {
           </div>
         </div>
       )}
-      {!selectedClient && !showClientSelector && (
+      {!isPersonalAgent && !selectedClient && !showClientSelector && (
         <div className="mb-3 px-1 flex-shrink-0">
           <button
             onClick={changeClient}

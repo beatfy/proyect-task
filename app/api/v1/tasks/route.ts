@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
       priority: priority || "NONE",
       dueDate: dueDate ? new Date(dueDate) : null,
       projectId,
-      creatorId: "agent-system",
+      creatorId: auth.userId,
     },
   });
 

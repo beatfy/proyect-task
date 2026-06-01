@@ -3,12 +3,18 @@ import { prisma } from "@/lib/prisma";
 import { authenticateRequest } from "@/lib/api-auth";
 import { agentRateLimit } from "@/lib/ai-rate-limit";
 import { cuid } from "@/lib/utils";
+import { randomBytes } from "crypto";
 
 export const dynamic = "force-dynamic";
 
 const INNIX_BASE = process.env.INNIX_BASE || "https://agents.beatfy.net/agent";
 
 const AGENT_CONFIG: Record<string, { path: string; apiKey: string; model: string }> = {
+  "ele": {
+    path: "ele",
+    apiKey: process.env.INNIX_ELE_KEY || "",
+    model: "kimi-k2.6",
+  },
   "seo-agent": {
     path: "seo",
     apiKey: process.env.INNIX_SEO_KEY || "",
@@ -97,101 +103,199 @@ export async function POST(req: NextRequest) {
     let orgApiKey: string | null = null;
 
     let clientContext = "";
-    if (projectId && typeof projectId === "string") {
+
+    /* ── ELE: Agente personal con acceso total ── */
+    if (agentId === "ele") {
       try {
-        const project = await prisma.project.findUnique({
-          where: { id: projectId },
-          select: { id: true, name: true, description: true, clientContext: true, organizationId: true },
+        const userOrg = await prisma.organizationMember.findFirst({
+          where: { userId: authResult.userId },
+          select: { organizationId: true },
+          orderBy: { joinedAt: "asc" },
         });
+        if (userOrg) {
+          organizationId = userOrg.organizationId;
+          let org = await prisma.organization.findUnique({
+            where: { id: organizationId },
+            select: { apiKey: true, name: true },
+          });
+          // Auto-generate org API key if missing so Ele can call APIs
+          if (org && !org.apiKey) {
+            const newKey = `tx2_${randomBytes(32).toString("hex")}`;
+            await prisma.organization.update({
+              where: { id: organizationId },
+              data: { apiKey: newKey },
+            });
+            org = { ...org, apiKey: newKey };
+          }
+          if (org?.apiKey) orgApiKey = org.apiKey;
 
-        if (project) {
-          organizationId = project.organizationId;
-
-          const taskCountByStatus = await prisma.task.groupBy({
+          // Contexto global: todas las tareas del usuario
+          const allTaskCounts = await prisma.task.groupBy({
             by: ["status"],
-            where: { projectId },
+            where: { assigneeId: authResult.userId },
             _count: { id: true },
           });
-
-          const statusCounts = Object.fromEntries(
-            taskCountByStatus.map((t: { status: string; _count: { id: number } }) => [t.status, t._count.id])
+          const statusMap = Object.fromEntries(
+            allTaskCounts.map((t: { status: string; _count: { id: number } }) => [t.status, t._count.id])
           );
-          const todoCount = statusCounts["TODO"] ?? 0;
-          const inProgressCount = statusCounts["IN_PROGRESS"] ?? 0;
-          const doneCount = statusCounts["DONE"] ?? 0;
 
-          const recentDoneTasks = await prisma.task.findMany({
-            where: { projectId, status: "DONE" },
-            orderBy: { updatedAt: "desc" },
-            take: 5,
-            select: { title: true },
+          const upcomingTasks = await prisma.task.findMany({
+            where: { assigneeId: authResult.userId, dueDate: { gte: new Date() } },
+            orderBy: { dueDate: "asc" },
+            take: 10,
+            select: { title: true, status: true, dueDate: true },
           });
 
-          const recentChatMessages = await prisma.chatMessage.findMany({
-            where: { projectId },
-            orderBy: { createdAt: "desc" },
-            take: 5,
-            select: { role: true, content: true },
+          clientContext = `\n\n---\n[SISTEMA — ACCESO TOTAL SUPER ADMIN]\nOrganizacion: ${org?.name || "Principal"}\n- Tareas asignadas: ${statusMap["TODO"] ?? 0} pendientes, ${statusMap["IN_PROGRESS"] ?? 0} en progreso, ${statusMap["DONE"] ?? 0} completadas\n- Proximas tareas: ${upcomingTasks.map((t: { title: string; status: string; dueDate: Date | null }) => `${t.title} (${t.status}${t.dueDate ? ", " + t.dueDate.toISOString().split("T")[0] : ""})`).join("; ") || "Ninguna"}\n[Tienes permisos de SUPER ADMIN: puedes ver, crear, editar y eliminar cualquier dato]\n[FIN SISTEMA]`;
+        }
+      } catch (dbErr) {
+        console.error("Ele DB lookup error:", dbErr);
+      }
+    } else {
+      /* ── Agentes normales: requieren projectId ── */
+      if (projectId && typeof projectId === "string") {
+        try {
+          const project = await prisma.project.findUnique({
+            where: { id: projectId },
+            select: { id: true, name: true, description: true, clientContext: true, organizationId: true },
           });
 
-          const recentComments = await prisma.comment.findMany({
-            where: { task: { projectId } },
-            orderBy: { createdAt: "desc" },
-            take: 5,
-            select: { content: true },
-          });
+          if (project) {
+            organizationId = project.organizationId;
 
-          let sysContext = `\n\n---\n[SISTEMA] Cliente: "${project.name}"
+            const taskCountByStatus = await prisma.task.groupBy({
+              by: ["status"],
+              where: { projectId },
+              _count: { id: true },
+            });
+
+            const statusCounts = Object.fromEntries(
+              taskCountByStatus.map((t: { status: string; _count: { id: number } }) => [t.status, t._count.id])
+            );
+            const todoCount = statusCounts["TODO"] ?? 0;
+            const inProgressCount = statusCounts["IN_PROGRESS"] ?? 0;
+            const doneCount = statusCounts["DONE"] ?? 0;
+
+            const recentDoneTasks = await prisma.task.findMany({
+              where: { projectId, status: "DONE" },
+              orderBy: { updatedAt: "desc" },
+              take: 5,
+              select: { title: true },
+            });
+
+            const recentChatMessages = await prisma.chatMessage.findMany({
+              where: { projectId },
+              orderBy: { createdAt: "desc" },
+              take: 5,
+              select: { role: true, content: true },
+            });
+
+            const recentComments = await prisma.comment.findMany({
+              where: { task: { projectId } },
+              orderBy: { createdAt: "desc" },
+              take: 5,
+              select: { content: true },
+            });
+
+            let sysContext = `\n\n---\n[SISTEMA] Cliente: "${project.name}"
 - Descripcion: ${project.description || "Sin descripcion"}
 - Tareas: ${todoCount} pendientes, ${inProgressCount} en progreso, ${doneCount} completadas
 - Ultimas tareas completadas: ${recentDoneTasks.map((t: { title: string }) => t.title).join(", ") || "Ninguna"}
 - Notas recientes: ${recentComments.map((c: { content: string }) => c.content).slice(0, 3).join(" | ") || "Ninguna"}
 - Historial de chat: ${recentChatMessages.slice(0, 3).map((m: { role: string; content: string }) => `${m.role}: ${m.content.substring(0, 100)}`).join(" | ") || "Ninguno"}`;
 
-          if (project.clientContext) {
-            sysContext += `\n\n---\n[CONTEXTO DEL CLIENTE — USO ESTRICTO]\n${project.clientContext}\n[FIN CONTEXTO]`;
+            if (project.clientContext) {
+              sysContext += `\n\n---\n[CONTEXTO DEL CLIENTE — USO ESTRICTO]\n${project.clientContext}\n[FIN CONTEXTO]`;
+            }
+
+            clientContext = sysContext;
           }
-
-          clientContext = sysContext;
+        } catch (dbErr) {
+          console.error("DB lookup error:", dbErr);
         }
-      } catch (dbErr) {
-        console.error("DB lookup error:", dbErr);
       }
-    }
 
-    if (!organizationId && projectId) {
-      try {
-        const project = await prisma.project.findUnique({
-          where: { id: projectId },
-          select: { organizationId: true },
-        });
-        if (project) organizationId = project.organizationId;
-      } catch {}
-    }
+      if (!organizationId && projectId) {
+        try {
+          const project = await prisma.project.findUnique({
+            where: { id: projectId },
+            select: { organizationId: true },
+          });
+          if (project) organizationId = project.organizationId;
+        } catch {}
+      }
 
-    if (organizationId) {
-      try {
-        const org = await prisma.organization.findUnique({
-          where: { id: organizationId },
-          select: { apiKey: true },
-        });
-        if (org?.apiKey) orgApiKey = org.apiKey;
-      } catch {}
+      if (organizationId) {
+        try {
+          const org = await prisma.organization.findUnique({
+            where: { id: organizationId },
+            select: { apiKey: true },
+          });
+          if (org?.apiKey) orgApiKey = org.apiKey;
+        } catch {}
+      }
     }
 
     let agentApiContext = "";
     if (orgApiKey) {
-      agentApiContext = `\n\n---\n[API DE ACCESO — PUEDES CONSULTAR Y MODIFICAR DATOS DEL CLIENTE]\n` +
-        `URL base: ${appBaseUrl}/api/v1\n` +
-        `Autenticacion: Bearer ${orgApiKey}\n` +
-        `Endpoints disponibles:\n` +
-        `- GET/POST ${appBaseUrl}/api/v1/projects — Listar/crear proyectos (?id=X para detalle)\n` +
-        `- GET/POST/PATCH/DELETE ${appBaseUrl}/api/v1/tasks — Gestionar tareas (?id=X, ?projectId=X, ?status=TODO|IN_PROGRESS|DONE)\n` +
-        `- GET/POST/PATCH/DELETE ${appBaseUrl}/api/v1/contacts — Gestionar contactos (?id=X, ?search=...)\n` +
-        `- GET/POST/PATCH ${appBaseUrl}/api/v1/deals — Gestionar oportunidades (?id=X, ?stageId=X)\n` +
-        `- GET ${appBaseUrl}/api/v1/pipeline — Ver pipeline completo con etapas y deals\n` +
-        `Usa estas APIs cuando necesites informacion actual del cliente o para crear/actualizar datos.\n` +
-        `[FIN API DE ACCESO]`;
+      if (agentId === "ele") {
+        /* Ele: super admin con acceso total */
+        agentApiContext = `\n\n---\n[API DE ACCESO TOTAL — SUPER ADMIN]\n` +
+          `URL base: ${appBaseUrl}/api/v1\n` +
+          `Autenticacion: Bearer ${orgApiKey}\n` +
+          `Tienes permisos de SUPER ADMIN. Puedes ver, crear, editar y eliminar cualquier dato.\n\n` +
+          `Endpoints disponibles:\n` +
+          `=== PROYECTOS (Clientes) ===\n` +
+          `- GET/POST ${appBaseUrl}/api/v1/projects — Listar/crear proyectos (?id=X para detalle)\n` +
+          `  Body POST: { "name": "Nombre", "description": "Opcional", "status": "ACTIVE" }\n` +
+          `=== TAREAS ===\n` +
+          `- GET/POST/PATCH/DELETE ${appBaseUrl}/api/v1/tasks — Gestionar tareas (?id=X, ?projectId=X, ?status=TODO|IN_PROGRESS|DONE)\n` +
+          `  Body POST: { "projectId": "ID", "title": "Titulo", "description": "Opcional", "status": "TODO", "priority": "MEDIUM", "dueDate": "2026-06-15T10:00:00Z" }\n` +
+          `=== CRM ===\n` +
+          `- GET/POST/PATCH/DELETE ${appBaseUrl}/api/v1/contacts — Gestionar contactos (?id=X, ?search=...)` +
+          `- GET/POST/PATCH ${appBaseUrl}/api/v1/deals — Gestionar oportunidades (?id=X, ?stageId=X)\n` +
+          `- GET ${appBaseUrl}/api/v1/pipeline — Ver pipeline completo con etapas y deals\n` +
+          `=== CALENDARIO / EVENTOS ===\n` +
+          `- GET/POST/PATCH/DELETE ${appBaseUrl}/api/tasks — Gestionar tareas con fecha (calendario). Incluye campos: title, description, dueDate (ISO), status (TODO|IN_PROGRESS|DONE), priority (LOW|MEDIUM|HIGH), assigneeId\n` +
+          `=== MAIL / CORREO ===\n` +
+          `- GET ${appBaseUrl}/api/mail/inbox — Leer bandeja de entrada\n` +
+          `- GET ${appBaseUrl}/api/mail/config — Configuracion de mail\n` +
+          `=== JOURNAL / HABITOS ===\n` +
+          `- GET/POST/PATCH/DELETE ${appBaseUrl}/api/journal/entries — Entradas de journal\n` +
+          `- GET/POST ${appBaseUrl}/api/journal/habits — Habitos (?log=true para registrar)\n` +
+          `=== FACTURACION ===\n` +
+          `- GET ${appBaseUrl}/api/billing/dashboard — Dashboard de facturacion\n` +
+          `- GET/POST ${appBaseUrl}/api/billing/invoices — Facturas\n` +
+          `=== NOTIFICACIONES ===\n` +
+          `- GET ${appBaseUrl}/api/notifications — Notificaciones del usuario\n` +
+          `- POST ${appBaseUrl}/api/notifications/read-all — Marcar todas como leidas\n` +
+          `=== ORGANIZACION ===\n` +
+          `- GET/POST/PATCH ${appBaseUrl}/api/organizations — Organizaciones\n` +
+          `=== USUARIO ===\n` +
+          `- GET/PATCH ${appBaseUrl}/api/user/profile — Perfil del usuario\n` +
+          `=== REPORTES ===\n` +
+          `- GET ${appBaseUrl}/api/reports/stats — Estadisticas generales\n` +
+          `=== INSTRUCCIONES CRITICAS ===\n` +
+          `1. NO digas que creaste algo sin haber hecho la peticion HTTP real y verificado la respuesta.\n` +
+          `2. Cuando el usuario pida crear/modificar/eliminar algo, USA la herramienta web para hacer la peticion HTTP a la API.\n` +
+          `3. Siempre muestra el resultado exacto de la API (ID creado, errores, etc).\n` +
+          `4. Si la API devuelve error, informa al usuario el error exacto.\n` +
+          `5. Para crear una tarea PRIMERO necesitas un projectId. Si no hay proyectos, crea uno primero.\n` +
+          `6. En esta app los proyectos se llaman "Clientes" en el menu lateral.\n` +
+          `[FIN API DE ACCESO TOTAL]`;
+      } else {
+        agentApiContext = `\n\n---\n[API DE ACCESO — PUEDES CONSULTAR Y MODIFICAR DATOS DEL CLIENTE]\n` +
+          `URL base: ${appBaseUrl}/api/v1\n` +
+          `Autenticacion: Bearer ${orgApiKey}\n` +
+          `Endpoints disponibles:\n` +
+          `- GET/POST ${appBaseUrl}/api/v1/projects — Listar/crear proyectos (?id=X para detalle)\n` +
+          `- GET/POST/PATCH/DELETE ${appBaseUrl}/api/v1/tasks — Gestionar tareas (?id=X, ?projectId=X, ?status=TODO|IN_PROGRESS|DONE)\n` +
+          `- GET/POST/PATCH/DELETE ${appBaseUrl}/api/v1/contacts — Gestionar contactos (?id=X, ?search=...)` +
+          `- GET/POST/PATCH ${appBaseUrl}/api/v1/deals — Gestionar oportunidades (?id=X, ?stageId=X)\n` +
+          `- GET ${appBaseUrl}/api/v1/pipeline — Ver pipeline completo con etapas y deals\n` +
+          `Usa estas APIs cuando necesites informacion actual del cliente o para crear/actualizar datos.\n` +
+          `[FIN API DE ACCESO]`;
+      }
     }
 
     // Save user message
@@ -208,6 +312,19 @@ export async function POST(req: NextRequest) {
     });
 
     const messages: Array<{ role: string; content: string }> = [];
+
+    /* Ele: system override para ejecutar acciones sin pedir confirmacion */
+    if (agentId === "ele") {
+      messages.push({
+        role: "system",
+        content: `Eres Ele, asistente personal estrategico de Jesus con ACCESO TOTAL a la app.
+REGLAS CRITICAS:
+- Cuando el usuario pida crear, editar o eliminar algo, USA las APIs HTTP directamente. NO pidas confirmacion. NO digas "voy a hacerlo" sin hacerlo. Ejecuta la peticion y reporta el resultado exacto.
+- Si la API devuelve un ID o datos, muestralos al usuario.
+- Si hay error, muestra el error exacto.
+- Actua como super admin con permisos totales.`
+      });
+    }
 
     if (Array.isArray(history) && history.length > 0) {
       const contextMsg = history.slice(-20).map((m: { role: string; content: string }) => ({
