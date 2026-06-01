@@ -88,7 +88,7 @@ export default function ProjectsPage() {
         setProjects(data);
       }
     } catch {
-      toast.error("Error al cargar clientes");
+      toast.error("Error al cargar proyectos");
     } finally {
       setLoading(false);
     }
@@ -125,7 +125,7 @@ export default function ProjectsPage() {
           name,
           description,
           color,
-          organizationId: selectedOrg,
+          organizationId: selectedOrg === "all" ? undefined : selectedOrg,
           labelIds: selectedLabels.length > 0 ? selectedLabels : undefined,
         }),
       });
@@ -136,10 +136,10 @@ export default function ProjectsPage() {
         setDescription("");
         setSelectedLabels([]);
         setOpen(false);
-        toast.success("Cliente creado");
+        toast.success("Proyecto creado");
       }
     } catch {
-      toast.error("Error al crear cliente");
+      toast.error("Error al crear proyecto");
     }
   };
 
@@ -149,13 +149,13 @@ export default function ProjectsPage() {
       if (response.ok) {
         setProjects(projects.filter((p) => p.id !== project.id));
         setDeleteTarget(null);
-        toast.success("Cliente eliminado");
+        toast.success("Proyecto eliminado");
       } else {
         const data = await response.json();
-        toast.error(data.error || "Error al eliminar cliente");
+        toast.error(data.error || "Error al eliminar proyecto");
       }
     } catch {
-      toast.error("Error al eliminar cliente");
+      toast.error("Error al eliminar proyecto");
     }
   };
 
@@ -165,13 +165,13 @@ export default function ProjectsPage() {
       if (response.ok) {
         const duplicated = await response.json();
         setProjects([...projects, duplicated]);
-        toast.success(`Cliente duplicado como "${duplicated.name}"`);
+        toast.success(`Proyecto duplicado como "${duplicated.name}"`);
       } else {
         const data = await response.json();
-        toast.error(data.error || "Error al duplicar cliente");
+        toast.error(data.error || "Error al duplicar proyecto");
       }
     } catch {
-      toast.error("Error al duplicar cliente");
+      toast.error("Error al duplicar proyecto");
     }
   };
 
@@ -193,12 +193,12 @@ export default function ProjectsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Clientes</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">Gestiona tus clientes y proyectos de marketing</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Proyectos</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">Gestiona tus proyectos de marketing</p>
         </div>
         <Button onClick={() => setOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Nuevo Cliente
+          Nuevo Proyecto
         </Button>
       </div>
 
@@ -258,13 +258,13 @@ export default function ProjectsPage() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-slate-900 dark:text-slate-100">Crear Cliente</DialogTitle>
+            <DialogTitle className="text-slate-900 dark:text-slate-100">Crear Proyecto</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             <div className="space-y-2">
               <Label className="text-slate-700 dark:text-slate-300">Nombre</Label>
               <Input
-                placeholder="Nombre del cliente"
+                placeholder="Nombre del proyecto"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
@@ -311,7 +311,7 @@ export default function ProjectsPage() {
               </div>
             )}
             <Button onClick={handleCreate} className="w-full">
-              Crear Cliente
+              Crear Proyecto
             </Button>
           </div>
         </DialogContent>
@@ -321,9 +321,9 @@ export default function ProjectsPage() {
       <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
           <DialogHeader>
-            <DialogTitle className="text-slate-900 dark:text-slate-100">Eliminar Cliente</DialogTitle>
+            <DialogTitle className="text-slate-900 dark:text-slate-100">Eliminar Proyecto</DialogTitle>
             <DialogDescription className="text-slate-500 dark:text-slate-400">
-              ¿Eliminar este cliente y todas sus tareas? Esta acción no se puede deshacer.
+              ¿Eliminar este proyecto y todas sus tareas? Esta acción no se puede deshacer.
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-3 pt-4">
@@ -342,8 +342,8 @@ export default function ProjectsPage() {
         <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <FolderOpen className="h-12 w-12 text-slate-400 dark:text-slate-500 mb-4" />
-            <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-1">No hay clientes</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm">Crea tu primer cliente para comenzar</p>
+            <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-1">No hay proyectos</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-sm">Crea tu primer proyecto para comenzar</p>
           </CardContent>
         </Card>
       ) : (

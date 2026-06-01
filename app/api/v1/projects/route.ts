@@ -47,6 +47,11 @@ export async function POST(request: NextRequest) {
 
   if (!name) return apiError("name es requerido", 400);
 
+  const orgMembers = await prisma.organizationMember.findMany({
+    where: { organizationId: auth.organizationId },
+    select: { userId: true, role: true },
+  });
+
   const project = await prisma.project.create({
     data: {
       id: cuid(),
@@ -54,6 +59,13 @@ export async function POST(request: NextRequest) {
       description: description || null,
       status: status || "ACTIVE",
       organizationId: auth.organizationId,
+      members: {
+        create: orgMembers.map((m: { userId: string; role: string }) => ({
+          id: cuid(),
+          userId: m.userId,
+          role: m.role === "ADMIN" || m.role === "OWNER" ? "OWNER" : "MEMBER",
+        })),
+      },
     },
   });
 

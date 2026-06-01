@@ -77,7 +77,8 @@ export async function POST(request: NextRequest) {
     }
 
     const { name, description, color } = parsed.data;
-    const organizationId = body.organizationId as string | undefined;
+    const orgIdInput = body.organizationId as string | undefined;
+    const organizationId = orgIdInput === "all" || orgIdInput === "" ? undefined : orgIdInput;
 
     if (organizationId) {
       const { valid } = await verifyOrgMembership(authResult.userId, organizationId);

@@ -122,7 +122,7 @@ export default function DashboardPage() {
   const statCards = [
     { name: "Completadas esta semana", value: stats.completedThisWeek, icon: CheckCircle, color: "text-green-500", bg: "bg-green-50 dark:bg-green-900/20" },
     { name: "Completadas este mes", value: stats.completedThisMonth, icon: TrendingUp, color: "text-neutral-900", bg: "bg-neutral-50 dark:bg-indigo-900/20", change: monthChange },
-    { name: "Clientes activos", value: stats.activeProjects, icon: FolderOpen, color: "text-violet-500", bg: "bg-violet-50 dark:bg-violet-900/20" },
+    { name: "Proyectos activos", value: stats.activeProjects, icon: FolderOpen, color: "text-violet-500", bg: "bg-violet-50 dark:bg-violet-900/20" },
     { name: "Tareas vencidas", value: stats.overdueTasks, icon: AlertCircle, color: "text-red-500", bg: "bg-red-50 dark:bg-red-900/20" },
     { name: "Total tareas", value: stats.totalTasks, icon: CheckSquare, color: "text-muted-foreground", bg: "bg-muted" },
   ];

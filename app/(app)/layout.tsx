@@ -47,7 +47,7 @@ const sections = [
   {
     label: "Trabajo",
     items: [
-      { name: "Clientes", href: "/projects", icon: FolderOpen },
+      { name: "Proyectos", href: "/projects", icon: FolderOpen },
       { name: "Tareas", href: "/tasks", icon: CheckSquare },
       { name: "Calendario", href: "/calendar", icon: Calendar },
       { name: "Journal", href: "/journal", icon: BookOpen },
