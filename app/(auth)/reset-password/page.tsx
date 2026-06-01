@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Suspense } from "react";
+import { brand } from "@/lib/branding";
 
 function ResetPasswordForm() {
   const [password, setPassword] = useState("");
@@ -22,7 +23,7 @@ function ResetPasswordForm() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-neutral-100 dark:from-gray-900 dark:to-gray-800 p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <CardTitle className="text-3xl font-bold text-primary">taskProject</CardTitle>
+            <CardTitle className="text-3xl font-bold text-primary">{brand.name}</CardTitle>
             <CardDescription>Invalid reset link</CardDescription>
           </CardHeader>
           <CardContent className="text-center">
@@ -74,7 +75,7 @@ function ResetPasswordForm() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-neutral-100 dark:from-gray-900 dark:to-gray-800 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold text-primary">taskProject</CardTitle>
+          <CardTitle className="text-3xl font-bold text-primary">{brand.name}</CardTitle>
           <CardDescription>Set your new password</CardDescription>
         </CardHeader>
         <CardContent>

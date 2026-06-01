@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { brand } from "@/lib/branding";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -41,7 +42,7 @@ export default function ForgotPasswordPage() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-neutral-100 dark:from-gray-900 dark:to-gray-800 p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <CardTitle className="text-3xl font-bold text-primary">taskProject</CardTitle>
+            <CardTitle className="text-3xl font-bold text-primary">{brand.name}</CardTitle>
             <CardDescription>Check your email</CardDescription>
           </CardHeader>
           <CardContent className="text-center space-y-4">
@@ -61,7 +62,7 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-neutral-100 dark:from-gray-900 dark:to-gray-800 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold text-primary">taskProject</CardTitle>
+          <CardTitle className="text-3xl font-bold text-primary">{brand.name}</CardTitle>
           <CardDescription>Reset your password</CardDescription>
         </CardHeader>
         <CardContent>
