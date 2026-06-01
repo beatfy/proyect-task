@@ -395,29 +395,37 @@ async function executeTool(
 
     case "task_list": {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const where: any = {
-        OR: [
+      const where: any = {};
+      if (projectId) {
+        where.projectId = projectId;
+      } else if (organizationId) {
+        where.project = { organizationId };
+      } else {
+        where.OR = [
           { creatorId: userId },
           { assigneeId: userId },
           { taskAssignees: { some: { userId } } },
-        ],
-      };
-      if (projectId) where.projectId = projectId;
+        ];
+      }
       if (args.status) where.status = args.status;
       if (args.priority) where.priority = args.priority;
       if (args.assigneeId) where.assigneeId = args.assigneeId;
       if (args.parentId) where.parentId = args.parentId;
       if (args.search) {
-        const userFilter = where.OR;
         const searchFilter = [
           { title: { contains: args.search as string, mode: "insensitive" } },
           { description: { contains: args.search as string, mode: "insensitive" } },
         ];
-        where.AND = [
-          { OR: userFilter },
-          { OR: searchFilter },
-        ];
-        delete where.OR;
+        if (where.OR) {
+          const userFilter = where.OR;
+          where.AND = [
+            { OR: userFilter },
+            { OR: searchFilter },
+          ];
+          delete where.OR;
+        } else {
+          where.OR = searchFilter;
+        }
       }
 
       const limit = (args.limit as number) || 10;

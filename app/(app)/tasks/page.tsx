@@ -1365,7 +1365,7 @@ function TasksPageContent() {
               {/* Assignee */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">Asignado</label>
-                <Select value={detailTask?.assignedTo || "_none"} onValueChange={(v) => autoSaveField("assignedTo", v === "_none" ? null : v)}>
+                <Select value={detailTask?.assignee?.id || "_none"} onValueChange={(v) => autoSaveField("assigneeId", v === "_none" ? null : v)}>
                   <SelectTrigger className="w-full h-9 bg-white dark:bg-slate-900 border-border">
                     <SelectValue />
                   </SelectTrigger>
