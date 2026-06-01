@@ -42,7 +42,7 @@ const TOOLS = [
           id: { type: "string", description: "ID de la tarea" },
           title: { type: "string" },
           description: { type: "string" },
-          status: { type: "string", enum: ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE"] },
+          status: { type: "string", enum: ["TODO", "INPROGRESS", "INREVIEW", "DONE"] },
           priority: { type: "string", enum: ["NONE", "LOW", "MEDIUM", "HIGH", "URGENT"] },
           dueDate: { type: "string" },
           assigneeId: { type: "string" },
