@@ -155,7 +155,7 @@ function DraggableTaskCard({ task, onOpenDetail, onEdit, onDelete }: { task: Tas
         <div className="flex items-start justify-between gap-2 mb-2">
           <h4 className="font-medium text-sm leading-tight text-foreground">{task.title}</h4>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
               <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-accent">
                 <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
               </Button>
@@ -573,6 +573,9 @@ function TasksPageContent() {
       if (response.ok) {
         setTasks(tasks.filter(t => t.id !== taskId));
         toast.success("Tarea eliminada");
+      } else {
+        const data = await response.json();
+        toast.error(data.error || "Error al eliminar tarea");
       }
     } catch {
       toast.error("Error al eliminar tarea");
@@ -610,12 +613,17 @@ function TasksPageContent() {
   const handleToggleSubtask = async (subtask: Subtask) => {
     const newStatus = subtask.status === "DONE" ? "TODO" : "DONE";
     try {
-      await fetch("/api/tasks", {
+      const response = await fetch("/api/tasks", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: subtask.id, status: newStatus })
       });
-      setSubtasks(subtasks.map(s => s.id === subtask.id ? { ...s, status: newStatus } : s));
+      if (response.ok) {
+        setSubtasks(subtasks.map(s => s.id === subtask.id ? { ...s, status: newStatus } : s));
+      } else {
+        const data = await response.json();
+        toast.error(data.error || "Error al actualizar");
+      }
     } catch {
       toast.error("Error al actualizar");
     }
@@ -751,13 +759,19 @@ function TasksPageContent() {
     }
     if (targetStatus) {
       try {
-        await fetch("/api/tasks", {
+        const response = await fetch("/api/tasks", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: active.id, status: targetStatus }),
         });
+        if (!response.ok) {
+          const data = await response.json();
+          toast.error(data.error || "Error al mover tarea");
+          fetchTasks();
+        }
       } catch {
         toast.error("Error al mover tarea");
+        fetchTasks();
       }
     }
   };
@@ -793,6 +807,9 @@ function TasksPageContent() {
         setDetailTask(updated);
         setTasks(tasks.map(t => t.id === updated.id ? updated : t));
         toast.success("Guardado");
+      } else {
+        const data = await res.json();
+        toast.error(data.error || "Error al guardar");
       }
     } catch {
       toast.error("Error al guardar");

@@ -34,25 +34,54 @@ export async function canAccessTask(userId: string, taskId: string): Promise<boo
 export async function canModifyTask(userId: string, taskId: string): Promise<boolean> {
   const task = await prisma.task.findUnique({
     where: { id: taskId },
-    select: { creatorId: true, projectId: true },
+    select: {
+      creatorId: true,
+      assigneeId: true,
+      projectId: true,
+      organizationId: true,
+      project: { select: { organizationId: true } },
+      taskAssignees: { select: { userId: true } },
+    },
   });
 
   if (!task) return false;
 
-  // Creator can always modify
+  // 1. Creator can always modify
   if (task.creatorId === userId) return true;
 
-  // OWNER/ADMIN of the project can modify
+  // 2. Assignee (direct or multi-assignee) can modify
+  if (task.assigneeId === userId) return true;
+  if (task.taskAssignees.some(ta => ta.userId === userId)) return true;
+
+  // 3. Project members can modify
   if (task.projectId) {
     const membership = await prisma.projectMember.findFirst({
-      where: {
-        projectId: task.projectId,
-        userId,
-        role: { in: ["OWNER", "ADMIN"] },
-      },
+      where: { projectId: task.projectId, userId },
       select: { id: true },
     });
-    return !!membership;
+    if (membership) return true;
+
+    // Organization OWNER/ADMIN of the project's organization can modify
+    if (task.project?.organizationId) {
+      const orgMember = await prisma.organizationMember.findUnique({
+        where: {
+          userId_organizationId: { userId, organizationId: task.project.organizationId },
+        },
+        select: { role: true },
+      });
+      if (orgMember && ["OWNER", "ADMIN"].includes(orgMember.role)) return true;
+    }
+  }
+
+  // 4. Organization OWNER/ADMIN of the task's direct organization can modify
+  if (task.organizationId) {
+    const orgMember = await prisma.organizationMember.findUnique({
+      where: {
+        userId_organizationId: { userId, organizationId: task.organizationId },
+      },
+      select: { role: true },
+    });
+    if (orgMember && ["OWNER", "ADMIN"].includes(orgMember.role)) return true;
   }
 
   return false;

@@ -129,28 +129,9 @@ export default function AgentChatPage() {
     }
   }, [agentId, isPersonalAgent]);
 
-  /* Cargar historial de chat persistido */
+  /* Iniciar siempre con pantalla limpia al cambiar de agente o cliente */
   useEffect(() => {
-    if (!isPersonalAgent && !selectedClient) return;
-    const url = isPersonalAgent
-      ? `/api/agents/chat?agentId=${agentId}&limit=50`
-      : `/api/agents/chat?agentId=${agentId}&projectId=${selectedClient!.id}&limit=50`;
-    fetch(url)
-      .then((r) => {
-        if (!r.ok) throw new Error("Failed to load history");
-        return r.json();
-      })
-      .then((data: Array<{ role: string; content: string }>) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setMessages(
-            data.map((m) => ({
-              role: m.role as "user" | "assistant",
-              content: m.content,
-            }))
-          );
-        }
-      })
-      .catch(() => {});
+    setMessages([]);
   }, [agentId, selectedClient?.id]);
 
   /* Cargar proyectos */

@@ -298,6 +298,18 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Fetch last 20 messages from the database as chat history context (before saving new message)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const historyWhere: any = { userId: authResult.userId, agentId };
+    if (projectId) historyWhere.projectId = projectId;
+
+    const dbHistory = await prisma.chatMessage.findMany({
+      where: historyWhere,
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      select: { role: true, content: true },
+    });
+
     // Save user message
     await prisma.chatMessage.create({
       data: {
@@ -326,8 +338,9 @@ REGLAS CRITICAS:
       });
     }
 
-    if (Array.isArray(history) && history.length > 0) {
-      const contextMsg = history.slice(-20).map((m: { role: string; content: string }) => ({
+    if (dbHistory && dbHistory.length > 0) {
+      // Invert dbHistory array to chronological order (it was fetched desc)
+      const contextMsg = dbHistory.reverse().map((m: { role: string; content: string }) => ({
         role: m.role === "user" ? "user" : "assistant",
         content: m.content
       }));
