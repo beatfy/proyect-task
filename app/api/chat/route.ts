@@ -73,7 +73,7 @@ const TOOLS = [
       parameters: {
         type: "object",
         properties: {
-          status: { type: "string", enum: ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE"] },
+          status: { type: "string", enum: ["TODO", "INPROGRESS", "INREVIEW", "DONE"] },
           priority: { type: "string", enum: ["NONE", "LOW", "MEDIUM", "HIGH", "URGENT"] },
           assigneeId: { type: "string" },
           search: { type: "string", description: "Buscar por texto en título/descripción" },
@@ -92,7 +92,7 @@ const TOOLS = [
         type: "object",
         properties: {
           id: { type: "string", description: "ID de la tarea" },
-          status: { type: "string", enum: ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE"], description: "Nuevo estado" },
+          status: { type: "string", enum: ["TODO", "INPROGRESS", "INREVIEW", "DONE"], description: "Nuevo estado" },
         },
         required: ["id", "status"],
       },
@@ -488,8 +488,8 @@ async function executeTool(
       try {
         const [todo, inProgress, inReview, done, upcoming] = await Promise.all([
           prisma.task.count({ where: { projectId, status: "TODO" } }),
-          prisma.task.count({ where: { projectId, status: "IN_PROGRESS" } }),
-          prisma.task.count({ where: { projectId, status: "IN_REVIEW" } }),
+          prisma.task.count({ where: { projectId, status: "INPROGRESS" } }),
+          prisma.task.count({ where: { projectId, status: "INREVIEW" } }),
           prisma.task.count({ where: { projectId, status: "DONE" } }),
           prisma.task.findMany({
             where: { projectId, dueDate: { gte: new Date() }, status: { not: "DONE" } },
@@ -498,7 +498,7 @@ async function executeTool(
             select: { id: true, title: true, dueDate: true, priority: true },
           }),
         ]);
-        return { total: todo + inProgress + inReview + done, byStatus: { TODO: todo, IN_PROGRESS: inProgress, IN_REVIEW: inReview, DONE: done }, upcomingDeadlines: upcoming };
+        return { total: todo + inProgress + inReview + done, byStatus: { TODO: todo, INPROGRESS: inProgress, INREVIEW: inReview, DONE: done }, upcomingDeadlines: upcoming };
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
         return { error: `Error al obtener resumen: ${msg}` };
@@ -1023,7 +1023,7 @@ export async function POST(request: NextRequest) {
 
   const user = await prisma.user.findUnique({
     where: { id: authResult.userId },
-    select: { name: true },
+    select: { name: true, email: true },
   });
 
   let taskList = "Sin proyecto activo.";
@@ -1032,11 +1032,26 @@ export async function POST(request: NextRequest) {
   if (projectId) {
     const tasks = await prisma.task.findMany({
       where: { projectId },
-      select: { id: true, title: true, status: true, priority: true, dueDate: true, assigneeId: true },
+      include: {
+        assignee: { select: { id: true, name: true, email: true } },
+        taskAssignees: {
+          include: {
+            user: { select: { id: true, name: true, email: true } }
+          }
+        }
+      },
       orderBy: { createdAt: "desc" },
-      take: 20,
+      take: 50,
     });
-    taskList = tasks.map((t: { id: string; title: string; status: string; priority: string; dueDate: Date | null }) => `- [${t.id}] "${t.title}" | ${t.status} | ${t.priority} | vence: ${t.dueDate?.toISOString().split("T")[0] || "sin fecha"}`).join("\n") || "No hay tareas.";
+    taskList = tasks.map((t) => {
+      const assignees = [
+        t.assignee ? `${t.assignee.name || t.assignee.email} (ID: ${t.assignee.id})` : null,
+        ...t.taskAssignees.map(ta => `${ta.user.name || ta.user.email} (ID: ${ta.user.id})`)
+      ].filter(Boolean);
+      const assigneeText = assignees.length > 0 ? `Asignado a: ${assignees.join(", ")}` : "Sin asignar";
+      const dueStr = t.dueDate ? t.dueDate.toISOString().split("T")[0] : "sin fecha";
+      return `- [${t.id}] "${t.title}" | Estado: ${t.status} | Prioridad: ${t.priority} | ${assigneeText} | Vence: ${dueStr}`;
+    }).join("\n") || "No hay tareas.";
 
     const members = await prisma.projectMember.findMany({
       where: { projectId },
@@ -1067,7 +1082,7 @@ export async function POST(request: NextRequest) {
   }
 
   let systemPrompt = await buildSystemPrompt(
-    user?.name || "Usuario",
+    user ? `${user.name || "Usuario"} (${user.email})` : "Usuario",
     authResult.userId,
     projectName,
     projectId,

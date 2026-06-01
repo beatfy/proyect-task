@@ -745,24 +745,21 @@ function TasksPageContent() {
   };
 
   const dndHandleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
+    const { active } = event;
+    const originalTask = draggedTask;
     setDraggedTask(null);
-    if (!over || active.id === over.id) return;
-    const activeTask = tasks.find(t => t.id === active.id);
-    if (!activeTask) return;
-    let targetStatus: string | null = null;
-    for (const col of columns) {
-      if (col.id === over.id || tasks.some(t => t.id === over.id && t.status === col.id)) {
-        targetStatus = col.id;
-        break;
-      }
-    }
-    if (targetStatus) {
+
+    if (!originalTask) return;
+
+    const currentTask = tasks.find(t => t.id === active.id);
+    if (!currentTask) return;
+
+    if (currentTask.status !== originalTask.status) {
       try {
         const response = await fetch("/api/tasks", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: active.id, status: targetStatus }),
+          body: JSON.stringify({ id: active.id, status: currentTask.status }),
         });
         if (!response.ok) {
           const data = await response.json();
