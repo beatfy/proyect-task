@@ -4,6 +4,7 @@ import { authenticateRequest } from "@/lib/api-auth";
 import { agentRateLimit } from "@/lib/ai-rate-limit";
 import { cuid } from "@/lib/utils";
 import { randomBytes } from "crypto";
+import bcrypt from "bcryptjs";
 
 export const dynamic = "force-dynamic";
 
@@ -134,7 +135,37 @@ export async function POST(req: NextRequest) {
             });
             org = { ...org, apiKey: newKey };
           }
-          if (org?.apiKey) orgApiKey = org.apiKey;
+          // Generate/rotate user-specific API key for Ele Agent to authenticate as the chatting user
+          const rawKey = `tx2_${randomBytes(32).toString("hex")}`;
+          const hashedKey = await bcrypt.hash(rawKey, 10);
+          const keyPrefix = rawKey.substring(0, 8);
+
+          const existingKey = await prisma.apiKey.findFirst({
+            where: { userId: authResult.userId, name: "Ele Agent Key" },
+          });
+
+          if (existingKey) {
+            await prisma.apiKey.update({
+              where: { id: existingKey.id },
+              data: {
+                key: hashedKey,
+                keyPrefix,
+                active: true,
+              },
+            });
+          } else {
+            await prisma.apiKey.create({
+              data: {
+                id: cuid(),
+                key: hashedKey,
+                keyPrefix,
+                name: "Ele Agent Key",
+                userId: authResult.userId,
+                permissions: "full",
+              },
+            });
+          }
+          orgApiKey = rawKey;
 
           // Contexto global: todas las tareas del usuario
           const allTaskCounts = await prisma.task.groupBy({

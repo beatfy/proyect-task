@@ -3,18 +3,29 @@ import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 
 // PUT - Update entry
-export async function PUT(request: NextRequest) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const authResult = await authenticateRequest(request);
     if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const { id, title, content, mood, completed, priority, tags } = await request.json();
+    const body = await request.json().catch(() => ({}));
+    let id = body.id;
+
+    if (!id) {
+      const routeParams = await params;
+      id = routeParams.id;
+    }
 
     if (!id) {
       return NextResponse.json({ error: "ID requerido" }, { status: 400 });
     }
+
+    const { title, content, mood, completed, priority, tags } = body;
 
     const entry = await prisma.bulletJournalEntry.updateMany({
       where: { id, userId: authResult.userId },
@@ -36,7 +47,10 @@ export async function PUT(request: NextRequest) {
 }
 
 // DELETE - Delete entry
-export async function DELETE(request: NextRequest) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const authResult = await authenticateRequest(request);
     if (!authResult) {
@@ -44,7 +58,12 @@ export async function DELETE(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id");
+    let id = searchParams.get("id");
+
+    if (!id) {
+      const routeParams = await params;
+      id = routeParams.id;
+    }
 
     if (!id) {
       return NextResponse.json({ error: "ID requerido" }, { status: 400 });
