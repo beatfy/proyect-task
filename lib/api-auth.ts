@@ -33,6 +33,24 @@ export async function authenticateRequest(request: NextRequest): Promise<{
 
         return { userId: apiKey.userId, permissions: apiKey.permissions };
       }
+
+      // Check if it's an Organization API key
+      const org = await prisma.organization.findUnique({
+        where: { apiKey: token },
+        select: { id: true },
+      });
+
+      if (org) {
+        const member = await prisma.organizationMember.findFirst({
+          where: { organizationId: org.id },
+          select: { userId: true },
+          orderBy: { joinedAt: "asc" },
+        });
+
+        if (member) {
+          return { userId: member.userId, permissions: "full" };
+        }
+      }
     }
   }
 
