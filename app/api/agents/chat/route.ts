@@ -274,8 +274,13 @@ export async function POST(req: NextRequest) {
           `- GET ${appBaseUrl}/api/mail/inbox — Leer bandeja de entrada\n` +
           `- GET ${appBaseUrl}/api/mail/config — Configuracion de mail\n` +
           `=== JOURNAL / HABITOS ===\n` +
-          `- GET/POST/PATCH/DELETE ${appBaseUrl}/api/journal/entries — Entradas de journal\n` +
-          `- GET/POST ${appBaseUrl}/api/journal/habits — Habitos (?log=true para registrar)\n` +
+          `- GET/POST ${appBaseUrl}/api/journal/entries — Obtener y crear entradas de diario\n` +
+          `  Body POST: { "type": "daily"|"weekly"|"monthly", "title": "...", "content": "...", "date": "ISOString", "mood": "emoji", "priority": "NONE"|"LOW"|"MEDIUM"|"HIGH" }\n` +
+          `- PUT/DELETE ${appBaseUrl}/api/journal/entries/[id] — Modificar o eliminar entrada de diario (?id=X para DELETE)\n` +
+          `  Body PUT: { "id": "ID", "title": "...", "content": "...", "mood": "...", "priority": "..." }\n` +
+          `- GET/POST ${appBaseUrl}/api/journal/habits — Obtener y crear hábitos (?log=true para registrar logs)\n` +
+          `  Body POST: { "name": "Nombre", "icon": "emoji", "color": "#HEX", "targetDays": 7 }\n` +
+          `- DELETE ${appBaseUrl}/api/journal/habits/[id] — Eliminar un hábito por ID\n` +
           `=== FACTURACION ===\n` +
           `- GET ${appBaseUrl}/api/billing/dashboard — Dashboard de facturacion\n` +
           `- GET/POST ${appBaseUrl}/api/billing/invoices — Facturas\n` +

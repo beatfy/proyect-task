@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,13 +22,24 @@ import {
   Flame,
   Target,
   PenLine,
-  Tag
+  Tag,
+  Mic,
+  MicOff,
+  Sun,
+  Moon
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, addDays, subDays, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 interface JournalEntry {
   id: string;
@@ -66,6 +78,7 @@ const MOODS = [
 ];
 
 export default function BulletJournalPage() {
+  const { data: session, status } = useSession();
   const [activeTab, setActiveTab] = useState("daily");
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [entries, setEntries] = useState<JournalEntry[]>([]);
@@ -78,9 +91,36 @@ export default function BulletJournalPage() {
   const [dailyPriority, setDailyPriority] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Habit Dialog states
+  const [isHabitDialogOpen, setIsHabitDialogOpen] = useState(false);
+  const [newHabitName, setNewHabitName] = useState("");
+  const [newHabitIcon, setNewHabitIcon] = useState("🔥");
+  const [newHabitColor, setNewHabitColor] = useState("#C75B39");
+  const [newHabitTarget, setNewHabitTarget] = useState(7);
+  const [creatingHabit, setCreatingHabit] = useState(false);
+
+  // Voice Recording state
+  const [isRecording, setIsRecording] = useState(false);
+
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (status === "authenticated") {
+      fetchData();
+    }
+  }, [status]);
+
+  // Load entry for selected date when date or entries list changes
+  useEffect(() => {
+    const entry = getEntryForDate(selectedDate, "daily");
+    if (entry) {
+      setDailyContent(entry.content || "");
+      setDailyMood(entry.mood || null);
+      setDailyPriority(entry.priority !== "NONE" ? entry.priority : "");
+    } else {
+      setDailyContent("");
+      setDailyMood(null);
+      setDailyPriority("");
+    }
+  }, [selectedDate, entries]);
 
   const fetchData = async () => {
     try {
@@ -115,6 +155,7 @@ export default function BulletJournalPage() {
             id: existing.id,
             content: dailyContent,
             mood: dailyMood,
+            priority: dailyPriority || "NONE",
           }),
         });
       } else {
@@ -127,7 +168,7 @@ export default function BulletJournalPage() {
             content: dailyContent,
             date: selectedDate.toISOString(),
             mood: dailyMood,
-            priority: "NONE",
+            priority: dailyPriority || "NONE",
           }),
         });
       }
@@ -161,7 +202,102 @@ export default function BulletJournalPage() {
     }
   };
 
-  if (loading) {
+  const createHabit = async () => {
+    if (!newHabitName.trim()) {
+      toast.error("El nombre del hábito es requerido");
+      return;
+    }
+    setCreatingHabit(true);
+    try {
+      const res = await fetch("/api/journal/habits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newHabitName,
+          icon: newHabitIcon,
+          color: newHabitColor,
+          targetDays: newHabitTarget,
+        }),
+      });
+      if (res.ok) {
+        toast.success("Hábito creado correctamente");
+        setNewHabitName("");
+        setNewHabitIcon("🔥");
+        setNewHabitColor("#C75B39");
+        setNewHabitTarget(7);
+        setIsHabitDialogOpen(false);
+        fetchData();
+      } else {
+        toast.error("Error al crear el hábito");
+      }
+    } catch {
+      toast.error("Error al crear el hábito");
+    } finally {
+      setCreatingHabit(false);
+    }
+  };
+
+  const deleteHabit = async (habitId: string) => {
+    if (!confirm("¿Estás seguro de que deseas eliminar este hábito?")) return;
+    try {
+      const res = await fetch(`/api/journal/habits/${habitId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        toast.success("Hábito eliminado");
+        fetchData();
+      } else {
+        toast.error("Error al eliminar el hábito");
+      }
+    } catch {
+      toast.error("Error al eliminar el hábito");
+    }
+  };
+
+  const toggleSpeechRecognition = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error("Tu navegador no soporta el reconocimiento de voz. Prueba con Google Chrome o Edge.");
+      return;
+    }
+
+    if (isRecording) {
+      setIsRecording(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.lang = "es-ES";
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+      setIsRecording(true);
+      toast.info("Escuchando... Habla ahora.");
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      if (transcript) {
+        setDailyContent((prev) => (prev ? prev + " " + transcript : transcript));
+        toast.success("Texto transcribido con éxito.");
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Speech recognition error", event);
+      toast.error("Error en reconocimiento de voz: " + event.error);
+      setIsRecording(false);
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognition.start();
+  };
+
+  if (status === "loading" || loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--mediterranean-terracotta)]"></div>
@@ -275,7 +411,57 @@ export default function BulletJournalPage() {
 
               {/* Journal content */}
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Reflexión del día</Label>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <Label className="text-sm font-medium">Reflexión del día</Label>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Templates buttons */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const templateText = "🌅 Morning Check-in:\n- Mi estado físico y mental hoy: \n- Mi intención para el día: \n- Tres cosas por las que estoy agradecido/a:\n  1. \n  2. \n  3. ";
+                        if (dailyContent && !confirm("Esto reemplazará la reflexión actual. ¿Deseas continuar?")) return;
+                        setDailyContent(templateText);
+                      }}
+                      className="h-8 text-xs gap-1 border-[var(--mediterranean-terracotta)]/40 hover:bg-[var(--mediterranean-terracotta)]/10"
+                    >
+                      <Sun className="h-3.5 w-3.5 text-orange-500" /> Morning
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const templateText = "🌙 Evening Check-in:\n- ¿Qué salió bien hoy?: \n- ¿Qué podría haber sido mejor?: \n- El mayor aprendizaje de hoy: \n- Nivel de energía al terminar el día: ";
+                        if (dailyContent && !confirm("Esto reemplazará la reflexión actual. ¿Deseas continuar?")) return;
+                        setDailyContent(templateText);
+                      }}
+                      className="h-8 text-xs gap-1 border-blue-500/40 hover:bg-blue-500/10"
+                    >
+                      <Moon className="h-3.5 w-3.5 text-blue-500" /> Evening
+                    </Button>
+
+                    {/* Speech to text button */}
+                    <Button
+                      variant={isRecording ? "destructive" : "outline"}
+                      size="sm"
+                      onClick={toggleSpeechRecognition}
+                      className={cn(
+                        "h-8 text-xs gap-1",
+                        isRecording && "animate-pulse"
+                      )}
+                    >
+                      {isRecording ? (
+                        <>
+                          <MicOff className="h-3.5 w-3.5" /> Detener Voz
+                        </>
+                      ) : (
+                        <>
+                          <Mic className="h-3.5 w-3.5 text-[var(--mediterranean-terracotta)]" /> Dictar Voz
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
                 <Textarea
                   value={dailyContent}
                   onChange={(e) => setDailyContent(e.target.value)}
@@ -438,7 +624,7 @@ export default function BulletJournalPage() {
           <Card className="card-mediterranean">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">Tracker de Hábitos</CardTitle>
-              <Button size="sm">
+              <Button size="sm" onClick={() => setIsHabitDialogOpen(true)}>
                 <Plus className="h-4 w-4 mr-1" /> Nuevo Hábito
               </Button>
             </CardHeader>
@@ -447,7 +633,7 @@ export default function BulletJournalPage() {
                 <div className="text-center py-8 text-muted-foreground">
                   <TrendingUp className="h-12 w-12 mx-auto mb-3 opacity-20" />
                   <p>No tienes hábitos configurados</p>
-                  <Button className="mt-3" variant="outline">
+                  <Button className="mt-3" variant="outline" onClick={() => setIsHabitDialogOpen(true)}>
                     <Plus className="h-4 w-4 mr-1" /> Crear primer hábito
                   </Button>
                 </div>
@@ -464,24 +650,39 @@ export default function BulletJournalPage() {
                       <div key={habit.id} className="p-4 rounded-lg border border-border bg-card">
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
-                            <span className="text-lg">{habit.icon || "🔥"}</span>
+                            <span className="text-lg" style={{ color: habit.color || "inherit" }}>
+                              {habit.icon || "🔥"}
+                            </span>
                             <span className="font-medium">{habit.name}</span>
                           </div>
-                          <Badge variant="outline">
-                            {habit.logs.filter(l => l.completed).length}/{habit.targetDays}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" style={{ borderColor: habit.color || "inherit", color: habit.color || "inherit" }}>
+                              {habit.logs.filter(l => l.completed).length}/{habit.targetDays}
+                            </Badge>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => deleteHabit(habit.id)}
+                              title="Eliminar hábito"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                           {last7Days.map(({ date, completed }, i) => (
                             <button
                               key={i}
                               onClick={() => toggleHabit(habit.id, date)}
                               className={cn(
-                                "w-10 h-10 rounded-lg border-2 transition-all hover:scale-110",
-                                completed 
-                                  ? "border-[var(--mediterranean-terracotta)] bg-[var(--mediterranean-terracotta)] text-white" 
-                                  : "border-border bg-card hover:border-[var(--mediterranean-terracotta)]/50"
+                                "w-10 h-10 rounded-lg border-2 transition-all hover:scale-110 flex items-center justify-center"
                               )}
+                              style={{
+                                borderColor: completed ? (habit.color || "var(--mediterranean-terracotta)") : "var(--border)",
+                                backgroundColor: completed ? (habit.color || "var(--mediterranean-terracotta)") : "transparent",
+                                color: completed ? "#ffffff" : "inherit"
+                              }}
                               title={format(date, "EEE d", { locale: es })}
                             >
                               <span className="text-xs">{format(date, "d")}</span>
@@ -496,31 +697,99 @@ export default function BulletJournalPage() {
             </CardContent>
           </Card>
         </TabsContent>
-
-        {/* NOTES TAB */}
-        <TabsContent value="notes" className="space-y-4">
-          <Card className="card-mediterranean">
-            <CardHeader>
-              <CardTitle className="text-lg">Notas Rápidas</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Textarea
-                placeholder="Brain dump - Escribe todo lo que te venga a la mente..."
-                rows={10}
-                className="resize-none"
-              />
-              <div className="flex justify-between">
-                <Button variant="outline">
-                  <Trash2 className="h-4 w-4 mr-1" /> Limpiar
-                </Button>
-                <Button>
-                  <Save className="h-4 w-4 mr-1" /> Guardar Nota
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}
+ 
+         {/* NOTES TAB */}
+         <TabsContent value="notes" className="space-y-4">
+           <Card className="card-mediterranean">
+             <CardHeader>
+               <CardTitle className="text-lg">Notas Rápidas</CardTitle>
+             </CardHeader>
+             <CardContent className="space-y-4">
+               <Textarea
+                 placeholder="Brain dump - Escribe todo lo que te venga a la mente..."
+                 rows={10}
+                 className="resize-none"
+               />
+               <div className="flex justify-between">
+                 <Button variant="outline">
+                   <Trash2 className="h-4 w-4 mr-1" /> Limpiar
+                 </Button>
+                 <Button>
+                   <Save className="h-4 w-4 mr-1" /> Guardar Nota
+                 </Button>
+               </div>
+             </CardContent>
+           </Card>
+         </TabsContent>
+       </Tabs>
+ 
+       {/* Dialog for Creating Habit */}
+       <Dialog open={isHabitDialogOpen} onOpenChange={setIsHabitDialogOpen}>
+         <DialogContent className="sm:max-w-[425px]">
+           <DialogHeader>
+             <DialogTitle>Nuevo Hábito</DialogTitle>
+           </DialogHeader>
+           <div className="grid gap-4 py-4">
+             <div className="grid gap-2">
+               <Label htmlFor="habit-name">Nombre del hábito</Label>
+               <Input
+                 id="habit-name"
+                 value={newHabitName}
+                 onChange={(e) => setNewHabitName(e.target.value)}
+                 placeholder="Ej: Meditar, Beber agua..."
+                 autoFocus
+               />
+             </div>
+             <div className="grid grid-cols-2 gap-4">
+               <div className="grid gap-2">
+                 <Label htmlFor="habit-icon">Icono / Emoji</Label>
+                 <Input
+                   id="habit-icon"
+                   value={newHabitIcon}
+                   onChange={(e) => setNewHabitIcon(e.target.value)}
+                   placeholder="🔥, 🧘, 💧..."
+                 />
+               </div>
+               <div className="grid gap-2">
+                 <Label htmlFor="habit-color">Color</Label>
+                 <div className="flex gap-2 items-center">
+                   <input
+                     id="habit-color"
+                     type="color"
+                     value={newHabitColor}
+                     onChange={(e) => setNewHabitColor(e.target.value)}
+                     className="w-10 h-10 border rounded cursor-pointer p-0 bg-transparent"
+                   />
+                   <span className="text-xs text-muted-foreground uppercase">{newHabitColor}</span>
+                 </div>
+               </div>
+             </div>
+             <div className="grid gap-2">
+               <Label htmlFor="habit-target">Objetivo semanal (Días)</Label>
+               <select
+                 id="habit-target"
+                 value={newHabitTarget}
+                 onChange={(e) => setNewHabitTarget(Number(e.target.value))}
+                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+               >
+                 {[1, 2, 3, 4, 5, 6, 7].map((num) => (
+                   <option key={num} value={num}>
+                     {num} {num === 1 ? "día" : "días"} por semana
+                   </option>
+                 ))}
+               </select>
+             </div>
+           </div>
+           <DialogFooter>
+             <Button variant="outline" onClick={() => setIsHabitDialogOpen(false)} disabled={creatingHabit}>
+               Cancelar
+             </Button>
+             <Button onClick={createHabit} disabled={creatingHabit}>
+               {creatingHabit ? "Creando..." : "Crear Hábito"}
+             </Button>
+           </DialogFooter>
+         </DialogContent>
+       </Dialog>
+     </div>
+   );
+ }
