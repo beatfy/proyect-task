@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
 export async function authenticateOrgApiKey(request: NextRequest): Promise<{ organizationId: string; orgName: string; userId: string } | null> {
   const authHeader = request.headers.get("authorization");
@@ -19,28 +20,64 @@ export async function authenticateOrgApiKey(request: NextRequest): Promise<{ org
     }
   }
 
+  let userId: string | null = null;
+  let organizationId: string | null = null;
+  let orgName = "";
+
+  // 1. First check if it's a valid Organization API key
   const org = await prisma.organization.findUnique({
     where: { apiKey: key },
     select: { id: true, name: true },
   });
 
-  if (!org) return null;
+  if (org) {
+    organizationId = org.id;
+    orgName = org.name;
+    // Find first member to use as creator/assignee for API operations
+    const member = await prisma.organizationMember.findFirst({
+      where: { organizationId: org.id },
+      select: { userId: true },
+      orderBy: { joinedAt: "asc" },
+    });
+    if (member) {
+      userId = member.userId;
+    }
+  } else {
+    // 2. If not, check if it's a User API key (e.g. Ele Agent Key)
+    if (key.startsWith("tx2_")) {
+      const keyPrefix = key.substring(0, 8);
+      const apiKey = await prisma.apiKey.findFirst({
+        where: { keyPrefix, active: true },
+        select: { id: true, userId: true, permissions: true, key: true },
+      });
 
-  // Find first member to use as creator/assignee for API operations
-  const member = await prisma.organizationMember.findFirst({
-    where: { organizationId: org.id },
-    select: { userId: true },
-    orderBy: { joinedAt: "asc" },
-  });
+      if (apiKey && await bcrypt.compare(key, apiKey.key)) {
+        userId = apiKey.userId;
+        // Find organization of this user
+        const member = await prisma.organizationMember.findFirst({
+          where: { userId: apiKey.userId },
+          select: { organizationId: true, organization: { select: { name: true } } },
+          orderBy: { joinedAt: "asc" },
+        });
+        if (member) {
+          organizationId = member.organizationId;
+          orgName = member.organization.name;
+        }
+      }
+    }
+  }
 
-  if (!member) return null;
+  if (!organizationId || !userId) {
+    return null;
+  }
 
+  // Update organization updatedAt field
   await prisma.organization.update({
-    where: { id: org.id },
+    where: { id: organizationId },
     data: { updatedAt: new Date() },
   }).catch(() => {});
 
-  return { organizationId: org.id, orgName: org.name, userId: member.userId };
+  return { organizationId, orgName, userId };
 }
 
 export function apiError(message: string, status: number) {

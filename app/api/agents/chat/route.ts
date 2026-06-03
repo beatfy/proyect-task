@@ -294,7 +294,7 @@ export async function POST(req: NextRequest) {
           `- GET/POST/PATCH/DELETE ${appBaseUrl}/api/v1/tasks — Gestionar tareas (?id=X, ?projectId=X, ?status=TODO|IN_PROGRESS|DONE)\n` +
           `  Body POST: { "projectId": "ID", "title": "Titulo", "description": "Opcional", "status": "TODO", "priority": "MEDIUM", "dueDate": "2026-06-15T10:00:00Z" }\n` +
           `=== CRM ===\n` +
-          `- GET/POST/PATCH/DELETE ${appBaseUrl}/api/v1/contacts — Gestionar contactos (?id=X, ?search=...)` +
+          `- GET/POST/PATCH/DELETE ${appBaseUrl}/api/v1/contacts — Gestionar contactos (?id=X, ?search=...)\n` +
           `- GET/POST/PATCH ${appBaseUrl}/api/v1/deals — Gestionar oportunidades (?id=X, ?stageId=X)\n` +
           `- GET ${appBaseUrl}/api/v1/pipeline — Ver pipeline completo con etapas y deals\n` +
           `=== CALENDARIO / EVENTOS ===\n` +
@@ -338,7 +338,7 @@ export async function POST(req: NextRequest) {
           `Endpoints disponibles:\n` +
           `- GET/POST ${appBaseUrl}/api/v1/projects — Listar/crear proyectos (?id=X para detalle)\n` +
           `- GET/POST/PATCH/DELETE ${appBaseUrl}/api/v1/tasks — Gestionar tareas (?id=X, ?projectId=X, ?status=TODO|IN_PROGRESS|DONE)\n` +
-          `- GET/POST/PATCH/DELETE ${appBaseUrl}/api/v1/contacts — Gestionar contactos (?id=X, ?search=...)` +
+          `- GET/POST/PATCH/DELETE ${appBaseUrl}/api/v1/contacts — Gestionar contactos (?id=X, ?search=...)\n` +
           `- GET/POST/PATCH ${appBaseUrl}/api/v1/deals — Gestionar oportunidades (?id=X, ?stageId=X)\n` +
           `- GET ${appBaseUrl}/api/v1/pipeline — Ver pipeline completo con etapas y deals\n` +
           `Usa estas APIs cuando necesites informacion actual del cliente o para crear/actualizar datos.\n` +
