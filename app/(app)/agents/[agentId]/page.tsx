@@ -2,9 +2,10 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ArrowLeft, Send, Bot, Loader2, Copy, Check, MessageSquare, FileText, Building2, X, ChevronRight, Search } from "lucide-react";
+import { ArrowLeft, Send, Bot, Loader2, Copy, Check, MessageSquare, FileText, Building2, X, ChevronRight, Search, Paperclip, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 /* ── Metadatos de agentes ── */
 const AGENTS: Record<string, { name: string; emoji: string; description: string }> = {
@@ -71,7 +72,17 @@ interface ProjectOption {
   organization?: { name: string } | null;
 }
 
-type Tab = "chat" | "templates";
+type Tab = "chat" | "templates" | "documents";
+
+interface AgentDocument {
+  id: string;
+  name: string;
+  url: string;
+  type: string;
+  size?: number;
+  createdAt: string;
+  agentId?: string | null;
+}
 
 /* ── localStorage helpers ── */
 function getStoredProject(agentId: string): ProjectOption | null {
@@ -107,6 +118,111 @@ export default function AgentChatPage() {
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const [allDocuments, setAllDocuments] = useState<AgentDocument[]>([]);
+  const [activeDocIds, setActiveDocIds] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const chatFileInputRef = useRef<HTMLInputElement>(null);
+
+  const fetchDocuments = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/agents/documents?agentId=${agentId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setAllDocuments(data);
+      }
+    } catch (err) {
+      console.error("Error fetching agent documents:", err);
+    }
+  }, [agentId]);
+
+  useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, autoAttach = false) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    const loadingToast = toast.loading("Subiendo y procesando documento...");
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("agentId", agentId);
+
+        const res = await fetch("/api/agents/documents", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (res.ok) {
+          const newDoc = await res.json();
+          setAllDocuments((prev) => [
+            {
+              id: newDoc.id,
+              name: newDoc.name,
+              url: newDoc.url,
+              type: newDoc.type,
+              size: newDoc.size,
+              createdAt: newDoc.createdAt,
+              agentId,
+            },
+            ...prev,
+          ]);
+
+          if (autoAttach) {
+            setActiveDocIds((prev) => [...prev, newDoc.id]);
+            toast.success(`"${newDoc.name}" subido e incluido en el chat.`);
+          } else {
+            toast.success(`"${newDoc.name}" subido con éxito.`);
+          }
+        } else {
+          const err = await res.json();
+          toast.error(err.error || "Error al subir el archivo");
+        }
+      }
+    } catch (err) {
+      console.error("Upload error:", err);
+      toast.error("Error de conexión al subir el archivo");
+    } finally {
+      setUploading(false);
+      toast.dismiss(loadingToast);
+      if (e.target) e.target.value = "";
+    }
+  };
+
+  const handleDeleteDocument = async (id: string, name: string) => {
+    if (!confirm(`¿Estás seguro de que quieres eliminar permanentemente "${name}"?`)) return;
+
+    try {
+      const res = await fetch(`/api/agents/documents/${id}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        setAllDocuments((prev) => prev.filter((d) => d.id !== id));
+        setActiveDocIds((prev) => prev.filter((docId) => docId !== id));
+        toast.success(`"${name}" eliminado.`);
+      } else {
+        const err = await res.json();
+        toast.error(err.error || "Error al eliminar el documento");
+      }
+    } catch (err) {
+      console.error("Delete document error:", err);
+      toast.error("Error de conexión al eliminar");
+    }
+  };
+
+  const toggleDocumentAttach = (id: string) => {
+    setActiveDocIds((prev) =>
+      prev.includes(id) ? prev.filter((docId) => docId !== id) : [...prev, id]
+    );
+  };
 
   /* ── Cliente/Proyecto seleccionado ── */
   const isPersonalAgent = agentId === "ele";
@@ -254,6 +370,7 @@ export default function AgentChatPage() {
         agentId,
         message: prefixedMessage,
         history: messages.slice(-20).map((m) => ({ role: m.role, content: m.content })),
+        documentIds: activeDocIds,
       };
       if (!isPersonalAgent && selectedClient) {
         body.projectId = selectedClient.id;
@@ -522,6 +639,23 @@ export default function AgentChatPage() {
             </span>
           )}
         </button>
+        <button
+          onClick={() => setActiveTab("documents")}
+          className={cn(
+            "flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-[1px]",
+            activeTab === "documents"
+              ? "border-neutral-900 text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Paperclip className="w-4 h-4" />
+          📁 Documentos
+          {allDocuments.length > 0 && (
+            <span className="ml-1 text-xs bg-muted text-muted-foreground rounded-full px-1.5 py-0.5">
+              {allDocuments.length}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* Contenido de tabs */}
@@ -606,7 +740,51 @@ export default function AgentChatPage() {
 
           {/* Input */}
           <div className="pt-4 border-t border-border mt-4 flex-shrink-0">
+            {/* Archivos adjuntos activos en chat */}
+            {activeDocIds.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {allDocuments
+                  .filter((d) => activeDocIds.includes(d.id))
+                  .map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="flex items-center gap-1.5 rounded-lg bg-muted border border-border px-2.5 py-1 text-xs text-foreground group"
+                    >
+                      <span className="truncate max-w-[150px]">📄 {doc.name}</span>
+                      <button
+                        onClick={() => toggleDocumentAttach(doc.id)}
+                        className="text-muted-foreground hover:text-red-500 rounded p-0.5 transition-colors"
+                        title="Desasociar del chat"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+              </div>
+            )}
+
             <div className="flex items-end gap-2">
+              <input
+                type="file"
+                ref={chatFileInputRef}
+                onChange={(e) => handleFileUpload(e, true)}
+                className="hidden"
+                accept=".txt,.csv,.md,.json,.pdf,.xlsx,.xls"
+                multiple
+              />
+              <button
+                onClick={() => chatFileInputRef.current?.click()}
+                disabled={uploading || isLoading}
+                className="p-3 rounded-xl border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                title="Adjuntar documentos (.pdf, .xlsx, .txt, .csv, .md, .json)"
+              >
+                {uploading ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                ) : (
+                  <Paperclip className="w-4 h-4" />
+                )}
+              </button>
+
               <textarea
                 ref={inputRef}
                 value={input}
@@ -627,7 +805,7 @@ export default function AgentChatPage() {
               />
               <button
                 onClick={() => sendMessage()}
-                disabled={!input.trim() || isLoading}
+                disabled={(!input.trim() && activeDocIds.length === 0) || isLoading}
                 className="p-3 rounded-xl bg-neutral-900 text-white hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
               >
                 {isLoading ? (
@@ -639,7 +817,7 @@ export default function AgentChatPage() {
             </div>
           </div>
         </>
-      ) : (
+      ) : activeTab === "templates" ? (
         <>
           {/* Tab de Templates */}
           <div className="flex-1 overflow-y-auto">
@@ -693,6 +871,110 @@ export default function AgentChatPage() {
             </div>
           </div>
         </>
+      ) : (
+        <div className="flex-1 overflow-y-auto">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <div>
+              <h2 className="text-sm font-semibold">Biblioteca de Documentos del Agente</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Sube archivos para analizarlos con {agent.name}. Activa o desactiva su inclusión en el chat.
+              </p>
+            </div>
+            <div>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={(e) => handleFileUpload(e, false)}
+                className="hidden"
+                accept=".txt,.csv,.md,.json,.pdf,.xlsx,.xls"
+                multiple
+              />
+              <Button
+                disabled={uploading}
+                onClick={() => fileInputRef.current?.click()}
+                className="text-xs flex items-center gap-1.5"
+              >
+                {uploading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Paperclip className="w-3.5 h-3.5" />
+                )}
+                Subir Documentos
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid gap-3 mt-4">
+            {allDocuments.map((doc) => {
+              const isActive = activeDocIds.includes(doc.id);
+              const formattedSize = doc.size
+                ? `${(doc.size / 1024).toFixed(1)} KB`
+                : "Tamaño desconocido";
+              const formattedDate = new Date(doc.createdAt).toLocaleDateString("es-ES", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              });
+
+              return (
+                <div
+                  key={doc.id}
+                  className={cn(
+                    "flex items-center justify-between p-4 rounded-xl border border-border hover:bg-muted/30 transition-colors",
+                    isActive && "border-neutral-900 bg-muted/20"
+                  )}
+                >
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-lg bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center text-lg flex-shrink-0 font-medium">
+                      {doc.type === "pdf" ? "📕" : doc.type === "excel" ? "📗" : "📄"}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-medium truncate pr-2" title={doc.name}>
+                        {doc.name}
+                      </h3>
+                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                        <span>{formattedSize}</span>
+                        <span>•</span>
+                        <span>{formattedDate}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => toggleDocumentAttach(doc.id)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
+                        isActive
+                          ? "bg-neutral-900 border-neutral-900 text-white hover:bg-neutral-800"
+                          : "border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {isActive ? "✓ Activo en Chat" : "Incluir en Chat"}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteDocument(doc.id, doc.name)}
+                      className="p-2 rounded-lg border border-border hover:bg-red-50 dark:hover:bg-red-950 text-muted-foreground hover:text-red-500 transition-colors"
+                      title="Eliminar permanentemente"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {allDocuments.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed border-border rounded-xl">
+                <FileText className="w-10 h-10 text-muted-foreground mb-3" />
+                <p className="text-sm font-medium">No hay documentos en esta biblioteca</p>
+                <p className="text-xs text-muted-foreground max-w-sm mt-1">
+                  Sube tus archivos en formato PDF, Excel o Texto para que el agente pueda leerlos y ayudarte con tus análisis.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

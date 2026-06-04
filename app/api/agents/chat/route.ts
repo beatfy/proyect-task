@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
     });
     const userName = userDetails?.name || userDetails?.email || "Usuario";
 
-    const { agentId, message, history, projectId } = await req.json();
+    const { agentId, message, history, projectId, documentIds } = await req.json();
 
     if (!agentId || typeof agentId !== "string") {
       return NextResponse.json({ error: "agentId es requerido" }, { status: 400 });
@@ -396,9 +396,30 @@ REGLAS CRITICAS:
       messages.push(...contextMsg);
     }
 
-    const finalMessage = clientContext
-      ? `${message}${clientContext}${agentApiContext}`
-      : `${message}${agentApiContext}`;
+    let documentsContext = "";
+    if (documentIds && Array.isArray(documentIds) && documentIds.length > 0) {
+      try {
+        const loadedDocs = await prisma.agentDocument.findMany({
+          where: {
+            id: { in: documentIds },
+            userId: authResult.userId,
+          },
+          select: { name: true, text: true },
+        });
+
+        if (loadedDocs.length > 0) {
+          documentsContext = "\n\n---\n[DOCUMENTOS ADJUNTOS POR EL USUARIO PARA SU ANÁLISIS]";
+          loadedDocs.forEach((doc) => {
+            documentsContext += `\n\nNombre de Archivo: ${doc.name}\nContenido:\n--- START FILE ---\n${doc.text || "(Este archivo no tiene texto extraíble o está vacío)"}\n--- END FILE ---`;
+          });
+          documentsContext += "\n[FIN DE DOCUMENTOS ADJUNTOS]";
+        }
+      } catch (docErr) {
+        console.error("Error loading agent documents context:", docErr);
+      }
+    }
+
+    const finalMessage = `${message}${documentsContext}${clientContext}${agentApiContext}`;
 
     messages.push({ role: "user", content: finalMessage });
 

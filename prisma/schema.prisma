@@ -35,6 +35,7 @@ model User {
   gaConnection GoogleAnalyticsConnection?
   journalEntries BulletJournalEntry[]
   journalHabits BulletJournalHabit[]
+  agentDocuments AgentDocument[]
 
 }
 
@@ -578,5 +579,18 @@ model BulletJournalHabitLog {
   createdAt     DateTime @default(now())
 
   @@unique([habitId, date])
+}
+
+model AgentDocument {
+  id        String   @id @default(cuid())
+  name      String
+  url       String
+  type      String
+  size      Int?
+  text      String?
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agentId   String?
 }
 
