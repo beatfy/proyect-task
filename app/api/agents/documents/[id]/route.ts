@@ -5,7 +5,9 @@ import { readFile, unlink } from "fs/promises";
 import { join } from "path";
 import { existsSync } from "fs";
 
-const UPLOAD_DIR = join(process.cwd(), "uploads", "agent-documents");
+const UPLOAD_DIR = process.env.VERCEL
+  ? join("/tmp", "agent-documents")
+  : join(process.cwd(), "uploads", "agent-documents");
 
 export async function GET(
   request: NextRequest,

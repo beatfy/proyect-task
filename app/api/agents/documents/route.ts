@@ -6,7 +6,9 @@ import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import * as XLSX from "xlsx";
 
-const UPLOAD_DIR = join(process.cwd(), "uploads", "agent-documents");
+const UPLOAD_DIR = process.env.VERCEL
+  ? join("/tmp", "agent-documents")
+  : join(process.cwd(), "uploads", "agent-documents");
 
 const ALLOWED_EXTENSIONS = ["txt", "csv", "md", "json", "pdf", "xlsx", "xls"];
 
