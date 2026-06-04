@@ -4,8 +4,6 @@ import { authenticateRequest } from "@/lib/api-auth";
 import { cuid } from "@/lib/utils";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdf = require("pdf-parse");
 import * as XLSX from "xlsx";
 
 const UPLOAD_DIR = join(process.cwd(), "uploads", "agent-documents");
@@ -22,11 +20,18 @@ function sanitizeFilename(filename: string): string {
 }
 
 async function extractText(buffer: Buffer, extension: string): Promise<string> {
-  try {
-    if (extension === "pdf") {
+  if (extension === "pdf") {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const pdf = require("pdf-parse");
       const parsed = await pdf(buffer);
       return parsed.text || "";
-    } else if (extension === "xlsx" || extension === "xls") {
+    } catch (err) {
+      console.error("Error al cargar o ejecutar pdf-parse:", err);
+      throw new Error("Librería de lectura de PDF (pdf-parse) no disponible o fallida en este servidor. Contacta al administrador o sube archivos de texto/Excel.");
+    }
+  } else if (extension === "xlsx" || extension === "xls") {
+    try {
       const workbook = XLSX.read(buffer, { type: "buffer" });
       let text = "";
       workbook.SheetNames.forEach((sheetName) => {
@@ -35,13 +40,18 @@ async function extractText(buffer: Buffer, extension: string): Promise<string> {
         text += XLSX.utils.sheet_to_txt(sheet) + "\n\n";
       });
       return text;
-    } else {
-      // Archivo de texto plano (txt, csv, md, json)
-      return buffer.toString("utf-8");
+    } catch (err) {
+      console.error("Error extrayendo texto de Excel:", err);
+      throw new Error("Error al leer el archivo Excel.");
     }
-  } catch (err) {
-    console.error("Error extrayendo texto del documento:", err);
-    return "";
+  } else {
+    // Archivo de texto plano (txt, csv, md, json)
+    try {
+      return buffer.toString("utf-8");
+    } catch (err) {
+      console.error("Error leyendo archivo de texto:", err);
+      throw new Error("Error al leer el archivo de texto.");
+    }
   }
 }
 
@@ -126,7 +136,12 @@ export async function POST(request: NextRequest) {
     await writeFile(filePath, buffer);
 
     // Extraer texto
-    const extractedText = await extractText(buffer, ext);
+    let extractedText = "";
+    try {
+      extractedText = await extractText(buffer, ext);
+    } catch (extractErr: any) {
+      return NextResponse.json({ error: extractErr.message || "Error al procesar el texto del archivo" }, { status: 400 });
+    }
 
     // Determinar tipo general
     let fileType = "document";
