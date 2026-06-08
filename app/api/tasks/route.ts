@@ -287,7 +287,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: errors }, { status: 400 });
     }
 
-    const { title, description, status, priority, dueDate, projectId, assignedTo, assigneeId, assigneeIds, parentId, organizationId, pipelineId, stageId } = parsed.data;
+    const { title, description, status, priority, dueDate, projectId, assignedTo, assigneeId, assigneeIds, parentId, organizationId, pipelineId, stageId, tdahMetrics } = parsed.data;
 
     const { pipelineId: finalPipelineId, stageId: finalStageId } = await syncPipelineAndStage(prisma, {
       projectId: projectId || null,
@@ -325,6 +325,18 @@ export async function POST(request: NextRequest) {
 
     const finalAssigneeIds: string[] = Array.isArray(assigneeIds) ? assigneeIds.filter(Boolean) : [];
 
+    if (status === "planning") {
+      const count = await prisma.task.count({
+        where: {
+          creatorId: authResult.userId,
+          status: "planning"
+        }
+      });
+      if (count >= 3) {
+        return NextResponse.json({ error: "Demasiadas tareas en planificación. Termina una primero." }, { status: 400 });
+      }
+    }
+
     const task = await prisma.task.create({
       data: {
         id: cuid(),
@@ -340,6 +352,7 @@ export async function POST(request: NextRequest) {
         parentId: parentId || null,
         pipelineId: finalPipelineId || null,
         stageId: finalStageId || null,
+        tdahMetrics: tdahMetrics || null,
         taskAssignees: finalAssigneeIds.length > 0 ? {
           create: finalAssigneeIds.map(uid => ({ id: cuid(), userId: uid }))
         } : undefined,
@@ -425,11 +438,24 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: errors }, { status: 400 });
     }
 
-    const { id, status, priority, title, description, projectId, assignedTo, assigneeId, assigneeIds, dueDate, organizationId, pipelineId, stageId } = parsed.data;
+    const { id, status, priority, title, description, projectId, assignedTo, assigneeId, assigneeIds, dueDate, organizationId, pipelineId, stageId, tdahMetrics } = parsed.data;
 
     const authorized = await canModifyTask(authResult.userId, id);
     if (!authorized) {
       return NextResponse.json({ error: "No tienes permisos para modificar esta tarea" }, { status: 403 });
+    }
+
+    if (status === "planning") {
+      const count = await prisma.task.count({
+        where: {
+          creatorId: authResult.userId,
+          status: "planning",
+          id: { not: id }
+        }
+      });
+      if (count >= 3) {
+        return NextResponse.json({ error: "Demasiadas tareas en planificación. Termina una primero." }, { status: 400 });
+      }
     }
 
     const currentTask = await prisma.task.findUnique({
@@ -473,6 +499,7 @@ export async function PATCH(request: NextRequest) {
     if (projectId !== undefined) updateData.projectId = projectId || null;
     if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null;
     if (organizationId !== undefined) updateData.organizationId = organizationId || null;
+    if (tdahMetrics !== undefined) updateData.tdahMetrics = tdahMetrics || null;
 
     if (assigneeId !== undefined) {
       updateData.assigneeId = assigneeId || null;

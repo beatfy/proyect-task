@@ -99,6 +99,7 @@ model Task {
   pipeline      TaskPipeline?   @relation(fields: [pipelineId], references: [id], onDelete: SetNull)
   stageId       String?
   stage         TaskPipelineStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
+  tdahMetrics   Json?
 }
 
 model TaskAssignee {
