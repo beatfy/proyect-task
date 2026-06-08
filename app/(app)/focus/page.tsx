@@ -32,6 +32,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -55,6 +56,7 @@ interface Task {
     lastTouched: string;
     streakDays: number;
     isPromoted: boolean;
+    blockReason?: string | null;
   } | null;
   createdAt: string;
   updatedAt: string;
@@ -126,6 +128,7 @@ export default function FocusFlowPage() {
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
+  const [newBlockReason, setNewBlockReason] = useState("");
   const [newProjectId, setNewProjectId] = useState<string>("");
   const [newWeight, setNewWeight] = useState<number>(3);
   const [newEnergy, setNewEnergy] = useState<"low" | "medium" | "high">("medium");
@@ -408,7 +411,8 @@ export default function FocusFlowPage() {
           blocksSomeone: newBlocksSomeone,
           dopamineSource: newDopamineSource,
           lastTouched: new Date().toISOString(),
-          streakDays: 0
+          streakDays: 0,
+          blockReason: newBlockReason || null
         }
       };
 
@@ -426,6 +430,7 @@ export default function FocusFlowPage() {
         // Reset inputs
         setNewTitle("");
         setNewDesc("");
+        setNewBlockReason("");
         setNewProjectId("");
         setNewWeight(3);
         setNewEnergy("medium");
@@ -489,12 +494,39 @@ export default function FocusFlowPage() {
       };
     }
     return {
-      bg: "from-red-50/95 to-rose-100/95 dark:from-red-950/30 dark:to-rose-950/30 shadow-lg shadow-red-500/5",
+      bg: "from-red-50/95 to-rose-100/95 dark:from-red-950/30 dark:to-rose-950/30",
       border: "border-red-300 dark:border-red-800/60",
       text: "text-red-900 dark:text-red-200",
       pill: "bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300",
       themeColor: "#ef4444",
       label: "Bloqueo Emocional Extremo"
+    };
+  };
+
+  // Helper to customize sizing and styles for queue task cards
+  const getCardScaleAndStyle = (weight: number, streakDays: number) => {
+    let sizeClass = "p-4 sm:p-5 text-base";
+    let borderClass = "border border-border/50 hover:border-border";
+    let pulseClass = "";
+    let opacityClass = "";
+
+    if (weight <= 1.5) {
+      // Alleviated / Light (Slight opacity reduction and micro-blur to indicate low priority)
+      sizeClass = "p-3 sm:p-4 text-sm opacity-65 dark:opacity-50 saturate-50 blur-[0.2px] hover:opacity-100 hover:saturate-100 hover:blur-none transition-all duration-300";
+    } else if (weight >= 4.5) {
+      // Heavy/Critical (Larger font, thicker border, larger padding)
+      sizeClass = "p-6 sm:p-7 text-lg font-extrabold";
+      borderClass = "border-2 border-red-500/50 dark:border-red-500/60 shadow-lg shadow-red-500/5";
+    }
+
+    if (streakDays > 3) {
+      borderClass = "border-2 border-red-500 dark:border-red-500";
+      pulseClass = "animate-pulse-subtle";
+    }
+
+    return {
+      wrapperClass: cn("transition-all duration-300 overflow-hidden", borderClass, pulseClass, opacityClass),
+      sizeClass
     };
   };
 
@@ -531,6 +563,21 @@ export default function FocusFlowPage() {
 
     return (
       <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950 text-slate-100 font-sans p-6 overflow-hidden">
+        {/* CSS Keyframes injected inline safely */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          @keyframes pulse-subtle {
+            0%, 100% {
+              box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.35);
+            }
+            50% {
+              box-shadow: 0 0 0 7px rgba(239, 68, 68, 0.05);
+            }
+          }
+          .animate-pulse-subtle {
+            animation: pulse-subtle 1.8s infinite ease-in-out;
+          }
+        `}} />
+
         {/* Distraction Free Background Shapes */}
         <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] rounded-full bg-indigo-900/10 blur-[120px] pointer-events-none" />
         <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-emerald-900/10 blur-[120px] pointer-events-none" />
@@ -547,7 +594,7 @@ export default function FocusFlowPage() {
           </Button>
           <div className="flex items-center gap-2 text-slate-400 text-xs tracking-wider uppercase">
             <Zap className={cn("h-4 w-4 text-amber-400", timerActive && "animate-pulse")} />
-            {isPrimerSession ? "Activador Dopamina" : "Sesión Focus activa"}
+            {isPrimerSession ? "Activador Dopamina" : "Modo Focus Activo"}
           </div>
         </div>
 
@@ -582,6 +629,14 @@ export default function FocusFlowPage() {
               <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-400 line-clamp-3">
                 {taskDesc}
               </p>
+            )}
+
+            {/* What Blocks Me - Friction Log displayed directly to tackle it */}
+            {!isPrimerSession && currentFocusTask?.tdahMetrics?.blockReason && (
+              <div className="mt-4 bg-slate-950/40 dark:bg-slate-900/50 border border-slate-500/10 rounded-lg p-3 text-xs text-slate-600 dark:text-slate-350 italic">
+                <span className="font-bold text-[var(--mediterranean-terracotta)] not-italic block mb-0.5">🧠 Fricción identificada:</span>
+                &ldquo;{currentFocusTask.tdahMetrics.blockReason}&rdquo;
+              </div>
             )}
           </div>
 
@@ -718,6 +773,21 @@ export default function FocusFlowPage() {
   // Renders the MAIN DASHBOARD
   return (
     <div className="space-y-6 max-w-6xl mx-auto p-1 md:p-3">
+      {/* CSS Keyframes injected inline safely */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes pulse-subtle {
+          0%, 100% {
+            box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.35);
+          }
+          50% {
+            box-shadow: 0 0 0 7px rgba(239, 68, 68, 0.05);
+          }
+        }
+        .animate-pulse-subtle {
+          animation: pulse-subtle 1.8s infinite ease-in-out;
+        }
+      `}} />
+
       {/* Title & Introduction */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/50 pb-5">
         <div>
@@ -879,6 +949,39 @@ export default function FocusFlowPage() {
             </div>
           </div>
 
+          {/* Dopamine Primer Header Box - "No puedo arrancar" quick booster */}
+          <Card className="border border-amber-500/20 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/5 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-amber-800 dark:text-amber-400 flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4 animate-bounce text-amber-500" />
+                ¿Fricción de inicio? 🧠 Calienta tu mente primero
+              </h3>
+              <p className="text-xs text-muted-foreground max-w-xl">
+                Tu cerebro TDAH necesita dopamina antes de empezar una tarea aburrida. Haz un cebador de 3-5 minutos antes de tu sesión.
+              </p>
+            </div>
+            <Button
+              onClick={() => {
+                if (primers.length > 0) {
+                  const randomPrimer = primers[Math.floor(Math.random() * primers.length)];
+                  handleStartPrimer(randomPrimer);
+                } else {
+                  handleStartPrimer({
+                    id: "sys-default",
+                    title: "Organiza 5 objetos en tu mesa",
+                    type: "problem-solving",
+                    duration: "3 min",
+                    isSystem: true
+                  });
+                }
+              }}
+              className="bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs h-9 px-4 shrink-0 shadow-sm"
+            >
+              <Zap className="h-4 w-4 mr-1.5" />
+              No puedo arrancar → Probar Cebador
+            </Button>
+          </Card>
+
           {/* Procrastination Alerts */}
           {focusQueue.filter(t => t.status === "planning").length >= 3 && (
             <div className="rounded-lg bg-orange-500/10 border border-orange-500/30 p-3.5 flex items-start gap-3 text-orange-800 dark:text-orange-300">
@@ -911,25 +1014,24 @@ export default function FocusFlowPage() {
               {focusQueue.map((task) => {
                 const metrics = task.tdahMetrics;
                 const baseWeight = metrics?.emotionalWeight || 1;
+                const streakDays = metrics?.streakDays || 0;
                 const colors = getWeightColorStyles(baseWeight);
+                const visual = getCardScaleAndStyle(baseWeight, streakDays);
                 
                 return (
                   <Card 
                     key={task.id}
-                    className={cn(
-                      "transition-all duration-300 border border-border/50 hover:border-border overflow-hidden",
-                      metrics?.isPromoted && "ring-1 ring-orange-500/30 dark:ring-orange-500/50"
-                    )}
+                    className={visual.wrapperClass}
                   >
                     <div className="flex">
                       {/* Left Colored indicator bar */}
                       <div 
-                        className="w-2"
+                        className="w-2 shrink-0"
                         style={{ backgroundColor: task.project?.color || colors.themeColor }}
                       />
 
-                      <div className="flex-1 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                        <div className="space-y-2 flex-1">
+                      <div className={cn("flex-1 flex flex-col sm:flex-row sm:items-start justify-between gap-4", visual.sizeClass)}>
+                        <div className="space-y-2 flex-1 min-w-0">
                           {/* Badges / Meta */}
                           <div className="flex flex-wrap items-center gap-2">
                             {task.project && (
@@ -946,30 +1048,51 @@ export default function FocusFlowPage() {
                               </Badge>
                             )}
 
-                            {metrics?.isPromoted && (
-                              <Badge className="bg-orange-500 text-white text-[9px] py-0.5 px-1.5 flex items-center gap-0.5 font-bold">
-                                <Flame className="h-3 w-3" /> Prioritaria (Estancada)
+                            {streakDays > 3 && (
+                              <Badge className="bg-red-600 text-white text-[9px] py-0.5 px-1.5 flex items-center gap-0.5 font-bold animate-pulse">
+                                <Flame className="h-3 w-3" /> 🔥 Estancada (+{streakDays}d)
                               </Badge>
                             )}
 
-                            {metrics?.streakDays && metrics.streakDays > 0 ? (
+                            {metrics?.isPromoted && (
+                              <Badge className="bg-orange-500 text-white text-[9px] py-0.5 px-1.5 flex items-center gap-0.5 font-bold">
+                                <AlertCircle className="h-3 w-3" /> Bloqueante
+                              </Badge>
+                            )}
+
+                            {streakDays > 0 && streakDays <= 3 ? (
                               <Badge variant="secondary" className="text-[10px] py-0 px-2 font-medium text-amber-600 dark:text-amber-400 bg-amber-500/5">
-                                Intacta: {metrics.streakDays}d
+                                Intacta: {streakDays}d
                               </Badge>
                             ) : null}
                           </div>
 
                           {/* Title & Description */}
                           <div>
-                            <h3 className="text-base font-bold text-foreground flex items-center gap-1.5">
+                            <h3 className="font-bold text-foreground flex items-center gap-1.5 leading-tight truncate">
+                              {streakDays > 3 && <span className="text-red-500">⚠️</span>}
                               {task.title}
                             </h3>
                             {task.description && (
-                              <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                              <p className="text-xs text-muted-foreground line-clamp-2 mt-1 leading-relaxed">
                                 {task.description}
                               </p>
                             )}
                           </div>
+
+                          {/* Alarm notification for high streaks */}
+                          {streakDays > 3 && (
+                            <div className="text-[11px] font-semibold text-red-600 dark:text-red-400">
+                              ⚠️ Esta tarea te está robando energía mental. ¡Micro-divídela o alíviala ya!
+                            </div>
+                          )}
+
+                          {/* Friction Notes "¿Qué me cuesta?" */}
+                          {metrics?.blockReason && (
+                            <div className="mt-2 text-xs bg-amber-500/5 dark:bg-amber-950/10 border border-amber-500/10 rounded p-2 text-amber-800 dark:text-amber-300 italic">
+                              <strong>Fricción:</strong> &ldquo;{metrics.blockReason}&rdquo;
+                            </div>
+                          )}
 
                           {/* Focus Meta Pills */}
                           <div className="flex flex-wrap items-center gap-2.5 pt-1 text-[11px] text-muted-foreground">
@@ -992,7 +1115,7 @@ export default function FocusFlowPage() {
                         <div className="flex sm:flex-col justify-end gap-2 shrink-0 pt-2 sm:pt-0">
                           <Button
                             onClick={() => handleStartFocus(task)}
-                            className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs px-3 h-8 shadow-sm"
+                            className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs px-3 h-8 shadow-sm w-full sm:w-auto"
                           >
                             <Play className="h-3.5 w-3.5 mr-1.5" />
                             Iniciar Focus
@@ -1003,7 +1126,7 @@ export default function FocusFlowPage() {
                               setSelectedTaskForSplit(task);
                               setIsMicroSplitOpen(true);
                             }}
-                            className="border-border text-xs h-8 px-3"
+                            className="border-border text-xs h-8 px-3 w-full sm:w-auto"
                           >
                             <Split className="h-3.5 w-3.5 mr-1.5" />
                             Dividir Tarea
@@ -1212,6 +1335,18 @@ export default function FocusFlowPage() {
                 onChange={(e) => setNewDesc(e.target.value)}
                 placeholder="Añade detalles breves para evitar distracciones en el inicio"
                 className="bg-background border-border text-sm"
+              />
+            </div>
+
+            {/* Block Friction "¿Qué me cuesta?" */}
+            <div className="space-y-1">
+              <Label htmlFor="task-blockreason" className="text-xs font-semibold text-foreground">¿Qué te cuesta o bloquea de esta tarea? (Opcional)</Label>
+              <Textarea
+                id="task-blockreason"
+                value={newBlockReason}
+                onChange={(e) => setNewBlockReason(e.target.value)}
+                placeholder="Ej. Siento pereza porque requiere ordenar datos repetitivos y no sé por dónde empezar"
+                className="bg-background border-border text-sm h-16 resize-none"
               />
             </div>
 
