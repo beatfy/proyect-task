@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
       const blocksSomeone = !!metrics.blocksSomeone;
       const dopamineSource = metrics.dopamineSource || "routine";
       const lastTouchedStr = metrics.lastTouched || task.updatedAt.toISOString();
+      const blockReason = metrics.blockReason || null;
       
       const lastTouchedDate = new Date(lastTouchedStr);
       const diffTime = Math.abs(now.getTime() - lastTouchedDate.getTime());
@@ -59,7 +60,8 @@ export async function GET(request: NextRequest) {
           dopamineSource,
           lastTouched: lastTouchedStr,
           streakDays,
-          isPromoted
+          isPromoted,
+          blockReason
         }
       };
     });
@@ -113,7 +115,9 @@ export async function POST(request: NextRequest) {
       energyRequired,
       blocksSomeone,
       dopamineSource,
-      status = "TODO"
+      blockReason, // Extract blockReason from root
+      status = "TODO",
+      tdahMetrics: inputTdahMetrics // Extract optional nested metrics
     } = body;
 
     if (!title) return apiError("El campo title es requerido", 400);
@@ -146,6 +150,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const finalBlockReason = blockReason || inputTdahMetrics?.blockReason || null;
+
     // Construct tdahMetrics object
     const tdahMetrics = {
       emotionalWeight: typeof emotionalWeight === "number" ? emotionalWeight : 3,
@@ -155,7 +161,8 @@ export async function POST(request: NextRequest) {
       blocksSomeone: !!blocksSomeone,
       dopamineSource: dopamineSource || "routine",
       lastTouched: new Date().toISOString(),
-      streakDays: 0
+      streakDays: 0,
+      blockReason: finalBlockReason
     };
 
     const task = await prisma.task.create({

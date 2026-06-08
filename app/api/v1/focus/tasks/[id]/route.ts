@@ -31,7 +31,9 @@ export async function PATCH(
       energyRequired,
       blocksSomeone,
       dopamineSource,
-      status
+      blockReason, // Extract blockReason from root
+      status,
+      tdahMetrics: inputTdahMetrics // Extract optional nested metrics
     } = body;
 
     // Procrastination limit check
@@ -63,6 +65,12 @@ export async function PATCH(
     if (timeBlock !== undefined) updatedMetrics.timeBlock = timeBlock;
     if (blocksSomeone !== undefined) updatedMetrics.blocksSomeone = !!blocksSomeone;
     if (dopamineSource !== undefined) updatedMetrics.dopamineSource = dopamineSource;
+    
+    // Support blockReason from either root level or nested inside tdahMetrics
+    const finalBlockReason = blockReason !== undefined ? blockReason : inputTdahMetrics?.blockReason;
+    if (finalBlockReason !== undefined) {
+      updatedMetrics.blockReason = finalBlockReason || null;
+    }
 
     // Mark as touched on any updates
     updatedMetrics.lastTouched = new Date().toISOString();
