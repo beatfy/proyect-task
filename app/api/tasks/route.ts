@@ -102,6 +102,99 @@ async function maybeConvertLongDescription(
   return shortDesc;
 }
 
+async function syncPipelineAndStage(
+  tx: any,
+  data: {
+    projectId?: string | null;
+    organizationId?: string | null;
+    pipelineId?: string | null;
+    stageId?: string | null;
+    status?: string | null;
+  }
+) {
+  let pipelineId = data.pipelineId;
+  let stageId = data.stageId;
+  const status = data.status || "TODO";
+
+  if (stageId) {
+    const stageObj = await tx.taskPipelineStage.findUnique({
+      where: { id: stageId },
+      select: { pipelineId: true },
+    });
+    if (stageObj) {
+      pipelineId = stageObj.pipelineId;
+    }
+    return { pipelineId, stageId };
+  }
+
+  const where: Record<string, any> = {};
+  if (data.projectId) {
+    where.projectId = data.projectId;
+  } else if (data.organizationId) {
+    where.organizationId = data.organizationId;
+    where.projectId = null;
+  } else {
+    where.projectId = null;
+    where.organizationId = null;
+  }
+
+  let pipeline = await tx.taskPipeline.findFirst({
+    where,
+    include: { stages: { orderBy: { position: "asc" } } },
+  });
+
+  if (!pipeline) {
+    let pipelineName = "General";
+    if (data.projectId) {
+      const proj = await tx.project.findUnique({ where: { id: data.projectId } });
+      if (proj) pipelineName = `Tablero ${proj.name}`;
+    }
+
+    const defaultStages = [
+      { name: "Por hacer", color: "#64748b", position: 0 },
+      { name: "En progreso", color: "#3b82f6", position: 1 },
+      { name: "En revisión", color: "#eab308", position: 2 },
+      { name: "Hecho", color: "#22c55e", position: 3 },
+    ];
+
+    pipeline = await tx.taskPipeline.create({
+      data: {
+        id: cuid(),
+        name: pipelineName,
+        isDefault: true,
+        projectId: data.projectId || null,
+        organizationId: data.organizationId || null,
+        stages: {
+          create: defaultStages.map((stage) => ({
+            id: cuid(),
+            name: stage.name,
+            color: stage.color,
+            position: stage.position,
+          })),
+        },
+      },
+      include: { stages: { orderBy: { position: "asc" } } },
+    });
+  }
+
+  let stage = pipeline.stages.find((s: any) => s.id === status);
+  if (!stage) {
+    const statusMap: Record<string, number> = {
+      TODO: 0,
+      INPROGRESS: 1,
+      INREVIEW: 2,
+      DONE: 3,
+    };
+    const targetPos = statusMap[status.toUpperCase()] ?? 0;
+    stage = pipeline.stages[targetPos] || pipeline.stages[0];
+  }
+
+  return {
+    pipelineId: pipeline.id,
+    stageId: stage ? stage.id : null,
+  };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const authResult = await authenticateRequest(request);
@@ -161,6 +254,7 @@ export async function GET(request: NextRequest) {
           }
         },
         tags: true,
+        stage: true,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -193,7 +287,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: errors }, { status: 400 });
     }
 
-    const { title, description, status, priority, dueDate, projectId, assignedTo, assigneeId, assigneeIds, parentId, organizationId } = parsed.data;
+    const { title, description, status, priority, dueDate, projectId, assignedTo, assigneeId, assigneeIds, parentId, organizationId, pipelineId, stageId } = parsed.data;
+
+    const { pipelineId: finalPipelineId, stageId: finalStageId } = await syncPipelineAndStage(prisma, {
+      projectId: projectId || null,
+      organizationId: organizationId || null,
+      pipelineId: pipelineId || null,
+      stageId: stageId || null,
+      status: status || "TODO",
+    });
 
     const userExists = await prisma.user.findUnique({ where: { id: authResult.userId }, select: { id: true } });
     if (!userExists) {
@@ -228,7 +330,7 @@ export async function POST(request: NextRequest) {
         id: cuid(),
         title,
         description,
-        status: status || "TODO",
+        status: finalStageId || status || "TODO",
         priority: priority || "NONE",
         dueDate: dueDate ? new Date(dueDate) : null,
         projectId: projectId || null,
@@ -236,6 +338,8 @@ export async function POST(request: NextRequest) {
         assigneeId: finalAssigneeId,
         organizationId: organizationId || null,
         parentId: parentId || null,
+        pipelineId: finalPipelineId || null,
+        stageId: finalStageId || null,
         taskAssignees: finalAssigneeIds.length > 0 ? {
           create: finalAssigneeIds.map(uid => ({ id: cuid(), userId: uid }))
         } : undefined,
@@ -246,6 +350,7 @@ export async function POST(request: NextRequest) {
         taskAssignees: {
           include: { user: { select: { id: true, name: true, email: true, image: true } } }
         },
+        stage: true,
       },
     });
 
@@ -320,15 +425,48 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: errors }, { status: 400 });
     }
 
-    const { id, status, priority, title, description, projectId, assignedTo, assigneeId, assigneeIds, dueDate, organizationId } = parsed.data;
+    const { id, status, priority, title, description, projectId, assignedTo, assigneeId, assigneeIds, dueDate, organizationId, pipelineId, stageId } = parsed.data;
 
     const authorized = await canModifyTask(authResult.userId, id);
     if (!authorized) {
       return NextResponse.json({ error: "No tienes permisos para modificar esta tarea" }, { status: 403 });
     }
 
+    const currentTask = await prisma.task.findUnique({
+      where: { id },
+      select: { 
+        projectId: true, 
+        organizationId: true, 
+        pipelineId: true, 
+        stageId: true, 
+        status: true,
+        assigneeId: true,
+        creatorId: true,
+        title: true,
+      },
+    });
+
+    let finalPipelineId = pipelineId;
+    let finalStageId = stageId;
+
+    if (stageId !== undefined || pipelineId !== undefined || status !== undefined) {
+      const syncResult = await syncPipelineAndStage(prisma, {
+        projectId: projectId !== undefined ? projectId : currentTask?.projectId,
+        organizationId: organizationId !== undefined ? organizationId : currentTask?.organizationId,
+        pipelineId: pipelineId !== undefined ? pipelineId : currentTask?.pipelineId,
+        stageId: stageId !== undefined ? stageId : currentTask?.stageId,
+        status: status !== undefined ? status : currentTask?.status,
+      });
+      finalPipelineId = syncResult.pipelineId;
+      finalStageId = syncResult.stageId;
+    }
+
     const updateData: Record<string, unknown> = {};
-    if (status !== undefined) updateData.status = status;
+    if (status !== undefined || finalStageId !== undefined) {
+      updateData.status = finalStageId || status || "TODO";
+    }
+    if (finalPipelineId !== undefined) updateData.pipelineId = finalPipelineId || null;
+    if (finalStageId !== undefined) updateData.stageId = finalStageId || null;
     if (priority !== undefined) updateData.priority = priority;
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
@@ -386,10 +524,6 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    const currentTask = await prisma.task.findUnique({
-      where: { id },
-      select: { status: true, assigneeId: true, creatorId: true, title: true },
-    });
 
     const task = await prisma.task.update({
       where: { id },
@@ -400,6 +534,7 @@ export async function PATCH(request: NextRequest) {
         taskAssignees: {
           include: { user: { select: { id: true, name: true, email: true, image: true } } }
         },
+        stage: true,
       },
     });
 

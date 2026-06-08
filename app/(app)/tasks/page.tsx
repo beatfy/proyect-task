@@ -49,6 +49,25 @@ interface Task {
   createdAt?: string | null;
   creatorId?: string | null;
   creator?: { id: string; name: string | null; email: string; image?: string | null } | null;
+  pipelineId?: string | null;
+  stageId?: string | null;
+  stage?: { id: string; name: string; color: string; position: number } | null;
+}
+
+interface TaskPipelineStage {
+  id: string;
+  name: string;
+  position: number;
+  color: string;
+}
+
+interface TaskPipeline {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  projectId: string | null;
+  organizationId: string | null;
+  stages: TaskPipelineStage[];
 }
 
 interface Subtask extends Task {}
@@ -208,6 +227,7 @@ function TasksPageContent() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState("TODO");
+  const [stageId, setStageId] = useState("");
   const [priority, setPriority] = useState("NONE");
   const [dueDate, setDueDate] = useState("");
   const [assignedTo, setAssignedTo] = useState("");
@@ -217,6 +237,14 @@ function TasksPageContent() {
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [assigneeDropdownOpen, setAssigneeDropdownOpen] = useState(false);
   const assigneeDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Dynamic Pipeline States
+  const [pipelines, setPipelines] = useState<TaskPipeline[]>([]);
+  const [selectedPipelineId, setSelectedPipelineId] = useState<string>("");
+  const [pipelineSettingsOpen, setPipelineSettingsOpen] = useState(false);
+  const [newPipelineName, setNewPipelineName] = useState("");
+  const [editPipelineName, setEditPipelineName] = useState("");
+  const [editPipelineStages, setEditPipelineStages] = useState<TaskPipelineStage[]>([]);
 
   // Subtasks
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
@@ -254,12 +282,41 @@ function TasksPageContent() {
 
   const searchParams = useSearchParams();
 
+  const fetchPipelines = useCallback(async (projId?: string) => {
+    try {
+      const params = new URLSearchParams();
+      const actualProj = projId !== undefined ? projId : filterProject;
+      if (actualProj && actualProj !== "all") {
+        params.set("projectId", actualProj);
+      } else if (selectedOrg && selectedOrg !== "all") {
+        params.set("organizationId", selectedOrg);
+      }
+      const res = await fetch(`/api/tasks/pipelines?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setPipelines(data);
+        if (data.length > 0) {
+          const activeId = data.some((p: any) => p.id === selectedPipelineId) 
+            ? selectedPipelineId 
+            : data[0].id;
+          setSelectedPipelineId(activeId);
+        }
+      }
+    } catch {}
+  }, [selectedOrg, selectedPipelineId, filterProject]);
+
   useEffect(() => {
     fetchTasks();
     fetchProjects();
     fetchTemplates();
     fetchActiveTimer();
+    fetchPipelines();
   }, [selectedOrg]);
+
+  // When project filter changes, reload pipelines
+  useEffect(() => {
+    fetchPipelines(filterProject);
+  }, [filterProject]);
 
   // Auto-open task from URL param & set project filter from URL
   useEffect(() => {
@@ -446,10 +503,54 @@ function TasksPageContent() {
     } catch {}
   };
 
+  const fallbackStages = [
+    { id: "TODO", name: "Por hacer", color: "#64748b", position: 0 },
+    { id: "INPROGRESS", name: "En progreso", color: "#3b82f6", position: 1 },
+    { id: "INREVIEW", name: "En revisión", color: "#eab308", position: 2 },
+    { id: "DONE", name: "Hecho", color: "#22c55e", position: 3 },
+  ];
+
+  const activePipeline = pipelines.find(p => p.id === selectedPipelineId) || pipelines[0];
+  const activeStages = activePipeline?.stages || [];
+  const stagesToRender = activeStages.length > 0 ? activeStages : fallbackStages;
+
+  const getStageBadgeStyle = (color: string) => {
+    return {
+      backgroundColor: `${color}15`,
+      borderColor: `${color}30`,
+      color: color,
+    };
+  };
+
+  const isTaskInStage = (task: Task, stageId: string, allStages: TaskPipelineStage[]) => {
+    if (task.stageId === stageId) return true;
+    if (task.stageId && allStages.some(s => s.id === task.stageId)) {
+      return false;
+    }
+    const columnIndex = allStages.findIndex(s => s.id === stageId);
+    if (columnIndex === -1) return false;
+    
+    const taskStatusUpper = (task.status || "TODO").toUpperCase();
+    if (taskStatusUpper === "TODO" && columnIndex === 0) return true;
+    if (taskStatusUpper === "INPROGRESS" && columnIndex === 1) return true;
+    if (taskStatusUpper === "INREVIEW" && columnIndex === 2) return true;
+    if (taskStatusUpper === "DONE" && columnIndex === (allStages.length - 1)) return true;
+    
+    if (columnIndex === 0 && !["INPROGRESS", "INREVIEW", "DONE"].includes(taskStatusUpper)) {
+      return true;
+    }
+    return false;
+  };
+
+  const getTasksByStage = (stageId: string) => {
+    return filteredTasks.filter(t => isTaskInStage(t, stageId, stagesToRender));
+  };
+
   const resetForm = () => {
     setTitle("");
     setDescription("");
-    setStatus("TODO");
+    setStatus(stagesToRender[0]?.id || "TODO");
+    setStageId(stagesToRender[0]?.id || "TODO");
     setPriority("NONE");
     setDueDate("");
     setAssignedTo("");
@@ -479,10 +580,14 @@ function TasksPageContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title, description, status, priority,
+          title, description, 
+          status: stageId || status || stagesToRender[0]?.id || "TODO", 
+          priority,
           dueDate: dueDate || null,
           assignedTo: assignedTo || null, projectId: projectId === "none" ? null : projectId || null,
-          assigneeIds: assigneeIds.length > 0 ? assigneeIds : undefined
+          assigneeIds: assigneeIds.length > 0 ? assigneeIds : undefined,
+          pipelineId: activePipeline?.id || null,
+          stageId: stageId || stagesToRender[0]?.id || null,
         }),
       });
 
@@ -507,6 +612,7 @@ function TasksPageContent() {
     setTitle(task.title);
     setDescription(task.description || "");
     setStatus(task.status);
+    setStageId(task.stageId || task.status);
     setPriority(task.priority);
     setDueDate(task.dueDate ? task.dueDate.split("T")[0] : "");
     setAssignedTo(task.assignedTo || "");
@@ -524,7 +630,6 @@ function TasksPageContent() {
     setCollapsedSections({});
     setActiveField(null);
     fetchTaskDetails(task.id);
-    // Fetch project members for assignee selection
     if (task.projectId) {
       fetch(`/api/projects/${task.projectId}/members`)
         .then(r => r.ok ? r.json() : [])
@@ -546,9 +651,13 @@ function TasksPageContent() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: editingTask.id, title, description, status, priority,
+          id: editingTask.id, title, description, 
+          status: stageId || status, 
+          priority,
           dueDate: dueDate || null,
-          assignedTo: assignedTo || null, projectId: projectId === "none" ? null : projectId || null
+          assignedTo: assignedTo || null, projectId: projectId === "none" ? null : projectId || null,
+          pipelineId: activePipeline?.id || null,
+          stageId: stageId || null,
         }),
       });
 
@@ -731,16 +840,16 @@ function TasksPageContent() {
     if (!over) return;
     const activeTask = tasks.find(t => t.id === active.id);
     if (!activeTask) return;
-    // Find target column
-    let targetStatus: string | null = null;
-    for (const col of columns) {
-      if (col.id === over.id || tasks.some(t => t.id === over.id && t.status === col.id)) {
-        targetStatus = col.id;
+    
+    let targetStageId: string | null = null;
+    for (const stage of stagesToRender) {
+      if (stage.id === over.id || tasks.some(t => t.id === over.id && isTaskInStage(t, stage.id, stagesToRender))) {
+        targetStageId = stage.id;
         break;
       }
     }
-    if (targetStatus && activeTask.status !== targetStatus) {
-      setTasks(prev => prev.map(t => t.id === active.id ? { ...t, status: targetStatus! } : t));
+    if (targetStageId && activeTask.stageId !== targetStageId) {
+      setTasks(prev => prev.map(t => t.id === active.id ? { ...t, stageId: targetStageId!, status: targetStageId! } : t));
     }
   };
 
@@ -754,12 +863,16 @@ function TasksPageContent() {
     const currentTask = tasks.find(t => t.id === active.id);
     if (!currentTask) return;
 
-    if (currentTask.status !== originalTask.status) {
+    if (currentTask.stageId !== originalTask.stageId) {
       try {
         const response = await fetch("/api/tasks", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: active.id, status: currentTask.status }),
+          body: JSON.stringify({ 
+            id: active.id, 
+            stageId: currentTask.stageId,
+            status: currentTask.stageId
+          }),
         });
         if (!response.ok) {
           const data = await response.json();
@@ -774,7 +887,6 @@ function TasksPageContent() {
   };
 
   const filteredTasks = filterProject === "all" ? tasks : tasks.filter(t => t.projectId === filterProject);
-  const getTasksByStatus = (s: string) => filteredTasks.filter(t => t.status === s);
   const getProjectName = (id: string | null) => {
     if (!id) return null;
     return projects.find(p => p.id === id)?.name || null;
@@ -872,6 +984,39 @@ function TasksPageContent() {
               <List className="h-4 w-4 mr-1" /> Lista
             </Button>
           </div>
+
+          {/* Pipeline Selector and Settings */}
+          {pipelines.length > 0 && (
+            <div className="flex items-center gap-2 bg-white dark:bg-slate-900 rounded-lg p-1 border border-border">
+              <Select value={selectedPipelineId} onValueChange={setSelectedPipelineId}>
+                <SelectTrigger className="w-[180px] h-8 border-0 bg-transparent text-sm font-medium focus:ring-0">
+                  <SelectValue placeholder="Seleccionar tablero" />
+                </SelectTrigger>
+                <SelectContent className="bg-white dark:bg-slate-900 border-border">
+                  {pipelines.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-800"
+                onClick={() => {
+                  const active = pipelines.find(p => p.id === selectedPipelineId) || pipelines[0];
+                  if (active) {
+                    setEditPipelineName(active.name);
+                    setEditPipelineStages([...active.stages]);
+                  }
+                  setPipelineSettingsOpen(true);
+                }}
+              >
+                <Pencil className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            </div>
+          )}
 
           {/* Templates Dropdown - Desktop only */}
           <DropdownMenu open={templatesOpen} onOpenChange={setTemplatesOpen}>
@@ -992,13 +1137,18 @@ function TasksPageContent() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-slate-700 dark:text-slate-300">Estado</Label>
-                <Select value={status} onValueChange={setStatus}>
+                <Select value={stageId || status} onValueChange={(val) => { setStageId(val); setStatus(val); }}>
                   <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-foreground">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-slate-900 border-border">
-                    {columns.map((col) => (
-                      <SelectItem key={col.id} value={col.id}>{col.title}</SelectItem>
+                    {stagesToRender.map((stage) => (
+                      <SelectItem key={stage.id} value={stage.id}>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.color }} />
+                          <span>{stage.name}</span>
+                        </div>
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -1121,13 +1271,18 @@ function TasksPageContent() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-slate-700 dark:text-slate-300">Estado</Label>
-                <Select value={status} onValueChange={setStatus}>
+                <Select value={stageId || status} onValueChange={(val) => { setStageId(val); setStatus(val); }}>
                   <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-foreground">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-slate-900 border-border">
-                    {columns.map((col) => (
-                      <SelectItem key={col.id} value={col.id}>{col.title}</SelectItem>
+                    {stagesToRender.map((stage) => (
+                      <SelectItem key={stage.id} value={stage.id}>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.color }} />
+                          <span>{stage.name}</span>
+                        </div>
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -1160,6 +1315,234 @@ function TasksPageContent() {
             <Button onClick={handleUpdate} className="w-full">
               Guardar Cambios
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pipeline Settings Dialog */}
+      <Dialog open={pipelineSettingsOpen} onOpenChange={setPipelineSettingsOpen}>
+        <DialogContent className="bg-white dark:bg-slate-900 border-border max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle className="text-foreground">Configurar Tablero y Columnas</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto space-y-6 pt-4 pr-1">
+            {/* Rename pipeline */}
+            <div className="space-y-2">
+              <Label className="text-slate-700 dark:text-slate-300 font-medium">Nombre del Tablero</Label>
+              <Input
+                value={editPipelineName}
+                onChange={(e) => setEditPipelineName(e.target.value)}
+                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-foreground"
+              />
+            </div>
+
+            {/* Configure columns/stages */}
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <Label className="text-slate-700 dark:text-slate-300 font-medium font-semibold">Columnas / Estados</Label>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const newStage: TaskPipelineStage = {
+                      id: "",
+                      name: `Nueva Columna`,
+                      position: editPipelineStages.length,
+                      color: "#6366f1",
+                    };
+                    setEditPipelineStages([...editPipelineStages, newStage]);
+                  }}
+                  className="h-8 border-border hover:bg-slate-50 dark:hover:bg-slate-800"
+                >
+                  <Plus className="h-4 w-4 mr-1" /> Añadir Columna
+                </Button>
+              </div>
+
+              <div className="space-y-2 max-h-[35vh] overflow-y-auto pr-1">
+                {editPipelineStages.map((stage, idx) => (
+                  <div key={stage.id || idx} className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/40 p-2 rounded-md border border-border">
+                    <div className="flex flex-col">
+                      <button
+                        disabled={idx === 0}
+                        onClick={() => {
+                          const updated = [...editPipelineStages];
+                          const temp = updated[idx];
+                          updated[idx] = updated[idx - 1];
+                          updated[idx - 1] = temp;
+                          updated.forEach((s, i) => s.position = i);
+                          setEditPipelineStages(updated);
+                        }}
+                        className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+                      >
+                        <ChevronUp className="h-4 w-4" />
+                      </button>
+                      <button
+                        disabled={idx === editPipelineStages.length - 1}
+                        onClick={() => {
+                          const updated = [...editPipelineStages];
+                          const temp = updated[idx];
+                          updated[idx] = updated[idx + 1];
+                          updated[idx + 1] = temp;
+                          updated.forEach((s, i) => s.position = i);
+                          setEditPipelineStages(updated);
+                        }}
+                        className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+                      >
+                        <ChevronDown className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    <Input
+                      value={stage.name}
+                      onChange={(e) => {
+                        const updated = [...editPipelineStages];
+                        updated[idx].name = e.target.value;
+                        setEditPipelineStages(updated);
+                      }}
+                      className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-foreground flex-1 h-8 text-sm"
+                    />
+
+                    <input
+                      type="color"
+                      value={stage.color}
+                      onChange={(e) => {
+                        const updated = [...editPipelineStages];
+                        updated[idx].color = e.target.value;
+                        setEditPipelineStages(updated);
+                      }}
+                      className="w-8 h-8 rounded border border-slate-300 dark:border-slate-600 cursor-pointer p-0"
+                    />
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (editPipelineStages.length <= 1) {
+                          toast.error("El tablero debe tener al menos una columna");
+                          return;
+                        }
+                        const updated = editPipelineStages.filter((_, i) => i !== idx);
+                        updated.forEach((s, i) => s.position = i);
+                        setEditPipelineStages(updated);
+                      }}
+                      className="h-8 w-8 p-0 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Create New Pipeline Section */}
+            <div className="border-t border-border pt-4">
+              <Label className="text-slate-700 dark:text-slate-300 block mb-2 font-semibold">Crear un Nuevo Tablero</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Nombre del nuevo tablero..."
+                  value={newPipelineName}
+                  onChange={(e) => setNewPipelineName(e.target.value)}
+                  className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-foreground flex-1"
+                />
+                <Button
+                  onClick={async () => {
+                    if (!newPipelineName.trim()) {
+                      toast.error("El nombre es requerido");
+                      return;
+                    }
+                    try {
+                      const body: any = { name: newPipelineName.trim() };
+                      if (filterProject && filterProject !== "all") {
+                        body.projectId = filterProject;
+                      } else if (selectedOrg && selectedOrg !== "all") {
+                        body.organizationId = selectedOrg;
+                      }
+                      const res = await fetch("/api/tasks/pipelines", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(body),
+                      });
+                      if (res.ok) {
+                        const newPipe = await res.json();
+                        setPipelines([...pipelines, newPipe]);
+                        setSelectedPipelineId(newPipe.id);
+                        setNewPipelineName("");
+                        setPipelineSettingsOpen(false);
+                        toast.success(`Tablero "${newPipe.name}" creado`);
+                      } else {
+                        const data = await res.json();
+                        toast.error(data.error || "Error al crear tablero");
+                      }
+                    } catch {
+                      toast.error("Error de conexión");
+                    }
+                  }}
+                >
+                  Crear
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-shrink-0 pt-4 border-t border-border flex justify-between gap-2">
+            <Button
+              variant="outline"
+              onClick={async () => {
+                if (!confirm("¿Estás seguro de eliminar todo este tablero de tareas? Esta acción es irreversible.")) return;
+                try {
+                  const res = await fetch(`/api/tasks/pipelines/${selectedPipelineId}`, {
+                    method: "DELETE",
+                  });
+                  if (res.ok) {
+                    toast.success("Tablero eliminado");
+                    setPipelineSettingsOpen(false);
+                    fetchPipelines();
+                  } else {
+                    const data = await res.json();
+                    toast.error(data.error || "Error al eliminar tablero");
+                  }
+                } catch {
+                  toast.error("Error de conexión");
+                }
+              }}
+              className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 border-red-200 hover:border-red-300"
+            >
+              Eliminar Tablero
+            </Button>
+            
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={() => setPipelineSettingsOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={async () => {
+                  try {
+                    const res = await fetch(`/api/tasks/pipelines/${selectedPipelineId}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        name: editPipelineName,
+                        stages: editPipelineStages,
+                      }),
+                    });
+                    if (res.ok) {
+                      const updated = await res.json();
+                      setPipelines(pipelines.map((p) => p.id === updated.id ? updated : p));
+                      setPipelineSettingsOpen(false);
+                      toast.success("Tablero guardado");
+                      fetchTasks();
+                    } else {
+                      const data = await res.json();
+                      toast.error(data.error || "Error al guardar");
+                    }
+                  } catch {
+                    toast.error("Error de conexión");
+                  }
+                }}
+              >
+                Guardar Cambios
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -1332,16 +1715,26 @@ function TasksPageContent() {
 
             {/* Right Column - Sidebar (30%) */}
             <div className="md:w-[30%] md:min-w-[250px] bg-card/50 border-t md:border-t-0 md:border-l border-border p-5 space-y-5 overflow-y-auto">
-              {/* Status */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">Estado</label>
-                <Select value={detailTask?.status || "TODO"} onValueChange={(v) => autoSaveField("status", v)}>
+                <Select 
+                  value={detailTask?.stageId || detailTask?.status || "TODO"} 
+                  onValueChange={async (v) => {
+                    await autoSaveField("stageId", v);
+                    await autoSaveField("status", v);
+                  }}
+                >
                   <SelectTrigger className="w-full h-9 bg-white dark:bg-slate-900 border-border">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(statusLabels).map(([v, l]) => (
-                      <SelectItem key={v} value={v}>{l}</SelectItem>
+                  <SelectContent className="bg-white dark:bg-slate-900 border-border">
+                    {stagesToRender.map((stage) => (
+                      <SelectItem key={stage.id} value={stage.id}>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.color }} />
+                          <span>{stage.name}</span>
+                        </div>
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -1432,19 +1825,19 @@ function TasksPageContent() {
       {view === "kanban" && (
         <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={dndHandleDragStart} onDragOver={dndHandleDragOver} onDragEnd={dndHandleDragEnd}>
         <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory md:h-[calc(100vh-220px)]">
-          {columns.map((column) => (
+          {stagesToRender.map((column) => (
             <div key={column.id} id={column.id} className="flex-1 min-w-[280px] max-w-[350px] flex flex-col snap-start">
               <div className="flex items-center gap-2 mb-3 px-1">
-                <div className={cn("w-3 h-3 rounded-full", column.color)} />
-                <h3 className="font-medium text-sm text-slate-700 dark:text-slate-300">{column.title}</h3>
-                <span className="text-xs text-muted-foreground ml-auto">{getTasksByStatus(column.id).length}</span>
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: column.color }} />
+                <h3 className="font-medium text-sm text-slate-700 dark:text-slate-300">{column.name}</h3>
+                <span className="text-xs text-muted-foreground ml-auto">{getTasksByStage(column.id).length}</span>
               </div>
               <DroppableColumn id={column.id}>
               <div className="flex-1 bg-white dark:bg-slate-900 rounded-lg p-2 space-y-2 overflow-y-auto border border-border">
-                {getTasksByStatus(column.id).length === 0 ? (
+                {getTasksByStage(column.id).length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground dark:text-slate-500 text-sm">Sin tareas</div>
                 ) : (
-                  getTasksByStatus(column.id).map((task) => (
+                  getTasksByStage(column.id).map((task) => (
                     <DraggableTaskCard
                       key={task.id}
                       task={task}
@@ -1489,44 +1882,49 @@ function TasksPageContent() {
               {filteredTasks.length === 0 ? (
                 <tr><td colSpan={7} className="text-center py-12 text-muted-foreground">No hay tareas</td></tr>
               ) : (
-                filteredTasks.map((task) => (
-                  <tr key={task.id} className="hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer" onClick={() => handleOpenDetail(task)}>
-                    <td className="p-3">
-                      <div>
-                        <p className="font-medium text-foreground">{task.title}</p>
-                        {task.description && <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[300px]">{task.description}</p>}
-                      </div>
-                    </td>
-                    <td className="p-3">
-                      <Badge variant="secondary" className={cn("border", statusColors[task.status])}>{statusLabels[task.status]}</Badge>
-                    </td>
-                    <td className="p-3">
-                      {task.priority !== "NONE" && (
-                        <Badge variant="secondary" className={cn("border", priorityColors[task.priority])}>{priorityLabels[task.priority]}</Badge>
-                      )}
-                    </td>
-                    <td className="p-3">
-                      {task.dueDate && (
-                        <div className="flex items-center gap-1 text-sm text-slate-600 dark:text-muted-foreground">
-                          <Calendar className="h-4 w-4" />
-                          <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+                filteredTasks.map((task) => {
+                  const taskStage = stagesToRender.find(s => isTaskInStage(task, s.id, stagesToRender)) || stagesToRender[0];
+                  return (
+                    <tr key={task.id} className="hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer" onClick={() => handleOpenDetail(task)}>
+                      <td className="p-3">
+                        <div>
+                          <p className="font-medium text-foreground">{task.title}</p>
+                          {task.description && <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[300px]">{task.description}</p>}
                         </div>
-                      )}
-                    </td>
-                    <td className="p-3 text-sm text-slate-600 dark:text-muted-foreground">{task.project?.name || getProjectName(task.projectId) || "-"}</td>
-                    <td className="p-3 text-sm text-slate-600 dark:text-muted-foreground">{task.assignedTo || "-"}</td>
-                    <td className="p-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleEdit(task); }} className="h-8 w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700">
-                          <Pencil className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleDelete(task.id); }} className="h-8 w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700">
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="p-3">
+                        <Badge variant="secondary" className="border text-[10px]" style={taskStage ? getStageBadgeStyle(taskStage.color) : undefined}>
+                          {taskStage ? taskStage.name : task.status}
+                        </Badge>
+                      </td>
+                      <td className="p-3">
+                        {task.priority !== "NONE" && (
+                          <Badge variant="secondary" className={cn("border", priorityColors[task.priority])}>{priorityLabels[task.priority]}</Badge>
+                        )}
+                      </td>
+                      <td className="p-3">
+                        {task.dueDate && (
+                          <div className="flex items-center gap-1 text-sm text-slate-600 dark:text-muted-foreground">
+                            <Calendar className="h-4 w-4" />
+                            <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="p-3 text-sm text-slate-600 dark:text-muted-foreground">{task.project?.name || getProjectName(task.projectId) || "-"}</td>
+                      <td className="p-3 text-sm text-slate-600 dark:text-muted-foreground">{task.assignedTo || "-"}</td>
+                      <td className="p-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleEdit(task); }} className="h-8 w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700">
+                            <Pencil className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleDelete(task.id); }} className="h-8 w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700">
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -1542,46 +1940,51 @@ function TasksPageContent() {
               <CardContent className="py-12 text-center text-muted-foreground">No hay tareas</CardContent>
             </Card>
           ) : (
-            filteredTasks.map((task) => (
-              <Card key={task.id} className="bg-white dark:bg-slate-900 border-border hover:border-slate-300 dark:hover:border-slate-600 transition-colors cursor-pointer" onClick={() => handleOpenDetail(task)}>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <div className={cn("w-2 h-2 rounded-full flex-shrink-0", columns.find(c => c.id === task.status)?.color)} />
-                      <div className="min-w-0 flex-1">
-                        <h3 className="font-medium text-foreground truncate">{task.title}</h3>
-                        <div className="flex items-center gap-2 md:gap-3 mt-1 flex-wrap">
-                          <Badge variant="secondary" className={cn("text-[10px] border", statusColors[task.status])}>{statusLabels[task.status]}</Badge>
-                          {task.priority !== "NONE" && (
-                            <Badge variant="secondary" className={cn("text-[10px] border", priorityColors[task.priority])}>{priorityLabels[task.priority]}</Badge>
-                          )}
-                          {task.dueDate && (
-                            <span className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {new Date(task.dueDate).toLocaleDateString()}
-                            </span>
-                          )}
-                          {(task.project?.name || getProjectName(task.projectId)) && (
-                            <span className="hidden md:inline text-xs text-muted-foreground">{task.project?.name || getProjectName(task.projectId)}</span>
-                          )}
-                          {task.assignedTo && (
-                            <span className="hidden md:inline text-xs text-muted-foreground flex items-center gap-1"><User className="h-3 w-3" />{task.assignedTo}</span>
-                          )}
+            filteredTasks.map((task) => {
+              const taskStage = stagesToRender.find(s => isTaskInStage(task, s.id, stagesToRender)) || stagesToRender[0];
+              return (
+                <Card key={task.id} className="bg-white dark:bg-slate-900 border-border hover:border-slate-300 dark:hover:border-slate-600 transition-colors cursor-pointer" onClick={() => handleOpenDetail(task)}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: taskStage?.color || "#64748b" }} />
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-medium text-foreground truncate">{task.title}</h3>
+                          <div className="flex items-center gap-2 md:gap-3 mt-1 flex-wrap">
+                            <Badge variant="secondary" className="text-[10px] border" style={taskStage ? getStageBadgeStyle(taskStage.color) : undefined}>
+                              {taskStage ? taskStage.name : task.status}
+                            </Badge>
+                            {task.priority !== "NONE" && (
+                              <Badge variant="secondary" className={cn("text-[10px] border", priorityColors[task.priority])}>{priorityLabels[task.priority]}</Badge>
+                            )}
+                            {task.dueDate && (
+                              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {new Date(task.dueDate).toLocaleDateString()}
+                              </span>
+                            )}
+                            {(task.project?.name || getProjectName(task.projectId)) && (
+                              <span className="hidden md:inline text-xs text-muted-foreground">{task.project?.name || getProjectName(task.projectId)}</span>
+                            )}
+                            {task.assignedTo && (
+                              <span className="hidden md:inline text-xs text-muted-foreground flex items-center gap-1"><User className="h-3 w-3" />{task.assignedTo}</span>
+                            )}
+                          </div>
                         </div>
                       </div>
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="sm" onClick={() => handleEdit(task)} className="h-10 w-10 md:h-8 md:w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700">
+                          <Pencil className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDelete(task.id)} className="h-10 w-10 md:h-8 md:w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700">
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost" size="sm" onClick={() => handleEdit(task)} className="h-10 w-10 md:h-8 md:w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700">
-                        <Pencil className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(task.id)} className="h-10 w-10 md:h-8 md:w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700">
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                  </CardContent>
+                </Card>
+              );
+            })
           )}
         </div>
       )}

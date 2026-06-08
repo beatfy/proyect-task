@@ -57,6 +57,7 @@ model Project {
   clientContext  String?
   invoices       Invoice[]
   labels        ProjectLabel[]
+  taskPipelines  TaskPipeline[]
 }
 
 model ProjectMember {
@@ -94,6 +95,10 @@ model Task {
   timeEntries   TimeEntry[]
   taskAssignees TaskAssignee[]
   organizationId String?
+  pipelineId    String?
+  pipeline      TaskPipeline?   @relation(fields: [pipelineId], references: [id], onDelete: SetNull)
+  stageId       String?
+  stage         TaskPipelineStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
 }
 
 model TaskAssignee {
@@ -261,6 +266,7 @@ model Organization {
   activities    Activity[]
   taskTemplates TaskTemplate[]
   chatMessages  ChatMessage[]
+  taskPipelines TaskPipeline[]
 }
 
 model OrganizationMember {
@@ -592,5 +598,33 @@ model AgentDocument {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   agentId   String?
+}
+
+model TaskPipeline {
+  id             String              @id @default(cuid())
+  name           String
+  isDefault      Boolean             @default(false)
+  stages         TaskPipelineStage[]
+  tasks          Task[]
+  projectId      String?
+  project        Project?            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization   Organization?       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+}
+
+model TaskPipelineStage {
+  id         String       @id @default(cuid())
+  name       String
+  position   Int
+  color      String       @default("#6366f1")
+  pipelineId String
+  pipeline   TaskPipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  tasks      Task[]
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@unique([pipelineId, position])
 }
 
