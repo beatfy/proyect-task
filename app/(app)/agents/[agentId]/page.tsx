@@ -439,7 +439,7 @@ export default function AgentChatPage() {
     return (
       <div className="flex flex-col h-[calc(100vh-2rem)] md:h-[calc(100vh-3rem)] animate-in fade-in duration-300">
         {/* Cabecera */}
-        <div className="flex items-center gap-3 border-b border-border pb-4 mb-4 flex-shrink-0 bg-background/80 backdrop-blur sticky top-0 z-10">
+        <div className="flex items-center gap-3 border-b border-border pb-4 mb-4 flex-shrink-0 bg-background/80 backdrop-blur sticky top-0 z-10 px-4 md:px-6">
           <Button
             variant="ghost"
             size="icon"
@@ -458,7 +458,7 @@ export default function AgentChatPage() {
         </div>
 
         {/* Selector de cliente */}
-        <div className="flex-1 overflow-y-auto px-1">
+        <div className="flex-1 overflow-y-auto px-4 md:px-6">
           <div className="max-w-3xl mx-auto py-4">
             <div className="text-center mb-8 animate-in fade-in slide-in-from-top-3 duration-300">
               <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 border border-primary/20 shadow-sm">
@@ -566,7 +566,7 @@ export default function AgentChatPage() {
   return (
     <div className="flex flex-col h-[calc(100vh-2rem)] md:h-[calc(100vh-3rem)]">
       {/* Cabecera */}
-      <div className="flex items-center gap-3 border-b border-border pb-4 mb-4 flex-shrink-0 bg-background/80 backdrop-blur sticky top-0 z-10">
+      <div className="flex items-center gap-3 border-b border-border pb-4 mb-4 flex-shrink-0 bg-background/80 backdrop-blur sticky top-0 z-10 px-4 md:px-6">
         <Button
           variant="ghost"
           size="icon"
@@ -586,7 +586,7 @@ export default function AgentChatPage() {
 
       {/* Badge de cliente seleccionado (solo para agentes no personales) */}
       {!isPersonalAgent && selectedClient && (
-        <div className="flex items-center gap-2 mb-4 px-1 flex-shrink-0 animate-in fade-in slide-in-from-left-2 duration-200">
+        <div className="flex items-center gap-2 mb-4 px-4 md:px-6 flex-shrink-0 animate-in fade-in slide-in-from-left-2 duration-200">
           <div className="flex items-center gap-2 rounded-full bg-primary/5 border border-primary/20 px-3.5 py-1.5 text-xs">
             <span className="text-primary font-bold">●</span>
             <span className="font-semibold text-foreground/90">Cliente Activo: {selectedClient.name}</span>
@@ -607,7 +607,7 @@ export default function AgentChatPage() {
         </div>
       )}
       {!isPersonalAgent && !selectedClient && !showClientSelector && (
-        <div className="mb-4 px-1 flex-shrink-0 animate-in fade-in slide-in-from-left-2 duration-200">
+        <div className="mb-4 px-4 md:px-6 flex-shrink-0 animate-in fade-in slide-in-from-left-2 duration-200">
           <button
             onClick={changeClient}
             className="flex items-center gap-1.5 rounded-full border border-dashed border-border px-3.5 py-1.5 text-xs text-muted-foreground hover:text-primary hover:border-primary/45 bg-card hover:bg-primary/5 transition-all duration-200"
@@ -619,7 +619,7 @@ export default function AgentChatPage() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 p-1 rounded-xl bg-muted/60 dark:bg-neutral-800/40 mb-5 flex-shrink-0 w-max max-w-full shadow-inner animate-in fade-in duration-300">
+      <div className="flex gap-1 p-1 rounded-xl bg-muted/60 dark:bg-neutral-800/40 mb-5 flex-shrink-0 w-max max-w-full shadow-inner mx-4 md:mx-6 animate-in fade-in duration-300">
         <button
           onClick={() => setActiveTab("chat")}
           className={cn(
@@ -672,7 +672,7 @@ export default function AgentChatPage() {
       {activeTab === "chat" ? (
         <>
           {/* Mensajes */}
-          <div className="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-thin">
+          <div className="flex-1 overflow-y-auto space-y-4 px-4 md:px-6 py-2 pr-1 scrollbar-thin">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center gap-6 max-w-lg mx-auto py-12 animate-in fade-in zoom-in-95 duration-500">
                 <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center shadow-md border border-primary/20 relative group hover:scale-105 transition-all duration-300">
@@ -759,7 +759,7 @@ export default function AgentChatPage() {
           </div>
 
           {/* Input */}
-          <div className="pt-4 border-t border-border mt-4 flex-shrink-0 bg-background">
+          <div className="pt-4 border-t border-border mt-4 flex-shrink-0 bg-background px-4 md:px-6 pb-2">
             {/* Archivos adjuntos activos en chat */}
             {activeDocIds.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
@@ -839,7 +839,7 @@ export default function AgentChatPage() {
       ) : activeTab === "templates" ? (
         <>
           {/* Tab de Templates */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto px-4 md:px-6">
             <div className="mb-6 animate-in fade-in duration-300">
               <p className="text-sm text-muted-foreground leading-relaxed">
                 Plantillas predefinidas para empezar rápido con {agent.name}. Haz clic en &quot;Usar plantilla&quot; para enviar directamente, o en el botón de copiar.
@@ -892,7 +892,7 @@ export default function AgentChatPage() {
           </div>
         </>
       ) : (
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto px-4 md:px-6">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
             <div>
               <h2 className="text-sm font-bold text-foreground">Biblioteca de Documentos del Agente</h2>
