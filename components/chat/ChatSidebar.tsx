@@ -409,7 +409,7 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
                 )}
                 <div
                   className={cn(
-                    "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm shadow-sm leading-relaxed",
+                    "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm shadow-sm leading-relaxed",
                     msg.role === "user"
                       ? "bg-gradient-to-br from-[var(--mediterranean-terracotta)] to-[#e27d5f] text-white rounded-tr-xs shadow-md"
                       : "bg-muted/45 dark:bg-card border border-border/40 text-foreground rounded-tl-xs"

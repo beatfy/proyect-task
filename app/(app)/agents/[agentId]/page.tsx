@@ -725,7 +725,7 @@ export default function AgentChatPage() {
                 )}
                 <div
                   className={cn(
-                    "max-w-[85%] sm:max-w-[75%] rounded-2xl px-4.5 py-3.5 shadow-sm text-sm leading-relaxed",
+                    "max-w-[85%] sm:max-w-[75%] rounded-2xl px-5 py-3.5 shadow-sm text-sm leading-relaxed",
                     msg.role === "user"
                       ? "bg-gradient-to-br from-[var(--mediterranean-terracotta)] to-[#e27d5f] text-white rounded-tr-sm shadow-md"
                       : "bg-muted/45 dark:bg-card border border-border/40 text-foreground rounded-tl-sm"
