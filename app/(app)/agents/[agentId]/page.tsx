@@ -10,11 +10,6 @@ import MarkdownRenderer from "@/components/chat/MarkdownRenderer";
 
 /* ── Metadatos de agentes ── */
 const AGENTS: Record<string, { name: string; emoji: string; description: string }> = {
-  "ele": {
-    name: "Ele",
-    emoji: "⚡",
-    description: "Asistente personal estratégico: planificación, análisis y automatización",
-  },
   "seo-agent": {
     name: "SEO Specialist",
     emoji: "🔍",
@@ -34,12 +29,6 @@ const AGENTS: Record<string, { name: string; emoji: string; description: string 
 
 /* ── Templates por agente ── */
 const AGENT_TEMPLATES: Record<string, { label: string; prompt: string; emoji: string }[]> = {
-  "ele": [
-    { label: "Planificación estratégica", prompt: "Analiza los proyectos y tareas activos del cliente y genera un plan de acción prioritario para la próxima semana. Incluye deadlines, dependencias y recursos necesarios.", emoji: "🎯" },
-    { label: "Automatización de tareas", prompt: "Identifica procesos repetitivos en el flujo de trabajo del cliente y propón automatizaciones usando herramientas disponibles (APIs, scripts, integraciones).", emoji: "⚙️" },
-    { label: "Análisis de rendimiento", prompt: "Revisa los datos del cliente (tareas completadas, tiempos, pipeline) y genera un informe de rendimiento con KPIs y áreas de mejora.", emoji: "📊" },
-    { label: "Resumen ejecutivo", prompt: "Genera un resumen ejecutivo del estado actual de todos los proyectos del cliente: avance, bloqueos, próximos hitos y decisiones pendientes.", emoji: "📋" },
-  ],
   "seo-agent": [
     { label: "Auditoría SEO", prompt: "Realiza una auditoría SEO técnica completa del sitio web del cliente. Analiza velocidad, indexación, mobile-friendly, estructura de URLs, meta tags, headings y backlinks. Proporcione un informe detallado con prioridades de acción.", emoji: "🔍" },
     { label: "Keyword Research", prompt: "Realiza un keyword research estratégico para el cliente. Identifica keywords de alto volumen y baja competencia, keywords long-tail, intención de búsqueda y oportunidades de contenido.", emoji: "🎯" },
@@ -47,7 +36,7 @@ const AGENT_TEMPLATES: Record<string, { label: string; prompt: string; emoji: st
     { label: "Estrategia de Contenidos", prompt: "Crea una estrategia de content marketing para el cliente. Propón temas, calendario editorial, formatos de contenido y distribución por canales.", emoji: "📝" },
   ],
   "sem-agent": [
-    { label: "Campaña Google Ads", prompt: "Diseña una campaña de Google Ads para el cliente. Define estructura de campañas, grupos de anuncios, keywords, presupuesto y estrategia de pujas.", emoji: "🎯" },
+    { label: "Campaña Google Ads", prompt: "Diseña una campaña de Google Ads para el cliente. Define estructura de campaigns, grupos de anuncios, keywords, presupuesto y estrategia de pujas.", emoji: "🎯" },
     { label: "Optimizar ROAS", prompt: "Analiza las campañas activas del cliente y propón optimizaciones para mejorar el ROAS. Revisa audiencias, creatividades, landing pages y presupuestos.", emoji: "📊" },
     { label: "A/B Testing", prompt: "Diseña un plan de A/B testing para los anuncios del cliente. Propón variantes de copy, visuals, CTAs y estrategia de medición.", emoji: "🧪" },
     { label: "Remarketing", prompt: "Crea una estrategia de remarketing para el cliente. Define segmentos de audiencia, mensajes por etapa del funnel y presupuesto recomendado.", emoji: "🔄" },
@@ -56,7 +45,7 @@ const AGENT_TEMPLATES: Record<string, { label: string; prompt: string; emoji: st
     { label: "Calendario Editorial", prompt: "Crea un calendario editorial mensual para el cliente. Incluye posts por red social, formatos, copy sugerido y hashtags.", emoji: "📅" },
     { label: "Copywriting", prompt: "Escribe copy para 5 posts de [red social] del cliente. Adapta el tono a la marca y propón CTAs efectivos.", emoji: "✍️" },
     { label: "Estrategia Viral", prompt: "Diseña una estrategia de contenido viral para el cliente. Identifica formatos trending, hooks efectivos y oportunidades de participación.", emoji: "🚀" },
-    { label: "Community Management", prompt: "Crea un plan de community management para el cliente. Define horarios de respuesta, tono de voz, protocolos de crisis y métricas de engagement.", emoji: "💬" },
+    { label: "Community Management", prompt: "Crea un plan de community management para el cliente. Define horarios de respuesta, tono de voz, protocols de crisis y métricas de engagement.", emoji: "💬" },
   ],
 };
 
@@ -229,7 +218,7 @@ export default function AgentChatPage() {
   };
 
   /* ── Cliente/Proyecto seleccionado ── */
-  const isPersonalAgent = agentId === "ele";
+  const isPersonalAgent = false;
   const [selectedClient, setSelectedClient] = useState<ProjectOption | null>(null);
   const [showClientSelector, setShowClientSelector] = useState(!isPersonalAgent);
   const [projects, setProjects] = useState<ProjectOption[]>([]);

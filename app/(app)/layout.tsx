@@ -30,7 +30,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const agentItems = [
-  { name: "Ele", href: "/agents/ele", icon: Bot },
   { name: "SEO Agent", href: "/agents/seo-agent", icon: Search },
   { name: "SEM Agent", href: "/agents/sem-agent", icon: TrendingUp },
   { name: "Social Agent", href: "/agents/social-agent", icon: Share2 },
