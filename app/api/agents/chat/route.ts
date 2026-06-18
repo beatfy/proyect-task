@@ -283,7 +283,10 @@ export async function POST(req: NextRequest) {
 
     const messages: Array<{ role: string; content: string }> = [];
 
-
+    const systemInstruction = `${clientContext}${agentApiContext}`.trim();
+    if (systemInstruction) {
+      messages.push({ role: "system", content: systemInstruction });
+    }
 
     if (dbHistory && dbHistory.length > 0) {
       // Invert dbHistory array to chronological order (it was fetched desc)
@@ -317,9 +320,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const finalMessage = `${message}${documentsContext}${clientContext}${agentApiContext}`;
+    const finalUserMessage = `${message}${documentsContext}`.trim();
 
-    messages.push({ role: "user", content: finalMessage });
+    messages.push({ role: "user", content: finalUserMessage });
 
     async function callAgentWithRetry(url: string, body: unknown, key: string, retries = 3, delayMs = 2000): Promise<Response> {
       let lastErr: Error | null = null;
