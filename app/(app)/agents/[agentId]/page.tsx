@@ -10,42 +10,20 @@ import MarkdownRenderer from "@/components/chat/MarkdownRenderer";
 
 /* ── Metadatos de agentes ── */
 const AGENTS: Record<string, { name: string; emoji: string; description: string }> = {
-  "seo-agent": {
-    name: "SEO Specialist",
-    emoji: "🔍",
-    description: "Auditorías técnicas, keyword research, optimización on-page y estrategia de contenidos",
-  },
-  "sem-agent": {
-    name: "SEM Specialist",
-    emoji: "📈",
-    description: "Campañas Google Ads, PPC, optimización de ROAS y análisis de performance",
-  },
-  "social-agent": {
-    name: "Social Media Specialist",
-    emoji: "📱",
-    description: "Calendarios editoriales, copywriting, community management y estrategia social",
+  "doc": {
+    name: "Doc",
+    emoji: "🧠",
+    description: "Coach TDAH personal con súper privilegios. Organización de tareas por carga emocional, Focus Flow y técnicas contra la procrastinación.",
   },
 };
 
 /* ── Templates por agente ── */
 const AGENT_TEMPLATES: Record<string, { label: string; prompt: string; emoji: string }[]> = {
-  "seo-agent": [
-    { label: "Auditoría SEO", prompt: "Realiza una auditoría SEO técnica completa del sitio web del cliente. Analiza velocidad, indexación, mobile-friendly, estructura de URLs, meta tags, headings y backlinks. Proporcione un informe detallado con prioridades de acción.", emoji: "🔍" },
-    { label: "Keyword Research", prompt: "Realiza un keyword research estratégico para el cliente. Identifica keywords de alto volumen y baja competencia, keywords long-tail, intención de búsqueda y oportunidades de contenido.", emoji: "🎯" },
-    { label: "Optimización On-Page", prompt: "Optimiza la página [URL] del cliente. Mejora títulos SEO, meta descriptions, headings, estructura de contenido, internal linking y schema markup.", emoji: "⚡" },
-    { label: "Estrategia de Contenidos", prompt: "Crea una estrategia de content marketing para el cliente. Propón temas, calendario editorial, formatos de contenido y distribución por canales.", emoji: "📝" },
-  ],
-  "sem-agent": [
-    { label: "Campaña Google Ads", prompt: "Diseña una campaña de Google Ads para el cliente. Define estructura de campaigns, grupos de anuncios, keywords, presupuesto y estrategia de pujas.", emoji: "🎯" },
-    { label: "Optimizar ROAS", prompt: "Analiza las campañas activas del cliente y propón optimizaciones para mejorar el ROAS. Revisa audiencias, creatividades, landing pages y presupuestos.", emoji: "📊" },
-    { label: "A/B Testing", prompt: "Diseña un plan de A/B testing para los anuncios del cliente. Propón variantes de copy, visuals, CTAs y estrategia de medición.", emoji: "🧪" },
-    { label: "Remarketing", prompt: "Crea una estrategia de remarketing para el cliente. Define segmentos de audiencia, mensajes por etapa del funnel y presupuesto recomendado.", emoji: "🔄" },
-  ],
-  "social-agent": [
-    { label: "Calendario Editorial", prompt: "Crea un calendario editorial mensual para el cliente. Incluye posts por red social, formatos, copy sugerido y hashtags.", emoji: "📅" },
-    { label: "Copywriting", prompt: "Escribe copy para 5 posts de [red social] del cliente. Adapta el tono a la marca y propón CTAs efectivos.", emoji: "✍️" },
-    { label: "Estrategia Viral", prompt: "Diseña una estrategia de contenido viral para el cliente. Identifica formatos trending, hooks efectivos y oportunidades de participación.", emoji: "🚀" },
-    { label: "Community Management", prompt: "Crea un plan de community management para el cliente. Define horarios de respuesta, tono de voz, protocols de crisis y métricas de engagement.", emoji: "💬" },
+  "doc": [
+    { label: "Organizar mi día", prompt: "Ayúdame a organizar mis tareas de hoy usando la cola de enfoque y mi nivel de energía actual.", emoji: "🧠" },
+    { label: "Superar parálisis de inicio", prompt: "Tengo que empezar una tarea pesada pero siento parálisis. Ayúdame a descomponerla con micro-pasos.", emoji: "⚡" },
+    { label: "Revisar Focus Flow", prompt: "Muéstrame la lista de mis tareas activas en el Focus Flow y ayúdame a priorizarlas o aliviar su carga emocional.", emoji: "📊" },
+    { label: "Menú de dopamina", prompt: "Necesito un activador de dopamina (Dopamine Primer) rápido antes de empezar a trabajar.", emoji: "🍬" }
   ],
 };
 
@@ -218,7 +196,7 @@ export default function AgentChatPage() {
   };
 
   /* ── Cliente/Proyecto seleccionado ── */
-  const isPersonalAgent = false;
+  const isPersonalAgent = agentId === "doc";
   const [selectedClient, setSelectedClient] = useState<ProjectOption | null>(null);
   const [showClientSelector, setShowClientSelector] = useState(!isPersonalAgent);
   const [projects, setProjects] = useState<ProjectOption[]>([]);

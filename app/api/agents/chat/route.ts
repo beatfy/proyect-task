@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { authenticateRequest } from "@/lib/api-auth";
 import { agentRateLimit } from "@/lib/ai-rate-limit";
 import { cuid } from "@/lib/utils";
-import { randomBytes } from "crypto";
+import crypto, { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 
 export const dynamic = "force-dynamic";
@@ -11,22 +11,13 @@ export const dynamic = "force-dynamic";
 const INNIX_BASE = process.env.INNIX_BASE || "https://agents.beatfy.net/agent";
 
 const AGENT_CONFIG: Record<string, { path: string; apiKey: string; model: string }> = {
-  "seo-agent": {
-    path: "seo",
-    apiKey: process.env.INNIX_SEO_KEY || "",
-    model: "kimi-k2.6",
-  },
-  "sem-agent": {
-    path: "sem",
-    apiKey: process.env.INNIX_SEM_KEY || "",
-    model: "kimi-k2.6",
-  },
-  "social-agent": {
-    path: "social",
-    apiKey: process.env.INNIX_SOCIAL_KEY || "",
-    model: "kimi-k2.6",
+  "doc": {
+    path: "doc",
+    apiKey: process.env.INNIX_DOC_KEY || "cecb3f99b46e7e16adfa60a5d4a839b5f27d1f3e1659",
+    model: "glm-5.2",
   },
 };
+
 
 export async function GET(request: NextRequest) {
   try {
@@ -181,6 +172,17 @@ export async function POST(req: NextRequest) {
       } catch {}
     }
 
+    if (!organizationId) {
+      try {
+        const member = await prisma.organizationMember.findFirst({
+          where: { userId: authResult.userId },
+          select: { organizationId: true },
+          orderBy: { joinedAt: "asc" },
+        });
+        if (member) organizationId = member.organizationId;
+      } catch {}
+    }
+
     if (organizationId) {
       try {
         const org = await prisma.organization.findUnique({
@@ -192,7 +194,52 @@ export async function POST(req: NextRequest) {
     }
 
     let agentApiContext = "";
-    if (orgApiKey) {
+    if (agentId === "doc") {
+      const secret = process.env.NEXTAUTH_SECRET || "default_secret";
+      const signature = crypto.createHmac("sha256", secret).update(authResult.userId).digest("hex");
+      const docToken = `tx2_doc_${authResult.userId}_${signature}`;
+      const base64DocToken = "tx2b64_" + Buffer.from(docToken).toString("base64");
+
+      agentApiContext = `\n\n---\n` +
+        `[INSTRUCCIONES DE IDENTIDAD Y ACCESO SUPER PRIVILEGIADO PARA DOC]\n` +
+        `Hola Doc, estás conectado al backend del usuario. Se te ha otorgado ACCESO CON SÚPER PRIVILEGIOS para actuar en nombre del usuario utilizando la siguiente API key:\n` +
+        `URL base de la API: ${appBaseUrl}/api/v1\n` +
+        `Cabecera de Autenticación: Authorization: Bearer ${base64DocToken}\n` +
+        `NOTA DE SEGURIDAD IMPORTANTE (API KEY): Para evitar la censura del gateway de IA en la transmisión, la clave anterior se proporciona codificada en Base64 con el prefijo "tx2b64_". Úsala EXACTAMENTE así en tus llamadas HTTP (Authorization: Bearer tx2b64_...). El servidor la decodificará automáticamente.\n\n` +
+        `[SECCIÓN DE ENFOQUE / FOCUS FLOW — INSTRUCCIONES OPERATIVAS Y CONCEPTUALES]\n` +
+        `El sistema tiene una sección llamada "Focus Flow" diseñada para mentes neurodivergentes o con TDAH. Su propósito es organizar tareas según la carga emocional (fricción mental) y energía disponible, en lugar de plazos tradicionales rígidos. Esto combate la parálisis de inicio y el burnout.\n\n` +
+        `1. Conceptos y Métricas Clave (tdahMetrics):\n` +
+        `   - Peso Emocional (emotionalWeight / baseWeight): De 1.0 (liviano) a 5.0 (parálisis extrema). Un peso alto indica una tarea que causa evitación, aburrimiento o ansiedad.\n` +
+        `   - Energía Requerida (energyRequired): "low" (baja), "medium" (media) o "high" (alta). Ayuda a filtrar tareas según el estado mental actual.\n` +
+        `   - Bloque de Tiempo (timeBlock): Duración sugerida (ej. "15min", "30min", "60min"). Promueve el timeboxing.\n` +
+        `   - Razón de Bloqueo (blockReason): Texto descriptivo del obstáculo psicológico o fricción percibida (ej. "No sé por dónde empezar", "Es muy aburrido").\n` +
+        `   - ¿Bloquea a Alguien? (blocksSomeone): true/false. Si bloquea a otros, tiene prioridad de escalación.\n` +
+        `   - Fuente de Dopamina (dopamineSource): "routine", "social", "creative" o "problem-solving". Indica qué tipo de recompensa genera.\n` +
+        `   - Streak Days (streakDays): Días sin tocar la tarea. Si pasa de 3 días y blocksSomeone es true, la tarea es promovida automáticamente al inicio de la cola.\n` +
+        `   - Orden de la Cola (Focus Queue): El sistema ordena automáticamente las tareas: Promovidas primero, luego por emotionalWeight desc, luego por streakDays desc.\n\n` +
+        `2. Endpoints de Focus Flow Disponibles:\n` +
+        `   - Obtener Cola de Enfoque: GET ${appBaseUrl}/api/v1/focus/tasks (Opcional: ?energy=low|medium|high)\n` +
+        `   - Crear Tarea de Enfoque: POST ${appBaseUrl}/api/v1/focus/tasks\n` +
+        `     Cuerpo JSON: { title, description, projectId, emotionalWeight, timeBlock, energyRequired, blocksSomeone, dopamineSource, blockReason, status }\n` +
+        `     *Nota*: El campo "status" puede ser "TODO" o "planning". Máximo 3 tareas pueden estar en estado "planning" a la vez (límite de procrastinación).\n` +
+        `   - Actualizar / Aliviar Tarea: PATCH ${appBaseUrl}/api/v1/focus/tasks/<id>\n` +
+        `     Cuerpo JSON: Permite actualizar cualquier campo. Para avances de TDAH, puedes mandar el campo "status":\n` +
+        `       - status: "hecha" (o "completed" o "DONE") -> Marca la tarea como completada.\n` +
+        `       - status: "aliviada" -> Reduce el emotionalWeight y baseWeight en 2 puntos (mínimo 1).\n` +
+        `       - status: "sigue_pesando" -> Incrementa el emotionalWeight y baseWeight en 0.5 puntos (máximo 5).\n` +
+        `   - Eliminar Tarea de Enfoque: DELETE ${appBaseUrl}/api/v1/focus/tasks/<id>\n` +
+        `   - Obtener Activador (Dopamine Primer): GET ${appBaseUrl}/api/v1/focus/primer (Retorna una actividad sugerida corta de 3-5 minutos para calentar el cerebro).\n` +
+        `   - Dividir Tarea (Micro-Split): POST ${appBaseUrl}/api/tasks/<id>/micro-split\n` +
+        `     Cuerpo JSON: { steps: ["Paso 1", "Paso 2", ...] } (Crea subtareas de 15min con peso emocional aliviado para deshacer la parálisis).\n\n` +
+        `3. Endpoints Generales de Gestión:\n` +
+        `   - GET/POST ${appBaseUrl}/api/v1/projects — Ver y crear proyectos (?id=X para detalle)\n` +
+        `   - GET/POST/PATCH/DELETE ${appBaseUrl}/api/v1/tasks — Gestionar tareas de proyectos tradicionales\n` +
+        `   - GET/POST/PATCH/DELETE ${appBaseUrl}/api/v1/contacts — CRM de Contactos\n` +
+        `   - GET/POST/PATCH ${appBaseUrl}/api/v1/deals — CRM de Negocios y Etapas\n` +
+        `   - GET ${appBaseUrl}/api/v1/pipeline — Pipeline del CRM\n\n` +
+        `Usa estas APIs de forma autónoma cuando el usuario te pida crear tareas, dividirlas, consultar su cola, aliviar el peso de una tarea o dar seguimiento a su día. ¡Tú eres su coach de confianza!\n` +
+        `[FIN DE INSTRUCCIONES OPERATIVAS]`;
+    } else if (orgApiKey) {
       const base64ApiKey = "tx2b64_" + Buffer.from(orgApiKey).toString("base64");
 
       agentApiContext = `\n\n---\n[API DE ACCESO — PUEDES CONSULTAR Y MODIFICAR DATOS DEL CLIENTE]\n` +

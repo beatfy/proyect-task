@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
 export async function authenticateOrgApiKey(request: NextRequest): Promise<{ organizationId: string; orgName: string; userId: string } | null> {
   const authHeader = request.headers.get("authorization");
@@ -24,27 +25,50 @@ export async function authenticateOrgApiKey(request: NextRequest): Promise<{ org
   let organizationId: string | null = null;
   let orgName = "";
 
-  // 1. First check if it's a valid Organization API key
-  const org = await prisma.organization.findUnique({
-    where: { apiKey: key },
-    select: { id: true, name: true },
-  });
-
-  if (org) {
-    organizationId = org.id;
-    orgName = org.name;
-    // Find first member to use as creator/assignee for API operations
-    const member = await prisma.organizationMember.findFirst({
-      where: { organizationId: org.id },
-      select: { userId: true },
-      orderBy: { joinedAt: "asc" },
-    });
-    if (member) {
-      userId = member.userId;
+  if (key.startsWith("tx2_doc_")) {
+    const parts = key.split("_");
+    if (parts.length === 4) {
+      const uId = parts[2];
+      const signature = parts[3];
+      const secret = process.env.NEXTAUTH_SECRET || "default_secret";
+      const expectedSignature = crypto.createHmac("sha256", secret).update(uId).digest("hex");
+      if (signature === expectedSignature) {
+        userId = uId;
+        // Find organization of this user
+        const member = await prisma.organizationMember.findFirst({
+          where: { userId },
+          select: { organizationId: true, organization: { select: { name: true } } },
+          orderBy: { joinedAt: "asc" },
+        });
+        if (member) {
+          organizationId = member.organizationId;
+          orgName = member.organization.name;
+        }
+      }
     }
   } else {
-    // 2. If not, check if it's a User API key (e.g. Ele Agent Key)
-    if (key.startsWith("tx2_")) {
+    // 1. First check if it's a valid Organization API key
+    const org = await prisma.organization.findUnique({
+      where: { apiKey: key },
+      select: { id: true, name: true },
+    });
+
+    if (org) {
+      organizationId = org.id;
+      orgName = org.name;
+      // Find first member to use as creator/assignee for API operations
+      const member = await prisma.organizationMember.findFirst({
+        where: { organizationId: org.id },
+        select: { userId: true },
+        orderBy: { joinedAt: "asc" },
+      });
+      if (member) {
+        userId = member.userId;
+      }
+    } else {
+      // 2. If not, check if it's a User API key (e.g. Ele Agent Key)
+      if (key.startsWith("tx2_")) {
+
       const keyPrefix = key.substring(0, 8);
       const apiKey = await prisma.apiKey.findFirst({
         where: { keyPrefix, active: true },
@@ -65,6 +89,7 @@ export async function authenticateOrgApiKey(request: NextRequest): Promise<{ org
         }
       }
     }
+  }
   }
 
   if (!organizationId || !userId) {
