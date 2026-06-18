@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ArrowLeft, Send, Bot, Loader2, Copy, Check, MessageSquare, FileText, Building2, X, ChevronRight, Search, Paperclip, Trash2 } from "lucide-react";
+import { ArrowLeft, Send, Bot, Loader2, Copy, Check, MessageSquare, FileText, Building2, X, ChevronRight, Search, Paperclip, Trash2, Mic, MicOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -125,6 +125,9 @@ export default function AgentChatPage() {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatFileInputRef = useRef<HTMLInputElement>(null);
+
+  const [isRecording, setIsRecording] = useState(false);
+  const recognitionRef = useRef<any>(null);
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -328,6 +331,70 @@ export default function AgentChatPage() {
     setSelectedClient(null);
     setStoredProject(agentId, null);
   };
+
+  const toggleSpeechRecognition = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error("Tu navegador no soporta el reconocimiento de voz. Prueba con Google Chrome o Edge.");
+      return;
+    }
+
+    if (isRecording) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsRecording(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
+    recognition.continuous = false;
+    recognition.lang = "es-ES";
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+      setIsRecording(true);
+      toast.info("Escuchando... Habla ahora.");
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      if (transcript) {
+        setInput((prev) => (prev ? prev + " " + transcript : transcript));
+        toast.success("Texto transcribido con éxito.");
+        setTimeout(() => {
+          if (inputRef.current) {
+            inputRef.current.focus();
+            inputRef.current.style.height = "auto";
+            inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 128) + "px";
+          }
+        }, 100);
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Speech recognition error", event);
+      if (event.error !== "aborted") {
+        toast.error("Error en reconocimiento de voz: " + event.error);
+      }
+      setIsRecording(false);
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognition.start();
+  };
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
 
   /* Agente no encontrado */
   if (!agent) {
@@ -802,6 +869,24 @@ export default function AgentChatPage() {
                   <Loader2 className="w-4 h-4 animate-spin text-primary" />
                 ) : (
                   <Paperclip className="w-4 h-4" />
+                )}
+              </button>
+
+              <button
+                onClick={toggleSpeechRecognition}
+                disabled={isLoading}
+                className={cn(
+                  "p-3 rounded-xl transition-all duration-300 flex-shrink-0",
+                  isRecording
+                    ? "bg-red-500 text-white animate-pulse shadow-md hover:bg-red-600"
+                    : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                )}
+                title={isRecording ? "Detener dictado por voz" : "Dictar mensaje por voz"}
+              >
+                {isRecording ? (
+                  <MicOff className="w-4 h-4" />
+                ) : (
+                  <Mic className="w-4 h-4" />
                 )}
               </button>
 
