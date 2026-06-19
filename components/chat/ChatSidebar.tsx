@@ -360,7 +360,7 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4 scrollbar-thin">
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center gap-5 max-w-xs mx-auto py-8 animate-in fade-in zoom-in-95 duration-500">
               <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center shadow-md border border-primary/20 relative animate-bounce">
@@ -409,7 +409,7 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
                 )}
                 <div
                   className={cn(
-                    "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm shadow-sm leading-relaxed",
+                    "max-w-[85%] min-w-0 break-words rounded-2xl px-4 py-2.5 text-sm shadow-sm leading-relaxed",
                     msg.role === "user"
                       ? "bg-gradient-to-br from-[var(--mediterranean-terracotta)] to-[#e27d5f] text-white rounded-tr-xs shadow-md"
                       : "bg-muted/45 dark:bg-card border border-border/40 text-foreground rounded-tl-xs"

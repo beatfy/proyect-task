@@ -706,7 +706,7 @@ export default function AgentChatPage() {
       {activeTab === "chat" ? (
         <>
           {/* Mensajes */}
-          <div className="flex-1 overflow-y-auto space-y-4 px-4 md:px-6 py-2 pr-1 scrollbar-thin">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-4 px-4 md:px-6 py-2 pr-1 scrollbar-thin">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center gap-6 max-w-lg mx-auto py-12 animate-in fade-in zoom-in-95 duration-500">
                 <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center shadow-md border border-primary/20 relative group hover:scale-105 transition-all duration-300">
@@ -759,7 +759,7 @@ export default function AgentChatPage() {
                 )}
                 <div
                   className={cn(
-                    "max-w-[85%] sm:max-w-[75%] rounded-2xl px-5 py-3.5 shadow-sm text-sm leading-relaxed",
+                    "max-w-[85%] sm:max-w-[75%] min-w-0 break-words rounded-2xl px-5 py-3.5 shadow-sm text-sm leading-relaxed",
                     msg.role === "user"
                       ? "bg-gradient-to-br from-[var(--mediterranean-terracotta)] to-[#e27d5f] text-white rounded-tr-sm shadow-md"
                       : "bg-muted/45 dark:bg-card border border-border/40 text-foreground rounded-tl-sm"

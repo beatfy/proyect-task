@@ -332,7 +332,7 @@ export default function MarkdownRenderer({ content }: { content: string }) {
   const blocks = parseMarkdown(content);
 
   return (
-    <div className="space-y-3 text-sm leading-relaxed text-foreground/90 dark:text-neutral-100">
+    <div className="space-y-3 text-sm leading-relaxed text-foreground/90 dark:text-neutral-100 break-words">
       {blocks.map((block, idx) => {
         switch (block.type) {
           case "heading":
