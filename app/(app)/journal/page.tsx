@@ -286,7 +286,17 @@ export default function BulletJournalPage() {
 
     recognition.onerror = (event: any) => {
       console.error("Speech recognition error", event);
-      toast.error("Error en reconocimiento de voz: " + event.error);
+      if (event.error !== "aborted") {
+        let errorMsg = "Error en reconocimiento de voz: " + event.error;
+        if (event.error === "not-allowed") {
+          errorMsg = "Permiso denegado para usar el micrófono. Por favor, concede permisos de micrófono en la configuración de tu navegador y asegúrate de utilizar una conexión segura (HTTPS).";
+        } else if (event.error === "no-speech") {
+          errorMsg = "No se detectó voz. Intenta hablar de nuevo, de forma más clara o cerca del micrófono.";
+        } else if (event.error === "audio-capture") {
+          errorMsg = "No se pudo capturar audio. Verifica que tu micrófono esté conectado correctamente.";
+        }
+        toast.error(errorMsg);
+      }
       setIsRecording(false);
     };
 
