@@ -17,7 +17,18 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ error: "Factura no encontrada" }, { status: 404 });
     }
 
-    const isPrivileged = invoice.project.members.some((m: { userId: string; role: string }) => m.userId === authResult.userId && ["OWNER", "ADMIN"].includes(m.role));
+    let isPrivileged = invoice.project.members.some((m: { userId: string; role: string }) => m.userId === authResult.userId && ["OWNER", "ADMIN"].includes(m.role));
+    if (!isPrivileged && invoice.project.organizationId) {
+      const orgMember = await prisma.organizationMember.findFirst({
+        where: {
+          userId: authResult.userId,
+          organizationId: invoice.project.organizationId,
+          role: { in: ["OWNER", "ADMIN"] },
+        },
+      });
+      if (orgMember) isPrivileged = true;
+    }
+
     if (!isPrivileged) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }
@@ -50,7 +61,18 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       return NextResponse.json({ error: "Factura no encontrada" }, { status: 404 });
     }
 
-    const isPrivileged = invoice.project.members.some((m: { userId: string; role: string }) => m.userId === authResult.userId && ["OWNER", "ADMIN"].includes(m.role));
+    let isPrivileged = invoice.project.members.some((m: { userId: string; role: string }) => m.userId === authResult.userId && ["OWNER", "ADMIN"].includes(m.role));
+    if (!isPrivileged && invoice.project.organizationId) {
+      const orgMember = await prisma.organizationMember.findFirst({
+        where: {
+          userId: authResult.userId,
+          organizationId: invoice.project.organizationId,
+          role: { in: ["OWNER", "ADMIN"] },
+        },
+      });
+      if (orgMember) isPrivileged = true;
+    }
+
     if (!isPrivileged) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }

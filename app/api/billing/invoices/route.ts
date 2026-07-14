@@ -22,8 +22,20 @@ export async function GET(request: NextRequest) {
     if (year) where.year = parseInt(year);
     if (month) where.month = parseInt(month);
 
-    // Only invoices for projects the user is member of
-    where.project = { members: { some: { userId: authResult.userId } } };
+    // Find all organizations user is member of
+    const userOrgs = await prisma.organizationMember.findMany({
+      where: { userId: authResult.userId },
+      select: { organizationId: true },
+    });
+    const orgIds = userOrgs.map((o) => o.organizationId);
+
+    // Only invoices for projects the user is member of OR which belong to user's orgs
+    where.project = {
+      OR: [
+        { members: { some: { userId: authResult.userId } } },
+        { organizationId: { in: orgIds } },
+      ],
+    };
 
     const invoices = await prisma.invoice.findMany({
       where,
@@ -64,11 +76,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 });
     }
 
-    // Verify membership
-    const member = await prisma.projectMember.findFirst({
-      where: { projectId, userId: authResult.userId, role: { in: ["OWNER", "ADMIN"] } },
+    // Verify permission (project OWNER/ADMIN OR organization OWNER/ADMIN)
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { organizationId: true },
     });
-    if (!member) {
+
+    let isPrivileged = false;
+    if (project) {
+      const member = await prisma.projectMember.findFirst({
+        where: { projectId, userId: authResult.userId, role: { in: ["OWNER", "ADMIN"] } },
+      });
+      if (member) {
+        isPrivileged = true;
+      } else if (project.organizationId) {
+        const orgMember = await prisma.organizationMember.findFirst({
+          where: {
+            userId: authResult.userId,
+            organizationId: project.organizationId,
+            role: { in: ["OWNER", "ADMIN"] },
+          },
+        });
+        if (orgMember) isPrivileged = true;
+      }
+    }
+
+    if (!isPrivileged) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }
 
@@ -90,6 +123,70 @@ export async function POST(request: NextRequest) {
     if ((error as any)?.code === "P2002") {
       return NextResponse.json({ error: "Ya existe una factura para ese proyecto/mes/año" }, { status: 409 });
     }
+    return NextResponse.json({ error: "Error interno" }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { ids, action } = body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0 || !action) {
+      return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 });
+    }
+
+    // Fetch invoices to verify permissions
+    const invoices = await prisma.invoice.findMany({
+      where: { id: { in: ids } },
+      include: { project: { include: { members: true } } },
+    });
+
+    const userOrgs = await prisma.organizationMember.findMany({
+      where: { userId: authResult.userId, role: { in: ["OWNER", "ADMIN"] } },
+      select: { organizationId: true },
+    });
+    const orgIds = userOrgs.map((o) => o.organizationId);
+
+    const unauthorized = invoices.some((invoice) => {
+      const isProjectPrivileged = invoice.project.members.some(
+        (m) => m.userId === authResult.userId && ["OWNER", "ADMIN"].includes(m.role)
+      );
+      const isOrgPrivileged = invoice.project.organizationId && orgIds.includes(invoice.project.organizationId);
+      return !isProjectPrivileged && !isOrgPrivileged;
+    });
+
+    if (unauthorized) {
+      return NextResponse.json({ error: "Sin permisos para una o más facturas" }, { status: 403 });
+    }
+
+    if (action === "status" && body.status) {
+      const updateData: Record<string, unknown> = { status: body.status };
+      if (body.status === "PAID") {
+        updateData.paidAt = new Date();
+      } else {
+        updateData.paidAt = null;
+      }
+      await prisma.invoice.updateMany({
+        where: { id: { in: ids } },
+        data: updateData,
+      });
+      return NextResponse.json({ success: true, count: invoices.length });
+    } else if (action === "delete") {
+      await prisma.invoice.deleteMany({
+        where: { id: { in: ids } },
+      });
+      return NextResponse.json({ success: true, count: invoices.length });
+    }
+
+    return NextResponse.json({ error: "Acción no válida" }, { status: 400 });
+  } catch (error) {
+    console.error("Bulk invoice error:", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }
 }

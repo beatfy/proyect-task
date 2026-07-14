@@ -43,6 +43,7 @@ export default function BillingPage() {
   const [form, setForm] = useState({ projectId: "", month: "", year: "", amount: "", dueDate: "", notes: "" });
   const [projects, setProjects] = useState<{ id: string; name: string; monthlyFee: number; active?: boolean }[]>([]);
   const [editingFee, setEditingFee] = useState<{ projectId: string; value: string } | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Helper: get previous month info
   const getPrevMonth = () => {
@@ -63,9 +64,67 @@ export default function BillingPage() {
     try {
       const params = filterStatus !== "all" ? `?status=${filterStatus}` : "";
       const res = await fetch(`/api/billing/invoices${params}`);
-      if (res.ok) setInvoices(await res.json());
+      if (res.ok) {
+        setInvoices(await res.json());
+        setSelectedIds([]);
+      }
     } catch { toast.error("Error al cargar facturas"); }
     finally { setLoading(false); }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(invoices.map((i) => i.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleToggleSelect = (id: string, checked: boolean) => {
+    if (checked) {
+      setSelectedIds((prev) => [...prev, id]);
+    } else {
+      setSelectedIds((prev) => prev.filter((item) => item !== id));
+    }
+  };
+
+  const handleBulkStatusChange = async (status: string) => {
+    try {
+      const res = await fetch("/api/billing/invoices", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedIds, action: "status", status }),
+      });
+      if (res.ok) {
+        toast.success("Facturas actualizadas");
+        setSelectedIds([]);
+        fetchInvoices();
+      } else {
+        toast.error("Error al actualizar facturas");
+      }
+    } catch {
+      toast.error("Error al actualizar facturas");
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`¿Estás seguro de eliminar las ${selectedIds.length} facturas seleccionadas?`)) return;
+    try {
+      const res = await fetch("/api/billing/invoices", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedIds, action: "delete" }),
+      });
+      if (res.ok) {
+        toast.success("Facturas eliminadas");
+        setSelectedIds([]);
+        fetchInvoices();
+      } else {
+        toast.error("Error al eliminar facturas");
+      }
+    } catch {
+      toast.error("Error al eliminar facturas");
+    }
   };
 
   const fetchProjects = async () => {
@@ -231,8 +290,7 @@ export default function BillingPage() {
           })()}
         </CardContent>
       </Card>
-
-      {/* Filter */}
+      {/* Filter */}
       <div className="flex flex-wrap gap-2">
         {["all", "PENDING", "PAID", "OVERDUE"].map((s) => (
           <Button key={s} variant={filterStatus === s ? "default" : "outline"} size="sm" onClick={() => setFilterStatus(s)}>
@@ -240,6 +298,54 @@ export default function BillingPage() {
           </Button>
         ))}
       </div>
+
+      {/* Select All / Bulk Actions */}
+      {invoices.length > 0 && (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between bg-slate-50 dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={selectedIds.length === invoices.length && invoices.length > 0}
+              onChange={(e) => handleSelectAll(e.target.checked)}
+              className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+            />
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              {selectedIds.length > 0 ? `${selectedIds.length} seleccionadas` : "Seleccionar todas"}
+            </span>
+          </div>
+          {selectedIds.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-green-600 hover:text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-950/20 border-green-200 dark:border-green-900/50"
+                onClick={() => handleBulkStatusChange("PAID")}
+              >
+                <CheckCircle className="h-4 w-4 mr-1 sm:mr-2" />
+                <span className="text-xs sm:text-sm">Cobrar</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-yellow-600 hover:text-yellow-700 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-950/20 border-yellow-200 dark:border-yellow-900/50"
+                onClick={() => handleBulkStatusChange("PENDING")}
+              >
+                <Clock className="h-4 w-4 mr-1 sm:mr-2" />
+                <span className="text-xs sm:text-sm">Marcar pendiente</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-red-600 hover:text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 border-red-200 dark:border-red-900/50"
+                onClick={handleBulkDelete}
+              >
+                <Trash2 className="h-4 w-4 mr-1 sm:mr-2" />
+                <span className="text-xs sm:text-sm">Eliminar</span>
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Invoices list */}
       {invoices.length === 0 ? (
@@ -254,11 +360,18 @@ export default function BillingPage() {
         <div className="space-y-3">
           {invoices.map((invoice) => {
             const cfg = statusConfig[invoice.status] || statusConfig.PENDING;
+            const isSelected = selectedIds.includes(invoice.id);
             return (
-              <Card key={invoice.id} className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+              <Card key={invoice.id} className={`bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 transition-colors ${isSelected ? "bg-indigo-50/20 dark:bg-indigo-950/10 border-indigo-200 dark:border-indigo-900/50" : ""}`}>
                 <CardContent className="p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3 min-w-0">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => handleToggleSelect(invoice.id, e.target.checked)}
+                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 cursor-pointer shrink-0"
+                      />
                       <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: invoice.project.color }} />
                       <div className="min-w-0">
                         <Link href={`/billing/${invoice.projectId}`} className="font-medium text-slate-900 dark:text-slate-100 hover:underline block truncate">

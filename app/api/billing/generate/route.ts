@@ -22,11 +22,21 @@ export async function POST(request: NextRequest) {
     if (body.month) month = parseInt(body.month);
     if (body.year) year = parseInt(body.year);
 
-    // Get projects with fee where user is member
+    // Find all organizations where user is OWNER or ADMIN
+    const userOrgs = await prisma.organizationMember.findMany({
+      where: { userId: authResult.userId, role: { in: ["OWNER", "ADMIN"] } },
+      select: { organizationId: true },
+    });
+    const orgIds = userOrgs.map((o) => o.organizationId);
+
+    // Get projects with fee where user is member (OWNER/ADMIN) OR belongs to user's admin orgs
     const projects = await prisma.project.findMany({
       where: {
         monthlyFee: { gt: 0 },
-        members: { some: { userId: authResult.userId, role: { in: ["OWNER", "ADMIN"] } } },
+        OR: [
+          { members: { some: { userId: authResult.userId, role: { in: ["OWNER", "ADMIN"] } } } },
+          { organizationId: { in: orgIds } },
+        ],
       },
     });
 

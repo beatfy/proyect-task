@@ -12,18 +12,39 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const { id } = await params;
     const body = await request.json();
 
-    const member = await prisma.projectMember.findFirst({
-      where: { projectId: id, userId: authResult.userId, role: { in: ["OWNER", "ADMIN"] } },
+    const project = await prisma.project.findUnique({
+      where: { id },
+      select: { organizationId: true },
     });
-    if (!member) {
+
+    let isPrivileged = false;
+    if (project) {
+      const member = await prisma.projectMember.findFirst({
+        where: { projectId: id, userId: authResult.userId, role: { in: ["OWNER", "ADMIN"] } },
+      });
+      if (member) {
+        isPrivileged = true;
+      } else if (project.organizationId) {
+        const orgMember = await prisma.organizationMember.findFirst({
+          where: {
+            userId: authResult.userId,
+            organizationId: project.organizationId,
+            role: { in: ["OWNER", "ADMIN"] },
+          },
+        });
+        if (orgMember) isPrivileged = true;
+      }
+    }
+
+    if (!isPrivileged) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }
 
     const updateData: Record<string, unknown> = {};
     if (body.monthlyFee !== undefined) updateData.monthlyFee = parseFloat(body.monthlyFee);
 
-    const project = await prisma.project.update({ where: { id }, data: updateData });
-    return NextResponse.json(project);
+    const updated = await prisma.project.update({ where: { id }, data: updateData });
+    return NextResponse.json(updated);
   } catch (error) {
     console.error("Update billing error:", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
