@@ -25,6 +25,7 @@ interface Invoice {
   dueDate: string;
   createdAt: string;
   notes: string | null;
+  concept?: string | null;
   project: { id: string; name: string; color: string };
 }
 
@@ -41,7 +42,18 @@ export default function BillingPage() {
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [form, setForm] = useState({ projectId: "", month: "", year: "", amount: "", dueDate: "", notes: "" });
+  const [form, setForm] = useState({
+    projectId: "",
+    month: "",
+    year: "",
+    amount: "",
+    dueDate: "",
+    notes: "",
+    concept: "",
+    makeRecurring: false,
+    clientEmail: "",
+    billingDay: "31",
+  });
   const [projects, setProjects] = useState<{
     id: string;
     name: string;
@@ -51,6 +63,7 @@ export default function BillingPage() {
     recurringInvoice?: boolean;
     billingDay?: number;
     invoiceEmailMsg?: string | null;
+    billingConcept?: string | null;
   }[]>([]);
   const [editingProject, setEditingProject] = useState<{
     projectId: string;
@@ -59,6 +72,7 @@ export default function BillingPage() {
     recurringInvoice: boolean;
     billingDay: string;
     invoiceEmailMsg: string;
+    billingConcept: string;
   } | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [orgBilling, setOrgBilling] = useState<{
@@ -70,6 +84,8 @@ export default function BillingPage() {
     defaultIva: string;
     defaultIrpf: string;
     invoiceTemplate: string;
+    logo?: string | null;
+    billingFooter?: string | null;
   } | null>(null);
   const [savingOrg, setSavingOrg] = useState(false);
 
@@ -204,6 +220,7 @@ export default function BillingPage() {
         recurringInvoice: Boolean(proj.recurringInvoice),
         billingDay: String(proj.billingDay ?? "31"),
         invoiceEmailMsg: proj.invoiceEmailMsg || "",
+        billingConcept: proj.billingConcept || "",
       });
     }
   };
@@ -220,6 +237,7 @@ export default function BillingPage() {
           recurringInvoice: editingProject.recurringInvoice,
           billingDay: editingProject.billingDay,
           invoiceEmailMsg: editingProject.invoiceEmailMsg,
+          billingConcept: editingProject.billingConcept,
         }),
       });
       if (res.ok) {
@@ -246,7 +264,18 @@ export default function BillingPage() {
         toast.success("Factura creada");
         setCreateOpen(false);
         const p = getPrevMonth();
-        setForm({ projectId: "", month: p.month, year: p.year, amount: "", dueDate: p.dueDate, notes: "" });
+        setForm({
+          projectId: "",
+          month: p.month,
+          year: p.year,
+          amount: "",
+          dueDate: p.dueDate,
+          notes: "",
+          concept: "",
+          makeRecurring: false,
+          clientEmail: "",
+          billingDay: "31"
+        });
         fetchInvoices();
       } else {
         const data = await res.json();
@@ -306,7 +335,7 @@ export default function BillingPage() {
           <Button variant="outline" size="sm" className="shrink-0" onClick={handleAutoGenerate}>
             <Zap className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Auto-generar</span>
           </Button>
-          <Button size="sm" className="shrink-0" onClick={() => { const p = getPrevMonth(); setForm({ projectId: "", month: p.month, year: p.year, amount: "", dueDate: p.dueDate, notes: "" }); setCreateOpen(true); }}>
+          <Button size="sm" className="shrink-0" onClick={() => { const p = getPrevMonth(); setForm({ projectId: "", month: p.month, year: p.year, amount: "", dueDate: p.dueDate, notes: "", concept: "", makeRecurring: false, clientEmail: "", billingDay: "31" }); setCreateOpen(true); }}>
             <Plus className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Nueva Factura</span>
           </Button>
         </div>
@@ -480,6 +509,11 @@ export default function BillingPage() {
                         <Link href={`/billing/${invoice.projectId}`} className="font-medium text-slate-900 dark:text-slate-100 hover:underline block truncate">
                           {invoice.project.name}
                         </Link>
+                        {invoice.concept && (
+                          <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mt-0.5">
+                            Concepto: {invoice.concept}
+                          </p>
+                        )}
                         <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
                           <span className="font-medium">{monthShort[invoice.month - 1]} {invoice.year}</span>{' '}
                           · Vence: {new Date(invoice.dueDate).toLocaleDateString("es-ES", { day: "numeric", month: "short" })}
@@ -595,6 +629,30 @@ export default function BillingPage() {
                           />
                         </div>
                       </div>
+
+                      <div className="space-y-2 mt-4">
+                        <Label className="text-slate-700 dark:text-slate-300 font-medium">Logo de la Empresa (PNG/JPG)</Label>
+                        <div className="flex items-center gap-4 border border-slate-200 dark:border-slate-800 p-3 rounded-lg bg-slate-50/50 dark:bg-slate-900/50">
+                          {orgBilling.logo && (
+                            <img src={orgBilling.logo} alt="Logo" className="w-12 h-12 rounded object-contain border border-slate-300 dark:border-slate-700 bg-white" />
+                          )}
+                          <Input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setOrgBilling({ ...orgBilling, logo: reader.result as string });
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-xs py-1.5 cursor-pointer flex-1"
+                          />
+                        </div>
+                      </div>
                     </div>
 
                     <div className="space-y-4">
@@ -634,6 +692,17 @@ export default function BillingPage() {
                             <SelectItem value="classic">Clásico (Corporativo tradicional)</SelectItem>
                           </SelectContent>
                         </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-slate-700 dark:text-slate-300">Mensaje de Pie de Factura</Label>
+                        <textarea
+                          value={orgBilling.billingFooter || ""}
+                          onChange={(e) => setOrgBilling({ ...orgBilling, billingFooter: e.target.value })}
+                          placeholder="Ej. Gracias por su confianza. IBAN: ES00 1234 5678..."
+                          rows={3}
+                          className="w-full text-sm p-2 rounded-md bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-slate-100"
+                        />
                       </div>
 
                       <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-lg p-4 flex flex-col justify-between h-40">
@@ -687,6 +756,16 @@ export default function BillingPage() {
                 value={editingProject?.monthlyFee || ""}
                 onChange={(e) => editingProject && setEditingProject({ ...editingProject, monthlyFee: e.target.value })}
                 placeholder="0.00"
+                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-slate-700 dark:text-slate-300 font-medium">Concepto / Servicio por defecto</Label>
+              <Input
+                value={editingProject?.billingConcept || ""}
+                onChange={(e) => editingProject && setEditingProject({ ...editingProject, billingConcept: e.target.value })}
+                placeholder="Ej. Servicios de marketing"
                 className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
               />
             </div>
@@ -759,8 +838,10 @@ export default function BillingPage() {
 
       {/* Create dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-          <DialogHeader>          <DialogTitle className="text-slate-900 dark:text-slate-100">Nueva Factura de Oportunidad</DialogTitle></DialogHeader>
+        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-slate-900 dark:text-slate-100">Nueva Factura de Oportunidad</DialogTitle>
+          </DialogHeader>
           <div className="space-y-4 pt-4">
             <div className="space-y-2">
               <Label className="text-slate-700 dark:text-slate-300">Cliente / Oportunidad</Label>
@@ -773,6 +854,17 @@ export default function BillingPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="space-y-2">
+              <Label className="text-slate-700 dark:text-slate-300">Concepto del Servicio</Label>
+              <Input
+                value={form.concept}
+                onChange={(e) => setForm({ ...form, concept: e.target.value })}
+                placeholder="Ej. Diseño y Desarrollo Web, Consultoría..."
+                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-slate-700 dark:text-slate-300">Mes</Label>
@@ -790,6 +882,7 @@ export default function BillingPage() {
                 <Input type="number" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} placeholder="2025" className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600" />
               </div>
             </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-slate-700 dark:text-slate-300">Importe (€)</Label>
@@ -800,10 +893,56 @@ export default function BillingPage() {
                 <Input type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600" />
               </div>
             </div>
+
             <div className="space-y-2">
-              <Label className="text-slate-700 dark:text-slate-300">Notas</Label>
-              <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Opcional" className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600" />
+              <Label className="text-slate-700 dark:text-slate-300">Notas de Factura (Opcional)</Label>
+              <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Ej. Pago por transferencia" className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600" />
             </div>
+
+            <div className="flex items-center justify-between border border-slate-200 dark:border-slate-800 p-3 rounded-lg bg-slate-50/50 dark:bg-slate-900/50">
+              <div className="space-y-0.5">
+                <Label className="text-sm font-medium text-slate-800 dark:text-slate-200">Facturación recurrente mensual</Label>
+                <p className="text-xs text-slate-500">Configura esto como los cobros mensuales recurrentes de este cliente</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={form.makeRecurring}
+                onChange={(e) => setForm({ ...form, makeRecurring: e.target.checked })}
+                className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              />
+            </div>
+
+            {form.makeRecurring && (
+              <>
+                <div className="space-y-2">
+                  <Label className="text-slate-700 dark:text-slate-300">Email de facturación del cliente</Label>
+                  <Input
+                    type="email"
+                    value={form.clientEmail}
+                    onChange={(e) => setForm({ ...form, clientEmail: e.target.value })}
+                    placeholder="cliente@ejemplo.com"
+                    className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-slate-700 dark:text-slate-300">Día de facturación mensual</Label>
+                  <Select value={form.billingDay} onValueChange={(v) => setForm({ ...form, billingDay: v })}>
+                    <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                      <SelectValue placeholder="Selecciona un día" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 28 }, (_, i) => (
+                        <SelectItem key={i + 1} value={String(i + 1)}>
+                          Día {i + 1}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="31">Último día del mes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+
             <Button onClick={handleCreate} className="w-full">Crear Factura</Button>
           </div>
         </DialogContent>

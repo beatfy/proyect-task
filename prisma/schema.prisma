@@ -59,6 +59,7 @@ model Project {
   recurringInvoice Boolean         @default(false)
   billingDay       Int             @default(31)
   invoiceEmailMsg  String?
+  billingConcept   String?
   invoices         Invoice[]
   labels           ProjectLabel[]
   taskPipelines    TaskPipeline[]
@@ -270,6 +271,7 @@ model Organization {
   defaultIva      Float               @default(21)
   defaultIrpf     Float               @default(15)
   invoiceTemplate String              @default("modern")
+  billingFooter   String?
   members         OrganizationMember[]
   projects        Project[]
   invitations     Invitation[]
@@ -328,12 +330,13 @@ model Invoice {
   month     Int
   year      Int
   amount    Float
-  status    String   @default("PENDING")
+  concept   String?
+  status    String    @default("PENDING")
   paidAt    DateTime?
   dueDate   DateTime
   notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@unique([projectId, month, year])
 }

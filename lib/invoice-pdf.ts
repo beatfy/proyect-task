@@ -1,4 +1,20 @@
-import { prisma } from "@/lib/prisma";
+function hexToRgb(hex: string): [number, number, number] {
+  const defaultColor: [number, number, number] = [99, 102, 241]; // #6366f1
+  if (!hex) return defaultColor;
+  
+  let clean = hex.replace("#", "");
+  if (clean.length === 3) {
+    clean = clean.split("").map((c) => c + c).join("");
+  }
+  
+  if (clean.length !== 6) return defaultColor;
+  
+  const r = parseInt(clean.substring(0, 2), 16);
+  const g = parseInt(clean.substring(2, 4), 16);
+  const b = parseInt(clean.substring(4, 6), 16);
+  
+  return [r, g, b];
+}
 
 export async function generateInvoicePDFBuffer(invoice: any, organization: any): Promise<Buffer> {
   const { default: jsPDF } = await import("jspdf");
@@ -16,19 +32,35 @@ export async function generateInvoicePDFBuffer(invoice: any, organization: any):
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
   ];
 
-  // Colors
-  const primaryColor = [99, 102, 241]; // #6366f1
+  // Colors & Brand Theme
+  const brandColor = hexToRgb(invoice.project?.color || "#6366f1");
   const darkColor = [15, 23, 42]; // #0f172a
   const lightGray = [100, 116, 139]; // #64748b
 
-  // 1. Header (Logo / Title)
+  let companyTextX = 20;
+  let currentY = 25;
+
+  // 1. Header (Logo & Company Details)
+  if (organization.logo) {
+    try {
+      const format = organization.logo.split(";")[0].split("/")[1]?.toUpperCase() || "PNG";
+      doc.addImage(organization.logo, format, 20, 18, 25, 25);
+      companyTextX = 50; // Shift right
+      currentY = 22;
+    } catch (err) {
+      console.error("Error inserting logo into invoice PDF:", err);
+    }
+  }
+
+  // Draw organization name
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(20);
-  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  doc.setFontSize(18);
+  doc.setTextColor(brandColor[0], brandColor[1], brandColor[2]);
   
   const orgName = organization.billingName || organization.name || "Mi Empresa";
-  doc.text(orgName, 20, 25);
+  doc.text(orgName, companyTextX, currentY);
   
+  // Draw company details
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(lightGray[0], lightGray[1], lightGray[2]);
@@ -38,7 +70,11 @@ export async function generateInvoicePDFBuffer(invoice: any, organization: any):
   if (organization.billingAddress) companyInfo += `Dir: ${organization.billingAddress}\n`;
   if (organization.billingEmail) companyInfo += `Email: ${organization.billingEmail}\n`;
   if (organization.billingPhone) companyInfo += `Tel: ${organization.billingPhone}`;
-  doc.text(companyInfo.trim(), 20, 32);
+  
+  const infoLines = companyInfo.trim().split("\n");
+  infoLines.forEach((line, idx) => {
+    doc.text(line, companyTextX, currentY + 5.5 + (idx * 4));
+  });
 
   // Invoice Details Box (Right top)
   doc.setFont("helvetica", "bold");
@@ -73,9 +109,9 @@ export async function generateInvoicePDFBuffer(invoice: any, organization: any):
   doc.setFontSize(9);
   doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
   
-  const clientName = invoice.project.name;
+  const clientName = invoice.project?.name || "Cliente";
   let clientDetails = `${clientName}\n`;
-  if (invoice.project.clientEmail) {
+  if (invoice.project?.clientEmail) {
     clientDetails += `Email: ${invoice.project.clientEmail}\n`;
   }
   if (invoice.notes) {
@@ -92,9 +128,11 @@ export async function generateInvoicePDFBuffer(invoice: any, organization: any):
   const irpf = base * (irpfRate / 100);
   const total = base + iva - irpf;
 
+  const conceptText = invoice.concept || invoice.project?.billingConcept || "Servicios prestados";
+
   const tableData = [
     [
-      `Servicios de desarrollo mensual - ${monthNames[invoice.month - 1]} ${invoice.year}`,
+      `${conceptText} - ${monthNames[invoice.month - 1]} ${invoice.year}`,
       base.toLocaleString("es-ES", { style: "currency", currency: "EUR" }),
       `${ivaRate}%`,
       `${irpfRate}%`,
@@ -109,7 +147,7 @@ export async function generateInvoicePDFBuffer(invoice: any, organization: any):
     body: tableData,
     theme: "striped",
     headStyles: {
-      fillColor: [primaryColor[0], primaryColor[1], primaryColor[2]],
+      fillColor: brandColor,
       textColor: [255, 255, 255],
       fontStyle: "bold",
       fontSize: 9,
@@ -147,11 +185,14 @@ export async function generateInvoicePDFBuffer(invoice: any, organization: any):
   doc.text("Total Neto a Pagar:", 120, finalY + 20);
   doc.text(total.toLocaleString("es-ES", { style: "currency", currency: "EUR" }), 190, finalY + 20, { align: "right" });
 
-  // 5. Footer
+  // 5. Footer (Support custom text & bank info)
   doc.setFont("helvetica", "italic");
-  doc.setFontSize(8);
+  doc.setFontSize(8.5);
   doc.setTextColor(lightGray[0], lightGray[1], lightGray[2]);
-  doc.text("Gracias por su confianza.", 20, 270);
+  
+  const footerText = organization.billingFooter || "Gracias por su confianza.";
+  const footerLines = doc.splitTextToSize(footerText, 170);
+  doc.text(footerLines, 20, 265);
 
   // Return buffer
   const pdfOutput = doc.output("arraybuffer");

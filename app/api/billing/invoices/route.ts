@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { projectId, amount, notes } = body;
+    const { projectId, amount, notes, concept, makeRecurring, clientEmail, billingDay } = body;
 
     // Auto-calculate previous month + dueDate = today + 7 days
     const now = new Date();
@@ -114,8 +114,23 @@ export async function POST(request: NextRequest) {
         amount: parseFloat(amount),
         dueDate: finalDueDate,
         notes: notes || null,
+        concept: concept || null,
       },
     });
+
+    if (makeRecurring) {
+      await prisma.project.update({
+        where: { id: projectId },
+        data: {
+          monthlyFee: parseFloat(amount),
+          clientEmail: clientEmail || null,
+          recurringInvoice: true,
+          billingDay: billingDay ? parseInt(billingDay) : 31,
+          billingConcept: concept || null,
+          invoiceEmailMsg: `Adjuntamos la factura mensual correspondiente al servicio de ${concept || "desarrollo"}.`,
+        },
+      });
+    }
 
     return NextResponse.json(invoice);
   } catch (error) {

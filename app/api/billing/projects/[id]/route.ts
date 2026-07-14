@@ -46,6 +46,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (body.recurringInvoice !== undefined) updateData.recurringInvoice = Boolean(body.recurringInvoice);
     if (body.billingDay !== undefined) updateData.billingDay = parseInt(body.billingDay);
     if (body.invoiceEmailMsg !== undefined) updateData.invoiceEmailMsg = body.invoiceEmailMsg || null;
+    if (body.billingConcept !== undefined) updateData.billingConcept = body.billingConcept || null;
 
     const updated = await prisma.project.update({ where: { id }, data: updateData });
     return NextResponse.json(updated);

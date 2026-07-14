@@ -59,6 +59,8 @@ export async function PATCH(request: NextRequest) {
     if (body.defaultIva !== undefined) updateData.defaultIva = parseFloat(body.defaultIva);
     if (body.defaultIrpf !== undefined) updateData.defaultIrpf = parseFloat(body.defaultIrpf);
     if (body.invoiceTemplate !== undefined) updateData.invoiceTemplate = body.invoiceTemplate;
+    if (body.logo !== undefined) updateData.logo = body.logo || null;
+    if (body.billingFooter !== undefined) updateData.billingFooter = body.billingFooter || null;
 
     const updated = await prisma.organization.update({
       where: { id: member.organizationId },
