@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
+import { generateInvoicePDFBuffer } from "@/lib/invoice-pdf";
 
 const CRON_SECRET = process.env.CRON_SECRET;
 
@@ -26,12 +27,15 @@ export async function GET(request: NextRequest) {
     // Check if today is the last day of the month
     const isLastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() === now.getDate();
 
-    // Fetch all active projects with recurring invoices enabled
+    // Fetch all active projects with recurring invoices enabled, including organization settings
     const allRecurringProjects = await prisma.project.findMany({
       where: {
         recurringInvoice: true,
         monthlyFee: { gt: 0 },
         status: "ACTIVE",
+      },
+      include: {
+        organization: true,
       },
     });
 
@@ -73,7 +77,7 @@ export async function GET(request: NextRequest) {
       if (existing) continue;
 
       // Create invoice
-      await prisma.invoice.create({
+      const invoice = await prisma.invoice.create({
         data: {
           id: cuid(),
           projectId: project.id,
@@ -88,13 +92,28 @@ export async function GET(request: NextRequest) {
       // Send email if client email is configured
       if (project.clientEmail) {
         if (RESEND_API_KEY) {
+          const organization = project.organization;
+          const attachments: any[] = [];
+          
+          if (organization) {
+            try {
+              const pdfBuffer = await generateInvoicePDFBuffer(invoice, organization);
+              attachments.push({
+                filename: `factura-${invoice.id.substring(0, 8).toUpperCase()}.pdf`,
+                content: pdfBuffer.toString("base64"),
+              });
+            } catch (pdfErr) {
+              console.error(`Failed to generate PDF for project ${project.name}:`, pdfErr);
+            }
+          }
+
           const emailHtml = `
             <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #ffffff;">
-              <h2 style="color: #6366f1; margin-top: 0;">Factura Mensual Emitida</h2>
+              <h2 style="color: #6366f1; margin-top: 0;">Factura Emitida</h2>
               <p>Estimado cliente de <strong>${project.name}</strong>,</p>
               <p style="white-space: pre-line; color: #334155; line-height: 1.5;">${
                 project.invoiceEmailMsg ||
-                "Le informamos que se ha generado su factura mensual. Puede revisar los detalles a continuación:"
+                "Le informamos que se ha generado su factura mensual. Encontrará el documento PDF oficial adjunto a este correo electrónico con el desglose correspondiente."
               }</p>
               <div style="background-color: #f8fafc; padding: 15px; border-radius: 6px; margin: 20px 0; border: 1px solid #e2e8f0;">
                 <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
@@ -134,6 +153,7 @@ export async function GET(request: NextRequest) {
               to: project.clientEmail,
               subject: `Factura mensual - ${project.name} (${monthNames[month - 1]} ${year})`,
               html: emailHtml,
+              attachments,
             }),
           })
             .then(async (res) => {

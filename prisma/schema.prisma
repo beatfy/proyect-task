@@ -259,19 +259,27 @@ model Organization {
   slug        String              @unique
   description String?
   logo        String?
-  apiKey      String?             @unique
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  members       OrganizationMember[]
-  projects      Project[]
-  invitations   Invitation[]
-  labels        Label[]
-  knowledgeBase KnowledgeBase?
-  pipelines     Pipeline[]
-  activities    Activity[]
-  taskTemplates TaskTemplate[]
-  chatMessages  ChatMessage[]
-  taskPipelines TaskPipeline[]
+  apiKey          String?             @unique
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  billingName     String?
+  billingTaxId    String?
+  billingAddress  String?
+  billingPhone    String?
+  billingEmail    String?
+  defaultIva      Float               @default(21)
+  defaultIrpf     Float               @default(15)
+  invoiceTemplate String              @default("modern")
+  members         OrganizationMember[]
+  projects        Project[]
+  invitations     Invitation[]
+  labels          Label[]
+  knowledgeBase   KnowledgeBase?
+  pipelines       Pipeline[]
+  activities      Activity[]
+  taskTemplates   TaskTemplate[]
+  chatMessages    ChatMessage[]
+  taskPipelines   TaskPipeline[]
 }
 
 model OrganizationMember {

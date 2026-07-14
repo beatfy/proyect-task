@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Receipt, Loader2, Plus, DollarSign, Calendar, CheckCircle, Clock, AlertCircle, MoreHorizontal, Trash2, Zap, Pencil } from "lucide-react";
+import { Receipt, Loader2, Plus, DollarSign, Calendar, CheckCircle, Clock, AlertCircle, MoreHorizontal, Trash2, Zap, Pencil, Download, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import Link from "next/link";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Invoice {
   id: string;
@@ -60,6 +61,17 @@ export default function BillingPage() {
     invoiceEmailMsg: string;
   } | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [orgBilling, setOrgBilling] = useState<{
+    billingName: string;
+    billingTaxId: string;
+    billingAddress: string;
+    billingPhone: string;
+    billingEmail: string;
+    defaultIva: string;
+    defaultIrpf: string;
+    invoiceTemplate: string;
+  } | null>(null);
+  const [savingOrg, setSavingOrg] = useState(false);
 
   // Helper: get previous month info
   const getPrevMonth = () => {
@@ -74,7 +86,37 @@ export default function BillingPage() {
   useEffect(() => {
     fetchInvoices();
     fetchProjects();
+    fetchOrgBilling();
   }, []);
+
+  const fetchOrgBilling = async () => {
+    try {
+      const res = await fetch("/api/billing/organization");
+      if (res.ok) setOrgBilling(await res.json());
+    } catch {}
+  };
+
+  const handleSaveOrgBilling = async () => {
+    if (!orgBilling) return;
+    setSavingOrg(true);
+    try {
+      const res = await fetch("/api/billing/organization", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orgBilling),
+      });
+      if (res.ok) {
+        toast.success("Perfil de facturación de la empresa actualizado");
+        fetchOrgBilling();
+      } else {
+        toast.error("Error al guardar la configuración");
+      }
+    } catch {
+      toast.error("Error al guardar la configuración");
+    } finally {
+      setSavingOrg(false);
+    }
+  };
 
   const fetchInvoices = async () => {
     try {
@@ -270,6 +312,18 @@ export default function BillingPage() {
         </div>
       </div>
 
+      <Tabs defaultValue="invoices" className="space-y-6">
+        <TabsList className="bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+          <TabsTrigger value="invoices" className="flex items-center gap-2">
+            <Receipt className="h-4 w-4" /> Facturas
+          </TabsTrigger>
+          <TabsTrigger value="template" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" /> Plantilla y Datos
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="invoices" className="space-y-6">
+
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
@@ -457,6 +511,9 @@ export default function BillingPage() {
                               <Clock className="h-4 w-4 mr-2" /> Marcar pendiente
                             </DropdownMenuItem>
                           )}
+                          <DropdownMenuItem onClick={() => window.open(`/api/billing/invoices/${invoice.id}/pdf`, "_blank")}>
+                            <Download className="h-4 w-4 mr-2" /> Descargar PDF
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleDelete(invoice.id)} className="text-red-600">
                             <Trash2 className="h-4 w-4 mr-2" /> Eliminar
                           </DropdownMenuItem>
@@ -470,6 +527,148 @@ export default function BillingPage() {
           })}
         </div>
       )}
+
+        </TabsContent>
+
+        <TabsContent value="template">
+          <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+            <CardHeader>
+              <CardTitle className="text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <FileText className="h-5 w-5 text-indigo-500" />
+                Perfil de Facturación de la Empresa
+              </CardTitle>
+              <p className="text-sm text-slate-500 mt-1">Configura los datos fiscales que aparecerán en las facturas emitidas a tus clientes</p>
+            </CardHeader>
+            <CardContent>
+              {orgBilling ? (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-slate-700 dark:text-slate-300">Nombre / Razón Social</Label>
+                        <Input
+                          value={orgBilling.billingName || ""}
+                          onChange={(e) => setOrgBilling({ ...orgBilling, billingName: e.target.value })}
+                          placeholder="Ej. Mi Empresa S.L."
+                          className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-slate-700 dark:text-slate-300">NIF / CIF / Identificación Fiscal</Label>
+                        <Input
+                          value={orgBilling.billingTaxId || ""}
+                          onChange={(e) => setOrgBilling({ ...orgBilling, billingTaxId: e.target.value })}
+                          placeholder="Ej. B12345678"
+                          className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-slate-700 dark:text-slate-300">Dirección Fiscal</Label>
+                        <Input
+                          value={orgBilling.billingAddress || ""}
+                          onChange={(e) => setOrgBilling({ ...orgBilling, billingAddress: e.target.value })}
+                          placeholder="Calle Mayor 123, Madrid"
+                          className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-slate-700 dark:text-slate-300">Teléfono</Label>
+                          <Input
+                            value={orgBilling.billingPhone || ""}
+                            onChange={(e) => setOrgBilling({ ...orgBilling, billingPhone: e.target.value })}
+                            placeholder="+34 600 000 000"
+                            className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-slate-700 dark:text-slate-300">Email de Facturación</Label>
+                          <Input
+                            type="email"
+                            value={orgBilling.billingEmail || ""}
+                            onChange={(e) => setOrgBilling({ ...orgBilling, billingEmail: e.target.value })}
+                            placeholder="facturas@miempresa.com"
+                            className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-slate-700 dark:text-slate-300">IVA por defecto (%)</Label>
+                          <Input
+                            type="number"
+                            value={orgBilling.defaultIva ?? "21"}
+                            onChange={(e) => setOrgBilling({ ...orgBilling, defaultIva: e.target.value })}
+                            className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-slate-700 dark:text-slate-300">IRPF por defecto (%)</Label>
+                          <Input
+                            type="number"
+                            value={orgBilling.defaultIrpf ?? "15"}
+                            onChange={(e) => setOrgBilling({ ...orgBilling, defaultIrpf: e.target.value })}
+                            className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-slate-700 dark:text-slate-300">Diseño de la Plantilla</Label>
+                        <Select
+                          value={orgBilling.invoiceTemplate || "modern"}
+                          onValueChange={(v) => setOrgBilling({ ...orgBilling, invoiceTemplate: v })}
+                        >
+                          <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                            <SelectValue placeholder="Selecciona un diseño" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="modern">Moderno (Gris/Índigo profesional)</SelectItem>
+                            <SelectItem value="minimalist">Minimalista (Limpio y blanco/negro)</SelectItem>
+                            <SelectItem value="classic">Clásico (Corporativo tradicional)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-lg p-4 flex flex-col justify-between h-40">
+                        <div>
+                          <h4 className="font-semibold text-slate-900 dark:text-slate-100 text-sm">Vista Previa de la Plantilla</h4>
+                          <p className="text-xs text-slate-500 mt-1">Descarga un documento PDF de ejemplo con tus datos actuales para validar la apariencia de la factura.</p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          type="button"
+                          onClick={() => window.open("/api/billing/invoices/sample/pdf", "_blank")}
+                          className="w-full flex items-center justify-center gap-2 border-indigo-200 dark:border-indigo-900/50 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400"
+                        >
+                          <Download className="h-4 w-4" />
+                          Descargar PDF de Ejemplo
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-4 border-t border-slate-200 dark:border-slate-800">
+                    <Button onClick={handleSaveOrgBilling} disabled={savingOrg} className="w-full md:w-auto md:px-8">
+                      {savingOrg ? "Guardando..." : "Guardar Perfil Fiscal"}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Edit project billing settings dialog */}
       <Dialog open={!!editingProject} onOpenChange={(open) => { if (!open) setEditingProject(null); }}>
