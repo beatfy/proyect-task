@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { logDocToolCall } from "./doc-usage";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 
@@ -36,6 +37,7 @@ export async function authenticateRequest(request: NextRequest): Promise<{
           const secret = process.env.NEXTAUTH_SECRET || "default_secret";
           const expectedSignature = crypto.createHmac("sha256", secret).update(userId).digest("hex");
           if (signature === expectedSignature) {
+            logDocToolCall(userId, request.nextUrl.pathname, request.method).catch(() => {});
             return { userId, permissions: "full" };
           }
         }

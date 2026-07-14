@@ -187,11 +187,11 @@ export default function DashboardPage() {
         <CardHeader>
           <CardTitle className="text-foreground flex items-center gap-2">
             <Bot className="h-5 w-5 text-violet-500" />
-            Métricas de Ledy (Agente IA)
+            Métricas de Doc (Agente IA)
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <LedyMetrics organizationId={selectedOrg === "all" ? null : selectedOrg} />
+          <DocMetrics organizationId={selectedOrg === "all" ? null : selectedOrg} />
         </CardContent>
       </Card>
 
@@ -273,13 +273,13 @@ export default function DashboardPage() {
 
 const TOOL_COLORS = ["bg-green-500", "bg-blue-500", "bg-amber-500", "bg-purple-500", "bg-pink-500"];
 
-function LedyMetrics({ organizationId }: { organizationId: string | null }) {
+function DocMetrics({ organizationId }: { organizationId: string | null }) {
   const [data, setData] = useState<{ totalQueries: number; totalTools: number; queriesByDay: Record<string, number>; topTools: { name: string; count: number }[] } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const params = organizationId ? `?organizationId=${organizationId}` : "";
-    fetch(`/api/tasky-usage${params}`)
+    fetch(`/api/doc-usage${params}`)
       .then((r) => r.json())
       .then((d) => setData(d))
       .catch(() => {})
@@ -291,7 +291,7 @@ function LedyMetrics({ organizationId }: { organizationId: string | null }) {
   }
 
   if (!data || data.totalQueries === 0) {
-    return <div className="text-center py-8 text-muted-foreground">Sin datos aún. Usa Ledy para empezar a generar métricas.</div>;
+    return <div className="text-center py-8 text-muted-foreground">Sin datos aún. Usa a Doc para empezar a generar métricas.</div>;
   }
 
   const toolsPerQuery = data.totalQueries > 0 ? (data.totalTools / data.totalQueries).toFixed(1) : "0";

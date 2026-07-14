@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { logDocToolCall } from "./doc-usage";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 
@@ -44,6 +45,7 @@ export async function authenticateOrgApiKey(request: NextRequest): Promise<{ org
           organizationId = member.organizationId;
           orgName = member.organization.name;
         }
+        logDocToolCall(userId, request.nextUrl.pathname, request.method, organizationId).catch(() => {});
       }
     }
   } else {
