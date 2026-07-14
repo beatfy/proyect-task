@@ -53,11 +53,15 @@ model Project {
   tasks          Task[]
   invitations    Invitation[]
   inviteTokens   ProjectInviteToken[]
-  monthlyFee     Float           @default(0)
-  clientContext  String?
-  invoices       Invoice[]
-  labels        ProjectLabel[]
-  taskPipelines  TaskPipeline[]
+  monthlyFee       Float           @default(0)
+  clientContext    String?
+  clientEmail      String?
+  recurringInvoice Boolean         @default(false)
+  billingDay       Int             @default(31)
+  invoiceEmailMsg  String?
+  invoices         Invoice[]
+  labels           ProjectLabel[]
+  taskPipelines    TaskPipeline[]
 }
 
 model ProjectMember {

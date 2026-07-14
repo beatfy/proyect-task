@@ -41,8 +41,24 @@ export default function BillingPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [form, setForm] = useState({ projectId: "", month: "", year: "", amount: "", dueDate: "", notes: "" });
-  const [projects, setProjects] = useState<{ id: string; name: string; monthlyFee: number; active?: boolean }[]>([]);
-  const [editingFee, setEditingFee] = useState<{ projectId: string; value: string } | null>(null);
+  const [projects, setProjects] = useState<{
+    id: string;
+    name: string;
+    monthlyFee: number;
+    active?: boolean;
+    clientEmail?: string | null;
+    recurringInvoice?: boolean;
+    billingDay?: number;
+    invoiceEmailMsg?: string | null;
+  }[]>([]);
+  const [editingProject, setEditingProject] = useState<{
+    projectId: string;
+    monthlyFee: string;
+    clientEmail: string;
+    recurringInvoice: boolean;
+    billingDay: string;
+    invoiceEmailMsg: string;
+  } | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Helper: get previous month info
@@ -136,17 +152,45 @@ export default function BillingPage() {
 
   useEffect(() => { fetchInvoices(); }, [filterStatus]);
 
-  const handleSaveFee = async (projectId: string) => {
-    if (!editingFee) return;
+  const handleOpenSettings = (projectId: string) => {
+    const proj = projects.find(p => p.id === projectId);
+    if (proj) {
+      setEditingProject({
+        projectId,
+        monthlyFee: String(proj.monthlyFee || "0"),
+        clientEmail: proj.clientEmail || "",
+        recurringInvoice: Boolean(proj.recurringInvoice),
+        billingDay: String(proj.billingDay ?? "31"),
+        invoiceEmailMsg: proj.invoiceEmailMsg || "",
+      });
+    }
+  };
+
+  const handleSaveSettings = async (projectId: string) => {
+    if (!editingProject) return;
     try {
       const res = await fetch(`/api/billing/projects/${projectId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ monthlyFee: editingFee.value }),
+        body: JSON.stringify({
+          monthlyFee: editingProject.monthlyFee,
+          clientEmail: editingProject.clientEmail,
+          recurringInvoice: editingProject.recurringInvoice,
+          billingDay: editingProject.billingDay,
+          invoiceEmailMsg: editingProject.invoiceEmailMsg,
+        }),
       });
-      if (res.ok) { toast.success("Cuota actualizada"); setEditingFee(null); fetchProjects(); }
-      else { toast.error("Error al guardar cuota"); }
-    } catch { toast.error("Error al guardar cuota"); }
+      if (res.ok) {
+        toast.success("Configuración de facturación actualizada");
+        setEditingProject(null);
+        fetchProjects();
+        fetchInvoices();
+      } else {
+        toast.error("Error al guardar la configuración");
+      }
+    } catch {
+      toast.error("Error al guardar la configuración");
+    }
   };
 
   const handleCreate = async () => {
@@ -271,7 +315,12 @@ export default function BillingPage() {
                       {regularProjects.map(p => (
                         <tr key={p.id} className="border-b border-slate-100 dark:border-slate-800">
                           <td className="py-2 px-2 font-medium text-slate-900 dark:text-slate-100">{p.name}</td>
-                          <td className="py-2 px-2 text-right text-slate-700 dark:text-slate-300">{fmt(p.monthlyFee)}</td>
+                          <td className="py-2 px-2 text-right text-slate-700 dark:text-slate-300">
+                            <span className="mr-2">{fmt(p.monthlyFee)}</span>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:text-slate-600 inline-flex align-middle" onClick={() => handleOpenSettings(p.id)}>
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          </td>
                           <td className="py-2 px-2 text-center"><Badge className={p.active !== false ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"}>{p.active !== false ? "Activo" : "Inactivo"}</Badge></td>
                         </tr>
                       ))}
@@ -388,10 +437,7 @@ export default function BillingPage() {
                         {invoice.amount.toLocaleString("es-ES", { style: "currency", currency: "EUR" })}
                       </span>
                       <Badge className={cfg.color}>{cfg.label}</Badge>
-                      <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => {
-                        const proj = projects.find(p => p.id === invoice.projectId);
-                        setEditingFee({ projectId: invoice.projectId, value: String(proj?.monthlyFee || "") });
-                      }}>
+                      <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => handleOpenSettings(invoice.projectId)}>
                         <Pencil className="h-3 w-3" />
                       </Button>
                       <DropdownMenu>
@@ -425,16 +471,89 @@ export default function BillingPage() {
         </div>
       )}
 
-      {/* Edit monthly fee dialog */}
-      <Dialog open={!!editingFee} onOpenChange={(open) => { if (!open) setEditingFee(null); }}>
-        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-          <DialogHeader><DialogTitle className="text-slate-900 dark:text-slate-100">Editar cuota mensual</DialogTitle></DialogHeader>
+      {/* Edit project billing settings dialog */}
+      <Dialog open={!!editingProject} onOpenChange={(open) => { if (!open) setEditingProject(null); }}>
+        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-slate-900 dark:text-slate-100">
+              Configuración de Facturación
+            </DialogTitle>
+          </DialogHeader>
           <div className="space-y-4 pt-4">
             <div className="space-y-2">
               <Label className="text-slate-700 dark:text-slate-300">Cuota mensual (€)</Label>
-              <Input type="number" step="0.01" value={editingFee?.value || ""} onChange={(e) => editingFee && setEditingFee({ ...editingFee, value: e.target.value })} placeholder="0.00" className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600" />
+              <Input
+                type="number"
+                step="0.01"
+                value={editingProject?.monthlyFee || ""}
+                onChange={(e) => editingProject && setEditingProject({ ...editingProject, monthlyFee: e.target.value })}
+                placeholder="0.00"
+                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
+              />
             </div>
-            <Button onClick={() => editingFee && handleSaveFee(editingFee.projectId)} className="w-full">Guardar</Button>
+            
+            <div className="space-y-2">
+              <Label className="text-slate-700 dark:text-slate-300">Email de facturación del cliente</Label>
+              <Input
+                type="email"
+                value={editingProject?.clientEmail || ""}
+                onChange={(e) => editingProject && setEditingProject({ ...editingProject, clientEmail: e.target.value })}
+                placeholder="cliente@ejemplo.com"
+                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
+              />
+            </div>
+
+            <div className="flex items-center justify-between border border-slate-200 dark:border-slate-800 p-3 rounded-lg bg-slate-50/50 dark:bg-slate-900/50">
+              <div className="space-y-0.5">
+                <Label className="text-sm font-medium text-slate-800 dark:text-slate-200">Facturación recurrente automática</Label>
+                <p className="text-xs text-slate-500">Genera y envía automáticamente la factura por email</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={editingProject?.recurringInvoice || false}
+                onChange={(e) => editingProject && setEditingProject({ ...editingProject, recurringInvoice: e.target.checked })}
+                className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              />
+            </div>
+
+            {editingProject?.recurringInvoice && (
+              <>
+                <div className="space-y-2">
+                  <Label className="text-slate-700 dark:text-slate-300">Día de facturación mensual</Label>
+                  <Select
+                    value={editingProject?.billingDay || "31"}
+                    onValueChange={(v) => editingProject && setEditingProject({ ...editingProject, billingDay: v })}
+                  >
+                    <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                      <SelectValue placeholder="Selecciona un día" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 28 }, (_, i) => (
+                        <SelectItem key={i + 1} value={String(i + 1)}>
+                          Día {i + 1}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="31">Último día del mes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-slate-700 dark:text-slate-300">Mensaje de email personalizado</Label>
+                  <textarea
+                    value={editingProject?.invoiceEmailMsg || ""}
+                    onChange={(e) => editingProject && setEditingProject({ ...editingProject, invoiceEmailMsg: e.target.value })}
+                    placeholder="Escribe el mensaje que acompañará a la factura..."
+                    rows={4}
+                    className="w-full text-sm p-2 rounded-md bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-slate-100"
+                  />
+                </div>
+              </>
+            )}
+
+            <Button onClick={() => editingProject && handleSaveSettings(editingProject.projectId)} className="w-full">
+              Guardar Configuración
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

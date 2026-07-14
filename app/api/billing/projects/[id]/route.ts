@@ -42,6 +42,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     const updateData: Record<string, unknown> = {};
     if (body.monthlyFee !== undefined) updateData.monthlyFee = parseFloat(body.monthlyFee);
+    if (body.clientEmail !== undefined) updateData.clientEmail = body.clientEmail || null;
+    if (body.recurringInvoice !== undefined) updateData.recurringInvoice = Boolean(body.recurringInvoice);
+    if (body.billingDay !== undefined) updateData.billingDay = parseInt(body.billingDay);
+    if (body.invoiceEmailMsg !== undefined) updateData.invoiceEmailMsg = body.invoiceEmailMsg || null;
 
     const updated = await prisma.project.update({ where: { id }, data: updateData });
     return NextResponse.json(updated);
