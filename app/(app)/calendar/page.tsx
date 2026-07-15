@@ -6,6 +6,9 @@ import {
   DragOverlay,
   useDraggable,
   useDroppable,
+  useSensor,
+  useSensors,
+  PointerSensor,
   type DragStartEvent,
   type DragEndEvent,
 } from "@dnd-kit/core";
@@ -249,6 +252,23 @@ export default function CalendarPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [isMobileOrTablet, setIsMobileOrTablet] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 1023px)");
+    setIsMobileOrTablet(media.matches);
+    const listener = (e: MediaQueryListEvent) => setIsMobileOrTablet(e.matches);
+    media.addEventListener("change", listener);
+    return () => media.removeEventListener("change", listener);
+  }, []);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
 
   // Inline create form
   const [creatingOnDay, setCreatingOnDay] = useState<Date | null>(null);
@@ -440,7 +460,7 @@ export default function CalendarPage() {
         )}
       </div>
 
-      <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         {/* ========== MOBILE COMPACT GRID (< md) ========== */}
         <div className="md:hidden">
           <div className="grid grid-cols-7 gap-px bg-border rounded-xl overflow-hidden border border-border shadow-sm">
@@ -736,7 +756,7 @@ export default function CalendarPage() {
 
         {/* ========== DAY DETAIL MODAL (mobile + tablet) ========== */}
         <Dialog
-          open={!!selectedDay}
+          open={!!selectedDay && isMobileOrTablet}
           onOpenChange={(open) => {
             if (!open) setSelectedDay(null);
           }}
