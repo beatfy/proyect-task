@@ -239,8 +239,11 @@ export async function POST(req: NextRequest) {
         `   - GET ${appBaseUrl}/api/v1/pipeline — Pipeline del CRM\n` +
         `   - GET/POST/PATCH/DELETE ${appBaseUrl}/api/billing/invoices — Gestionar facturas (?projectId=X, ?status=PENDING|PAID). En POST envía { projectId, amount, notes, month, year, dueDate } para crear. En PATCH envía { status: "PAID" | "PENDING" } para actualizar una factura.\n` +
         `   - PATCH ${appBaseUrl}/api/billing/projects/<projectId> — Configurar cobro del cliente (monthlyFee, clientEmail, recurringInvoice, billingDay, invoiceEmailMsg).\n` +
-        `   - POST ${appBaseUrl}/api/billing/generate — Auto-generar facturas de cuota mensual del mes anterior.\n\n` +
-        `Usa estas APIs de forma autónoma cuando el usuario te pida crear tareas, facturas, configurar cobros, dividirlas, consultar su cola, aliviar el peso de una tarea o dar seguimiento a su día. ¡Tú eres su coach de confianza!\n` +
+        `   - POST ${appBaseUrl}/api/billing/generate — Auto-generar facturas de cuota mensual del mes anterior.\n` +
+        `   - GET ${appBaseUrl}/api/mail/inbox — Leer correos electrónicos (?folder=INBOX|Sent|Drafts|Trash&limit=X).\n` +
+        `   - GET ${appBaseUrl}/api/mail/<id> — Obtener el contenido de un correo (?folder=X).\n` +
+        `   - POST ${appBaseUrl}/api/mail/send — Enviar un correo electrónico vía SMTP. Cuerpo JSON: { to: "destinatario@ejemplo.com", subject: "asunto", body: "cuerpo del mensaje" }.\n\n` +
+        `Usa estas APIs de forma autónoma cuando el usuario te pida crear tareas, enviar correos, leer emails de su bandeja, facturas, configurar cobros, dividirlas, consultar su cola, aliviar el peso de una tarea o dar seguimiento a su día. ¡Tú eres su coach de confianza!\n` +
         `[FIN DE INSTRUCCIONES OPERATIVAS]`;
     } else if (orgApiKey) {
       const base64ApiKey = "tx2b64_" + Buffer.from(orgApiKey).toString("base64");
