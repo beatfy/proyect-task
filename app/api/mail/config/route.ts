@@ -18,6 +18,9 @@ export async function GET(request: NextRequest) {
         port: true,
         email: true,
         ssl: true,
+        smtpHost: true,
+        smtpPort: true,
+        smtpSecure: true,
         createdAt: true,
       },
     });
@@ -38,7 +41,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { host, port, email, password, ssl } = body;
+    const { host, port, email, password, ssl, smtpHost, smtpPort, smtpSecure } = body;
 
     if (!host || !email || !password) {
       return NextResponse.json(
@@ -96,6 +99,9 @@ export async function POST(request: NextRequest) {
         email,
         encryptedPassword,
         ssl: ssl !== false,
+        smtpHost: smtpHost || null,
+        smtpPort: smtpPort ? parseInt(smtpPort) : 587,
+        smtpSecure: smtpSecure === true,
       },
       create: {
         id: randomUUID(),
@@ -104,6 +110,9 @@ export async function POST(request: NextRequest) {
         email,
         encryptedPassword,
         ssl: ssl !== false,
+        smtpHost: smtpHost || null,
+        smtpPort: smtpPort ? parseInt(smtpPort) : 587,
+        smtpSecure: smtpSecure === true,
         userId: authResult.userId,
       },
     });
@@ -116,6 +125,9 @@ export async function POST(request: NextRequest) {
         port: config.port,
         email: config.email,
         ssl: config.ssl,
+        smtpHost: config.smtpHost,
+        smtpPort: config.smtpPort,
+        smtpSecure: config.smtpSecure,
       },
     });
   } catch (err) {
