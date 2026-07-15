@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const protectedRoutes = ["/projects", "/tasks", "/calendar", "/settings", "/billing", "/mail", "/files", "/notifications", "/organizations", "/templates", "/journal"];
+const protectedRoutes = ["/projects", "/tasks", "/calendar", "/settings", "/billing", "/mail", "/files", "/notifications", "/organizations", "/templates"];
 
 const securityHeaders = {
   "X-Frame-Options": "DENY",

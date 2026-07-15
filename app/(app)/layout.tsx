@@ -48,7 +48,6 @@ const sections = [
       { name: "Tareas", href: "/tasks", icon: CheckSquare },
       { name: "Focus Flow", href: "/focus", icon: Brain },
       { name: "Calendario", href: "/calendar", icon: Calendar },
-      { name: "Journal", href: "/journal", icon: BookOpen },
       { name: "Mail", href: "/mail", icon: Mail },
     ],
   },
