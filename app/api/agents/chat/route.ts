@@ -362,15 +362,57 @@ export async function POST(req: NextRequest) {
     }
 
     let agentRes: Response;
+    let usedKimi = false;
+
+    // Try Kimi first
     try {
-      agentRes = await callAgentWithRetry(
-        agentUrl,
-        { model: agentConfig.model, messages, temperature: 0.7, max_tokens: 16000 },
-        agentConfig.apiKey
-      );
-    } catch (err) {
-      console.error("Agent chat error after retries:", err);
-      return NextResponse.json({ error: "El agente no esta disponible. Intenta de nuevo en unos segundos." }, { status: 503 });
+      const kimiKey = "sk-kimi-MqdosKOqYkVWd23e326D0h8cV6IweOA9ovf2tIlblHF6T3FpWROeNOe7uAq0u22B";
+      const cleanKimiBase = "https://api.kimi.com/coding/".replace(/\/+$/, "");
+      const kimiUrl = `${cleanKimiBase}/v1/messages`;
+
+      const systemMessages = messages.filter((m: { role: string; content: string }) => m.role === "system").map((m: { role: string; content: string }) => m.content).join("\n\n");
+      const nonSystemMessages = messages.filter((m: { role: string; content: string }) => m.role !== "system");
+
+      console.log("Calling Kimi API (Anthropic compatible)...");
+      const res = await fetch(kimiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": kimiKey,
+          "anthropic-version": "2023-06-01"
+        },
+        body: JSON.stringify({
+          model: "claude-3-5-sonnet-20241022",
+          messages: nonSystemMessages,
+          system: systemMessages || undefined,
+          max_tokens: 8000,
+          temperature: 0.7
+        }),
+        signal: AbortSignal.timeout(300000)
+      });
+
+      if (res.ok) {
+        agentRes = res;
+        usedKimi = true;
+      } else {
+        const errTxt = await res.text().catch(() => "");
+        console.error(`Kimi API returned non-ok status: ${res.status}. Body: ${errTxt}. Falling back to GLM-5.2...`);
+        throw new Error(`Kimi returned non-ok status: ${res.status}`);
+      }
+    } catch (kimiErr) {
+      console.error("Kimi API call failed. Falling back to GLM-5.2...", kimiErr);
+      
+      // Fallback to GLM
+      try {
+        agentRes = await callAgentWithRetry(
+          agentUrl,
+          { model: agentConfig.model, messages, temperature: 0.7, max_tokens: 16000 },
+          agentConfig.apiKey
+        );
+      } catch (err) {
+        console.error("GLM fallback agent chat error after retries:", err);
+        return NextResponse.json({ error: "El agente no esta disponible. Intenta de nuevo en unos segundos." }, { status: 503 });
+      }
     }
 
     if (!agentRes.ok) {
@@ -385,7 +427,9 @@ export async function POST(req: NextRequest) {
     }
 
     const agentData = await agentRes.json();
-    const response = agentData.choices?.[0]?.message?.content || "Sin respuesta del agente";
+    const response = usedKimi
+      ? (agentData.content?.[0]?.text || "Sin respuesta del agente")
+      : (agentData.choices?.[0]?.message?.content || "Sin respuesta del agente");
 
     // Save assistant message
     await prisma.chatMessage.create({
