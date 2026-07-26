@@ -12,7 +12,21 @@ export async function logDocToolCall(
     // Normalize path (remove query params, trailing slashes)
     const cleanPath = pathname.split("?")[0].replace(/\/$/, "");
     
-    if (cleanPath.startsWith("/api/v1/focus/tasks")) {
+    if (cleanPath.startsWith("/api/v1/fasting")) {
+      if (cleanPath.endsWith("/status")) {
+        toolName = method === "POST" ? "update_fasting_config" : "get_fasting_status";
+      } else if (cleanPath.endsWith("/start")) {
+        toolName = "start_fasting";
+      } else if (cleanPath.endsWith("/end")) {
+        toolName = "end_fasting";
+      } else if (cleanPath.endsWith("/history")) {
+        toolName = "get_fasting_history";
+      } else if (cleanPath.endsWith("/water")) {
+        toolName = "log_fasting_water";
+      } else {
+        toolName = "fasting_api";
+      }
+    } else if (cleanPath.startsWith("/api/v1/focus/tasks")) {
       const parts = cleanPath.split("/");
       if (parts.length > 5) { // /api/v1/focus/tasks/[id]
         toolName = method === "DELETE" ? "delete_focus_task" : "update_focus_task";
