@@ -4,55 +4,63 @@
 
 @layer base {
   :root {
-    --background: 36 33% 96%;
-    --foreground: 233 18% 21%;
+    /* Light Mode - Linear / Vercel SaaS Clean */
+    --background: 210 40% 98%;
+    --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
-    --card-foreground: 233 18% 21%;
+    --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 233 18% 21%;
-    --primary: 14 55% 50%;
-    --primary-foreground: 36 33% 96%;
-    --secondary: 30 41% 64%;
-    --secondary-foreground: 233 18% 21%;
-    --muted: 36 20% 90%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 207 51% 36%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 14 55% 50%;
-    --destructive-foreground: 36 33% 96%;
-    --border: 30 20% 82%;
-    --input: 30 20% 82%;
-    --ring: 14 55% 50%;
-    --radius: 0.5rem;
-    
-    --mediterranean-terracotta: #C75B39;
-    --mediterranean-ocre: #D4A373;
-    --mediterranean-blue: #2E5C8A;
-    --mediterranean-sage: #52796F;
-    --mediterranean-sand: #FDF6EC;
-    --mediterranean-night: #2B2D42;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 239 84% 67%; /* Electric Indigo #6366f1 */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 239 84% 96%;
+    --accent-foreground: 239 84% 60%;
+    --destructive: 346 87% 60%; /* Crimson Neon #f43f5e */
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 239 84% 67%;
+    --radius: 0.75rem;
+
+    /* Tailored Semantic Palette */
+    --brand-indigo: #6366f1;
+    --brand-violet: #8b5cf6;
+    --semantic-emerald: #10b981;
+    --semantic-amber: #f59e0b;
+    --semantic-crimson: #f43f5e;
   }
 
   .dark {
-    --background: 233 18% 12%;
-    --foreground: 36 33% 96%;
-    --card: 233 18% 15%;
-    --card-foreground: 36 33% 96%;
-    --popover: 233 18% 15%;
-    --popover-foreground: 36 33% 96%;
-    --primary: 14 55% 55%;
-    --primary-foreground: 233 18% 12%;
-    --secondary: 30 41% 45%;
-    --secondary-foreground: 36 33% 96%;
-    --muted: 233 18% 20%;
-    --muted-foreground: 215 16% 65%;
-    --accent: 207 51% 50%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 14 55% 55%;
-    --destructive-foreground: 233 18% 12%;
-    --border: 233 18% 25%;
-    --input: 233 18% 25%;
-    --ring: 14 55% 55%;
+    /* Dark Mode - Obsidian / Slate 950 Premium Linear SaaS */
+    --background: 222 47% 4%; /* #020617 Obsidian / Slate 950 */
+    --foreground: 210 40% 98%;
+    --card: 222 47% 7%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 8%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 239 84% 67%; /* Electric Indigo #6366f1 */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 15%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 239 84% 67%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 346 87% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 239 84% 67%;
+
+    --brand-indigo: #6366f1;
+    --brand-violet: #8b5cf6;
+    --semantic-emerald: #10b981;
+    --semantic-amber: #f59e0b;
+    --semantic-crimson: #f43f5e;
   }
 }
 
@@ -61,8 +69,12 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    @apply bg-background text-foreground antialiased selection:bg-indigo-500/30 selection:text-indigo-200;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.07) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.05) 0px, transparent 50%);
+    background-attachment: fixed;
   }
 }
 
@@ -75,34 +87,90 @@
     display: none;
   }
   
-  .gradient-mediterranean {
-    background: linear-gradient(135deg, var(--mediterranean-terracotta) 0%, var(--mediterranean-ocre) 100%);
+  /* Glassmorphism utility classes */
+  .glass-panel {
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
   }
   
-  .gradient-ocean {
-    background: linear-gradient(135deg, var(--mediterranean-blue) 0%, #4a90a4 100%);
+  .light .glass-panel, html:not(.dark) .glass-panel {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+  }
+
+  .glass-card {
+    background: rgba(15, 23, 42, 0.5);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .glass-card:hover {
+    border-color: rgba(99, 102, 241, 0.3);
+    box-shadow: 0 8px 30px rgba(99, 102, 241, 0.12);
+  }
+
+  .light .glass-card, html:not(.dark) .glass-card {
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+  }
+  .light .glass-card:hover, html:not(.dark) .glass-card:hover {
+    border-color: rgba(99, 102, 241, 0.3);
+    box-shadow: 0 8px 30px rgba(99, 102, 241, 0.08);
+  }
+
+  /* Linear / Vercel Glow Utilities */
+  .glow-indigo {
+    box-shadow: 0 0 25px -5px rgba(99, 102, 241, 0.4);
+  }
+  .glow-emerald {
+    box-shadow: 0 0 25px -5px rgba(16, 185, 129, 0.4);
+  }
+  .glow-amber {
+    box-shadow: 0 0 25px -5px rgba(245, 158, 11, 0.4);
+  }
+  .glow-crimson {
+    box-shadow: 0 0 25px -5px rgba(244, 63, 94, 0.4);
+  }
+
+  /* Gradient Text */
+  .text-gradient-indigo {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Compatibility & Semantic items */
+  .gradient-mediterranean, .gradient-indigo {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
   }
   
   .text-gradient-terracotta {
-    background: linear-gradient(135deg, var(--mediterranean-terracotta), var(--mediterranean-ocre));
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
   
   .card-mediterranean {
-    @apply bg-card border border-border/50 shadow-sm hover:shadow-md transition-shadow;
+    @apply glass-card shadow-sm;
   }
   
-  .badge-mediterranean {
-    background-color: rgba(199, 91, 57, 0.1);
-    color: #C75B39;
-    border: 1px solid rgba(199, 91, 57, 0.2);
+  .badge-mediterranean, .badge-indigo {
+    background-color: rgba(99, 102, 241, 0.12);
+    color: #818cf8;
+    border: 1px solid rgba(99, 102, 241, 0.25);
   }
   
   .sidebar-item-active {
-    background-color: rgba(199, 91, 57, 0.1);
-    color: #C75B39;
-    border-right: 2px solid #C75B39;
+    background: linear-gradient(90deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.05) 100%);
+    color: #818cf8;
+    border-left: 3px solid #6366f1;
+    font-weight: 600;
   }
 }
