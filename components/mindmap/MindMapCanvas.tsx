@@ -399,32 +399,60 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
   };
 
   const handleEndConnect = (targetNodeId: string) => {
-    if (connectingSourceId && connectingSourceId !== targetNodeId) {
-      const edgeExists = data.edges.some(
-        (e) =>
-          (e.source === connectingSourceId && e.target === targetNodeId) ||
-          (e.source === targetNodeId && e.target === connectingSourceId)
-      );
+    if (!connectingSourceId || connectingSourceId === targetNodeId) {
+      setConnectingSourceId(null);
+      return;
+    }
 
-      if (edgeExists) {
-        toast.info("Estos nodos ya están interconectados");
-      } else {
-        const newEdge: MindMapEdge = {
-          id: `edge-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-          source: connectingSourceId,
-          target: targetNodeId,
-          style: "curved",
-        };
-        const newData = {
-          ...data,
-          edges: [...data.edges, newEdge],
-        };
-        pushHistory(newData);
-        toast.success("Nodos conectados correctamente");
-      }
+    const existingEdge = data.edges.find(
+      (e) =>
+        (e.source === connectingSourceId && e.target === targetNodeId) ||
+        (e.source === targetNodeId && e.target === connectingSourceId)
+    );
+
+    const sourceNode = data.nodes.find((n) => n.id === connectingSourceId);
+    const targetNode = data.nodes.find((n) => n.id === targetNodeId);
+
+    if (existingEdge) {
+      // Toggle to DISCONNECT
+      const newEdges = data.edges.filter((e) => e.id !== existingEdge.id);
+      const newData = { ...data, edges: newEdges };
+      pushHistory(newData);
+      toast.success(
+        `Nodos desconectados: "${sourceNode?.label || 'Nodo'}" ⇏ "${targetNode?.label || 'Nodo'}"`
+      );
+    } else {
+      // CONNECT
+      const newEdge: MindMapEdge = {
+        id: `edge-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        source: connectingSourceId,
+        target: targetNodeId,
+        style: "curved",
+      };
+      const newData = {
+        ...data,
+        edges: [...data.edges, newEdge],
+      };
+      pushHistory(newData);
+      toast.success(
+        `Nodos conectados: "${sourceNode?.label || 'Nodo'}" → "${targetNode?.label || 'Nodo'}"`
+      );
     }
     setConnectingSourceId(null);
   };
+
+  // Disconnect all edges connected to a node
+  const handleDisconnectAll = useCallback(
+    (nodeId: string) => {
+      const newEdges = data.edges.filter(
+        (e) => e.source !== nodeId && e.target !== nodeId
+      );
+      const newData = { ...data, edges: newEdges };
+      pushHistory(newData);
+      toast.success("Todos los enlaces del nodo han sido desconectados");
+    },
+    [data, pushHistory]
+  );
 
   // Node Drag Start
   const handleNodeMouseDown = (nodeId: string, e: React.MouseEvent) => {
@@ -573,15 +601,17 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
             const isNodeActive =
               selectedNodeId === edge.source || selectedNodeId === edge.target;
             const isHighlighted = isEdgeSelected || isNodeActive;
+            const midX = (source.x + (source.width || 190) / 2 + target.x + (target.width || 190) / 2) / 2;
+            const midY = (source.y + 32 + target.y + 32) / 2;
 
             return (
-              <g key={edge.id} className="pointer-events-auto">
-                {/* Hit area for clicking edge */}
+              <g key={edge.id} className="pointer-events-auto group/edge">
+                {/* Hit area for clicking or hovering edge */}
                 <path
                   d={path}
                   fill="none"
                   stroke="transparent"
-                  strokeWidth={18}
+                  strokeWidth={20}
                   className="cursor-pointer"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -596,32 +626,32 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
                   stroke={isHighlighted ? "hsl(var(--primary))" : "hsl(var(--border))"}
                   strokeWidth={isHighlighted ? 2.5 : 1.75}
                   strokeDasharray={edge.animated ? "4,4" : undefined}
-                  className="transition-colors duration-200"
+                  className="transition-colors duration-200 group-hover/edge:stroke-destructive group-hover/edge:stroke-[2.5px]"
                 />
 
-                {/* Delete button when edge is selected */}
-                {isEdgeSelected && (
-                  <g
-                    transform={`translate(${
-                      (source.x + (source.width || 190) / 2 + target.x + (target.width || 190) / 2) / 2
-                    }, ${
-                      (source.y + 32 + target.y + 32) / 2
-                    })`}
-                    onClick={(e) => handleDeleteEdge(edge.id, e)}
-                    className="cursor-pointer"
+                {/* Disconnect button on midpoint (visible on hover or when selected) */}
+                <g
+                  transform={`translate(${midX}, ${midY})`}
+                  onClick={(e) => handleDeleteEdge(edge.id, e)}
+                  className={cn(
+                    "cursor-pointer transition-all",
+                    isEdgeSelected
+                      ? "opacity-100 scale-110"
+                      : "opacity-0 group-hover/edge:opacity-100 hover:scale-125"
+                  )}
+                >
+                  <title>Desconectar este enlace</title>
+                  <circle r={11} fill="hsl(var(--destructive))" className="shadow-md" />
+                  <text
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fill="white"
+                    fontSize={12}
+                    fontWeight="bold"
                   >
-                    <circle r={11} fill="hsl(var(--destructive))" />
-                    <text
-                      textAnchor="middle"
-                      dominantBaseline="central"
-                      fill="white"
-                      fontSize={11}
-                      fontWeight="bold"
-                    >
-                      ×
-                    </text>
-                  </g>
-                )}
+                    ×
+                  </text>
+                </g>
               </g>
             );
           })}
@@ -646,6 +676,25 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
 
             const isSelected = selectedNodeId === node.id;
             const hasChildren = data.edges.some((e) => e.source === node.id);
+            const connectedEdges = data.edges.filter(
+              (e) => e.source === node.id || e.target === node.id
+            );
+            const connectedNodes = connectedEdges.map((e) => {
+              const otherId = e.source === node.id ? e.target : e.source;
+              const otherNode = data.nodes.find((n) => n.id === otherId);
+              return {
+                id: otherId,
+                label: otherNode?.label || "Nodo",
+                edgeId: e.id,
+              };
+            });
+            const isConnectedToSource = connectingSourceId
+              ? data.edges.some(
+                  (e) =>
+                    (e.source === connectingSourceId && e.target === node.id) ||
+                    (e.source === node.id && e.target === connectingSourceId)
+                )
+              : false;
 
             return (
               <div key={node.id} onMouseDown={(e) => handleNodeMouseDown(node.id, e)}>
@@ -655,6 +704,8 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
                   hasChildren={hasChildren}
                   isConnectingSource={connectingSourceId === node.id}
                   isConnectingMode={connectingSourceId !== null}
+                  isConnectedToSource={isConnectedToSource}
+                  connectedNodes={connectedNodes}
                   onSelect={(id) => {
                     setSelectedEdgeId(null);
                     onSelectNode(id);
@@ -665,6 +716,8 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
                   onAddSibling={handleAddSibling}
                   onStartConnect={handleStartConnect}
                   onEndConnect={handleEndConnect}
+                  onDisconnectEdge={handleDeleteEdge}
+                  onDisconnectAll={handleDisconnectAll}
                   onExportToTask={onExportToTask}
                   onToggleCollapse={handleToggleCollapse}
                   zoom={viewport.zoom}

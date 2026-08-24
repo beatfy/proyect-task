@@ -24,6 +24,7 @@ import {
   FolderPlus,
   Flag,
   Link2,
+  Unlink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -38,12 +39,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 
+export interface ConnectedNodeInfo {
+  id: string;
+  label: string;
+  edgeId: string;
+}
+
 interface MindMapNodeProps {
   node: NodeData;
   isSelected: boolean;
   hasChildren: boolean;
   isConnectingSource: boolean;
   isConnectingMode?: boolean;
+  isConnectedToSource?: boolean;
+  connectedNodes?: ConnectedNodeInfo[];
   onSelect: (nodeId: string, multi?: boolean) => void;
   onUpdate: (nodeId: string, updates: Partial<NodeData>) => void;
   onDelete: (nodeId: string) => void;
@@ -51,6 +60,8 @@ interface MindMapNodeProps {
   onAddSibling: (nodeId: string) => void;
   onStartConnect: (nodeId: string, e?: React.MouseEvent) => void;
   onEndConnect: (nodeId: string) => void;
+  onDisconnectEdge?: (edgeId: string) => void;
+  onDisconnectAll?: (nodeId: string) => void;
   onExportToTask: (nodeId: string) => void;
   onToggleCollapse: (nodeId: string) => void;
   zoom: number;
@@ -121,6 +132,8 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
   hasChildren,
   isConnectingSource,
   isConnectingMode = false,
+  isConnectedToSource = false,
+  connectedNodes = [],
   onSelect,
   onUpdate,
   onDelete,
@@ -128,6 +141,8 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
   onAddSibling,
   onStartConnect,
   onEndConnect,
+  onDisconnectEdge,
+  onDisconnectAll,
   onExportToTask,
   onToggleCollapse,
   zoom,
@@ -266,11 +281,16 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
         }
       }}
     >
-      {/* Full-surface Click Catcher for Connection Target */}
+      {/* Full-surface Click Catcher for Connection / Disconnection Target */}
       {isTargetCandidate && (
         <div
-          title="Haz clic para conectar aquí"
-          className="absolute inset-0 rounded-[inherit] bg-primary/10 hover:bg-primary/25 z-50 cursor-pointer flex items-center justify-center border-2 border-dashed border-primary shadow-lg animate-pulse"
+          title={isConnectedToSource ? "Haz clic para desconectar de este nodo" : "Haz clic para conectar con este nodo"}
+          className={cn(
+            "absolute inset-0 rounded-[inherit] z-50 cursor-pointer flex items-center justify-center border-2 border-dashed shadow-lg transition-all animate-pulse",
+            isConnectedToSource
+              ? "bg-destructive/15 hover:bg-destructive/30 border-destructive"
+              : "bg-primary/10 hover:bg-primary/25 border-primary"
+          )}
           onClick={(e) => {
             e.stopPropagation();
             onEndConnect(node.id);
@@ -280,9 +300,25 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
             onEndConnect(node.id);
           }}
         >
-          <div className="bg-primary text-primary-foreground text-[11px] font-bold px-3 py-1 rounded-full shadow-xl pointer-events-none flex items-center gap-1.5 animate-bounce">
-            <Link2 className="w-3.5 h-3.5" />
-            <span>Vincular aquí</span>
+          <div
+            className={cn(
+              "text-[11px] font-bold px-3 py-1 rounded-full shadow-xl pointer-events-none flex items-center gap-1.5 animate-bounce",
+              isConnectedToSource
+                ? "bg-destructive text-destructive-foreground"
+                : "bg-primary text-primary-foreground"
+            )}
+          >
+            {isConnectedToSource ? (
+              <>
+                <Unlink className="w-3.5 h-3.5" />
+                <span>Desconectar</span>
+              </>
+            ) : (
+              <>
+                <Link2 className="w-3.5 h-3.5" />
+                <span>Vincular aquí</span>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -461,6 +497,39 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
                 <Link2 className="w-3.5 h-3.5" />
                 <span>Conectar con otro nodo</span>
               </DropdownMenuItem>
+
+              {connectedNodes.length > 0 && onDisconnectEdge && (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="gap-2 cursor-pointer text-xs text-destructive">
+                    <Unlink className="w-3.5 h-3.5" />
+                    <span>Desconectar enlace ({connectedNodes.length})</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="bg-popover border-border w-56">
+                    {connectedNodes.map((target) => (
+                      <DropdownMenuItem
+                        key={target.edgeId}
+                        onClick={() => onDisconnectEdge(target.edgeId)}
+                        className="gap-2 cursor-pointer text-xs text-destructive focus:text-destructive"
+                      >
+                        <Unlink className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">Desconectar de &quot;{target.label}&quot;</span>
+                      </DropdownMenuItem>
+                    ))}
+                    {connectedNodes.length > 1 && onDisconnectAll && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => onDisconnectAll(node.id)}
+                          className="gap-2 cursor-pointer text-xs text-destructive focus:text-destructive font-semibold"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Desconectar todos los enlaces</span>
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              )}
 
               <DropdownMenuItem
                 onClick={() => setIsEditing(true)}
