@@ -4,7 +4,8 @@ import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckSquare, AlertCircle, Loader2, FolderOpen, TrendingUp, BarChart3, Building2, Bot, Wrench, Zap } from "lucide-react";
+import { CheckSquare, AlertCircle, Loader2, FolderOpen, TrendingUp, BarChart3, Building2, Bot, Wrench, Zap, Timer, Flame, Sparkles, ArrowRight, Droplets } from "lucide-react";
+import Link from "next/link";
 import {
   Select,
   SelectContent,
@@ -13,6 +14,34 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useOrganization } from "@/lib/organization-context";
+
+interface BriefingData {
+  fastingInfo: {
+    active: boolean;
+    protocol?: string;
+    elapsedHours?: number;
+    targetHours?: number;
+    progressPercent?: number;
+    phase?: string;
+    phaseIcon?: string;
+    isFocusPeak?: boolean;
+    waterDrankMl: number;
+    waterGoalMl: number;
+  };
+  topTasks: Array<{
+    id: string;
+    title: string;
+    priority: string;
+    dueDate: string | null;
+    status: string;
+    project: {
+      id: string;
+      name: string;
+      color: string;
+    } | null;
+  }>;
+  recommendation: string;
+}
 
 interface ReportStats {
   completedThisWeek: number;
@@ -45,12 +74,28 @@ const priorityLabels: Record<string, string> = {
 export default function DashboardPage() {
   const { data: session } = useSession();
   const [stats, setStats] = useState<ReportStats | null>(null);
+  const [briefing, setBriefing] = useState<BriefingData | null>(null);
   const [loading, setLoading] = useState(true);
   const { organizations, selectedOrg, setSelectedOrg, loading: orgLoading } = useOrganization();
 
   useEffect(() => {
-    if (!orgLoading) fetchStats();
+    if (!orgLoading) {
+      fetchStats();
+      fetchBriefing();
+    }
   }, [selectedOrg, orgLoading]);
+
+  const fetchBriefing = async () => {
+    try {
+      const res = await fetch("/api/dashboard/briefing");
+      if (res.ok) {
+        const data = await res.json();
+        setBriefing(data);
+      }
+    } catch (e) {
+      console.error("Error loading briefing:", e);
+    }
+  };
 
   const fetchStats = async () => {
     try {
@@ -150,6 +195,90 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Morning Briefing Widget (Ayuno + Top Tareas + Recomendación) */}
+      {briefing && (
+        <Card className="border-emerald-500/25 shadow-md bg-gradient-to-br from-card via-card to-emerald-500/5 relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500" />
+          <CardContent className="p-5">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
+              {/* Resumen de Salud & Recomendación */}
+              <div className="lg:col-span-2 space-y-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Briefing de Enfoque Diario</span>
+                  </div>
+
+                  {briefing.fastingInfo.active ? (
+                    <Link
+                      href="/fasting"
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 text-xs font-semibold transition-colors"
+                    >
+                      <Timer className="w-3.5 h-3.5" />
+                      <span>
+                        Ayuno en curso: {briefing.fastingInfo.elapsedHours}h ({briefing.fastingInfo.phase})
+                      </span>
+                    </Link>
+                  ) : (
+                    <Link
+                      href="/fasting"
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted text-muted-foreground hover:text-foreground text-xs font-medium transition-colors"
+                    >
+                      <Timer className="w-3.5 h-3.5" />
+                      <span>Sin ayuno activo · Iniciar hoy</span>
+                    </Link>
+                  )}
+
+                  <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-semibold">
+                    <Droplets className="w-3 h-3" />
+                    <span>{briefing.fastingInfo.waterDrankMl}ml agua</span>
+                  </span>
+                </div>
+
+                <p className="text-sm text-foreground font-medium leading-relaxed">
+                  {briefing.recommendation}
+                </p>
+              </div>
+
+              {/* Top 3 Tareas Prioritarias */}
+              <div className="bg-muted/40 p-3.5 rounded-2xl border space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
+                  <span>🎯 Prioridades de Hoy</span>
+                  <Link href="/tasks" className="text-primary hover:underline flex items-center gap-0.5 text-[11px]">
+                    <span>Ver todas</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </Link>
+                </div>
+
+                {briefing.topTasks.length === 0 ? (
+                  <div className="text-xs text-muted-foreground py-2">
+                    ¡Estás al día! No tienes tareas pendientes urgentes.
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {briefing.topTasks.map((t) => (
+                      <Link
+                        key={t.id}
+                        href="/tasks"
+                        className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-muted transition-colors text-xs group"
+                      >
+                        <CheckSquare className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary shrink-0" />
+                        <span className="font-medium text-foreground truncate flex-1">{t.title}</span>
+                        {t.priority === "URGENT" || t.priority === "HIGH" ? (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold shrink-0">
+                            Alta
+                          </span>
+                        ) : null}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -5,6 +5,23 @@ import { cuid } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
+function evaluateFastBreakerMeal(mealText: string): string {
+  const text = mealText.toLowerCase();
+  const cautions = ["azucar", "azúcar", "pizza", "bolleria", "bollería", "dulce", "pastel", "refresco", "coca", "fritura", "pan blanco", "galleta", "pasta blanca", "chucherias", "helado"];
+  const excellents = ["huevo", "huevos", "aguacate", "pollo", "pescado", "salmon", "salmón", "atun", "atún", "ensalada", "verdura", "caldo", "frutos secos", "nueces", "almendras", "aceite de oliva", "chia", "espinaca", "brocoli", "brócoli", "tofu", "carne"];
+
+  const hasCaution = cautions.some((w) => text.includes(w));
+  const hasExcellent = excellents.some((w) => text.includes(w));
+
+  if (hasCaution && !hasExcellent) {
+    return "⚠️ Precaución: Alimentos de alto índice glucémico pueden generar un pico de insulina brusco y fatiga tras el ayuno. Hidrátate y añade fibra en tu próxima comida.";
+  } else if (hasExcellent) {
+    return "✨ Excelente elección: Proteínas y grasas saludables ideales para una transición metabólica suave y sostenida sin picos de glucosa.";
+  } else {
+    return "👍 Buena comida para romper el ayuno. Recuerda masticar despacio y mantenerte bien hidratado.";
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const authResult = await authenticateRequest(req);
@@ -14,7 +31,7 @@ export async function POST(req: NextRequest) {
 
     const userId = authResult.userId;
     const body = await req.json().catch(() => ({}));
-    const { feeling, notes, discard } = body;
+    const { feeling, notes, discard, firstMeal, energyLevel, clarityLevel, hungerLevel } = body;
 
     const activeFast = await prisma.fastingLog.findFirst({
       where: { userId, endTime: null },
@@ -39,6 +56,8 @@ export async function POST(req: NextRequest) {
     const targetHours = activeFast.targetHours || 16;
     const completedGoal = elapsedHours >= targetHours * 0.9; // Considerado completado si alcanza el 90% o más del objetivo
 
+    const firstMealEvaluation = firstMeal && firstMeal.trim() ? evaluateFastBreakerMeal(firstMeal.trim()) : null;
+
     const updatedFast = await prisma.fastingLog.update({
       where: { id: activeFast.id },
       data: {
@@ -46,6 +65,11 @@ export async function POST(req: NextRequest) {
         completed: completedGoal,
         feeling: feeling || "good",
         notes: notes || null,
+        firstMeal: firstMeal && firstMeal.trim() ? firstMeal.trim() : null,
+        firstMealEvaluation,
+        energyLevel: energyLevel ? Number(energyLevel) : null,
+        clarityLevel: clarityLevel ? Number(clarityLevel) : null,
+        hungerLevel: hungerLevel ? Number(hungerLevel) : null,
       },
     });
 

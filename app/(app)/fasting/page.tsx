@@ -70,6 +70,11 @@ interface FastingLog {
   durationHours: number;
   feeling?: string;
   notes?: string;
+  firstMeal?: string | null;
+  firstMealEvaluation?: string | null;
+  energyLevel?: number | null;
+  clarityLevel?: number | null;
+  hungerLevel?: number | null;
 }
 
 const FASTING_PROTOCOLS = [
@@ -161,6 +166,10 @@ export default function FastingPage() {
   const [feelingModal, setFeelingModal] = useState(false);
   const [selectedFeeling, setSelectedFeeling] = useState("great");
   const [fastNotes, setFastNotes] = useState("");
+  const [firstMeal, setFirstMeal] = useState("");
+  const [energyLevel, setEnergyLevel] = useState(4);
+  const [clarityLevel, setClarityLevel] = useState(5);
+  const [hungerLevel, setHungerLevel] = useState(2);
 
   const fetchFastingStatus = useCallback(async () => {
     try {
@@ -247,6 +256,10 @@ export default function FastingPage() {
         body: JSON.stringify({
           feeling: selectedFeeling,
           notes: fastNotes,
+          firstMeal,
+          energyLevel,
+          clarityLevel,
+          hungerLevel,
         }),
       });
 
@@ -259,6 +272,7 @@ export default function FastingPage() {
         }
         setFeelingModal(false);
         setFastNotes("");
+        setFirstMeal("");
         setActiveFast(null);
         fetchFastingStatus();
         fetchHistory();
@@ -561,6 +575,27 @@ export default function FastingPage() {
                         </div>
                       </div>
                     </div>
+
+                    {/* Deep Work / Focus Peak Banner */}
+                    {activeFast.elapsedHours >= 12 && (
+                      <div className="w-full max-w-md p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-rose-500/15 border border-amber-500/30 flex flex-col gap-3">
+                        <div className="flex items-center gap-2 font-bold text-sm text-amber-600 dark:text-amber-400">
+                          <Zap className="w-4 h-4 text-amber-500 fill-current" />
+                          <span>Pico de Claridad Mental & Enfoque (Deep Work)</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          Tu cerebro está operando con cetonas y tienes máxima lucidez cognitiva. Es el momento perfecto para resolver tareas prioritarias.
+                        </p>
+                        <Button
+                          size="sm"
+                          className="bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md"
+                          onClick={() => window.location.href = "/tasks"}
+                        >
+                          <Flame className="w-3.5 h-3.5 fill-current" />
+                          <span>Abrir Tablero de Tareas & Enfoque</span>
+                        </Button>
+                      </div>
+                    )}
 
                     {/* Botones de Acción */}
                     <div className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-md">
@@ -969,19 +1004,41 @@ export default function FastingPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-                        <Badge variant="outline" className={item.completed ? "bg-emerald-500/10 text-emerald-500" : "bg-muted"}>
-                          {item.completed ? "Objetivo Cumplido" : "Parcial / Interrumpido"}
-                        </Badge>
-                        {item.feeling && (
-                          <span className="text-xs text-muted-foreground capitalize">
-                            Sentimiento: {item.feeling}
-                          </span>
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="outline" className={item.completed ? "bg-emerald-500/10 text-emerald-500" : "bg-muted"}>
+                            {item.completed ? "Objetivo Cumplido" : "Parcial / Interrumpido"}
+                          </Badge>
+                          {item.energyLevel && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium">
+                              ⚡ {item.energyLevel}/5 energía
+                            </span>
+                          )}
+                          {item.clarityLevel && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-medium">
+                              🧠 {item.clarityLevel}/5 foco
+                            </span>
+                          )}
+                        </div>
+
+                        {item.firstMeal && (
+                          <div className="text-xs bg-muted/60 p-2 rounded-xl border max-w-sm space-y-1">
+                            <div className="font-semibold text-foreground flex items-center gap-1">
+                              <span>🍽️ Rompió con:</span>
+                              <span className="font-normal text-muted-foreground">{item.firstMeal}</span>
+                            </div>
+                            {item.firstMealEvaluation && (
+                              <p className="text-[11px] text-muted-foreground leading-snug">
+                                {item.firstMealEvaluation}
+                              </p>
+                            )}
+                          </div>
                         )}
+
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg shrink-0 self-end sm:self-center"
                           onClick={() => handleDeleteHistoryItem(item.id)}
                           title="Eliminar este registro"
                         >
@@ -1089,54 +1146,124 @@ export default function FastingPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Modal / Dialog de Sensaciones al finalizar el ayuno */}
+      {/* Modal / Dialog de Sensaciones y Primera Comida al finalizar el ayuno */}
       {feelingModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card border rounded-3xl p-6 max-w-md w-full space-y-6 shadow-2xl">
-            <div className="space-y-2 text-center">
-              <h3 className="text-xl font-bold">¡Bien Hecho! 🎉</h3>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-card border rounded-3xl p-6 max-w-lg w-full space-y-5 shadow-2xl my-8">
+            <div className="space-y-1 text-center">
+              <h3 className="text-xl font-bold text-foreground">¡Ayuno Finalizado! 🎉</h3>
               <p className="text-xs text-muted-foreground">
-                Registra cómo te has sentido durante este ayuno para que Doc ajuste tus futuras recomendaciones.
+                Registra tu experiencia y primera comida para que Doc IA evalúe tu transición metabólica.
               </p>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { id: "great", label: "Excelente", icon: Smile, color: "hover:border-emerald-500" },
-                { id: "good", label: "Bien", icon: Meh, color: "hover:border-blue-500" },
-                { id: "hard", label: "Duro", icon: Frown, color: "hover:border-amber-500" },
-              ].map((f) => {
-                const IconComp = f.icon;
-                return (
-                  <button
-                    key={f.id}
-                    type="button"
-                    onClick={() => setSelectedFeeling(f.id)}
-                    className={cn(
-                      "p-3 rounded-2xl border text-center flex flex-col items-center gap-1.5 transition-all",
-                      selectedFeeling === f.id
-                        ? "border-emerald-500 bg-emerald-500/10 ring-2 ring-emerald-500/20 font-bold"
-                        : "border-muted hover:bg-muted/40"
-                    )}
-                  >
-                    <IconComp className="w-6 h-6 text-foreground" />
-                    <span className="text-xs">{f.label}</span>
-                  </button>
-                );
-              })}
+            {/* Sensación General */}
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold text-muted-foreground">Sensación General</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: "great", label: "Excelente", icon: Smile, color: "hover:border-emerald-500" },
+                  { id: "good", label: "Bien", icon: Meh, color: "hover:border-blue-500" },
+                  { id: "hard", label: "Duro", icon: Frown, color: "hover:border-amber-500" },
+                ].map((f) => {
+                  const IconComp = f.icon;
+                  return (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => setSelectedFeeling(f.id)}
+                      className={cn(
+                        "p-2.5 rounded-2xl border text-center flex flex-col items-center gap-1 transition-all",
+                        selectedFeeling === f.id
+                          ? "border-emerald-500 bg-emerald-500/10 ring-2 ring-emerald-500/20 font-bold"
+                          : "border-muted hover:bg-muted/40"
+                      )}
+                    >
+                      <IconComp className="w-5 h-5 text-foreground" />
+                      <span className="text-xs">{f.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold">Notas o comentarios (Opcional)</Label>
+            {/* Nivel de Energía y Claridad */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5 bg-muted/30 p-3 rounded-2xl border">
+                <Label className="text-xs font-semibold flex items-center gap-1 text-foreground">
+                  <Zap className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Energía ({energyLevel}/5)</span>
+                </Label>
+                <div className="flex gap-1 justify-between pt-1">
+                  {[1, 2, 3, 4, 5].map((lvl) => (
+                    <button
+                      key={lvl}
+                      type="button"
+                      onClick={() => setEnergyLevel(lvl)}
+                      className={cn(
+                        "w-7 h-7 rounded-lg text-xs font-bold transition-all",
+                        energyLevel === lvl
+                          ? "bg-amber-500 text-white shadow-sm scale-110"
+                          : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                      )}
+                    >
+                      {lvl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1.5 bg-muted/30 p-3 rounded-2xl border">
+                <Label className="text-xs font-semibold flex items-center gap-1 text-foreground">
+                  <Flame className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>Claridad / Foco ({clarityLevel}/5)</span>
+                </Label>
+                <div className="flex gap-1 justify-between pt-1">
+                  {[1, 2, 3, 4, 5].map((lvl) => (
+                    <button
+                      key={lvl}
+                      type="button"
+                      onClick={() => setClarityLevel(lvl)}
+                      className={cn(
+                        "w-7 h-7 rounded-lg text-xs font-bold transition-all",
+                        clarityLevel === lvl
+                          ? "bg-indigo-500 text-white shadow-sm scale-110"
+                          : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                      )}
+                    >
+                      {lvl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Primera Comida (Fast Breaker) */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold flex items-center gap-1 text-foreground">
+                <span>🥗 Primera Comida para Romper el Ayuno</span>
+                <span className="text-muted-foreground font-normal text-[10px]">(Doc IA la evaluará)</span>
+              </Label>
               <Input
-                value={fastNotes}
-                onChange={(e) => setFastNotes(e.target.value)}
-                placeholder="Ej: Mucha energía por la mañana, rompí con ensalada de aguacate..."
+                value={firstMeal}
+                onChange={(e) => setFirstMeal(e.target.value)}
+                placeholder="Ej: 3 huevos revueltos con aguacate y un puñado de nueces"
                 className="rounded-xl text-sm"
               />
             </div>
 
-            <div className="flex gap-3">
+            {/* Notas opcionales */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground">Notas adicionales (Opcional)</Label>
+              <Input
+                value={fastNotes}
+                onChange={(e) => setFastNotes(e.target.value)}
+                placeholder="Sensaciones, agua tomada, entrenamiento en ayunas..."
+                className="rounded-xl text-sm"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
               <Button
                 variant="outline"
                 className="w-1/2 rounded-xl"
@@ -1145,7 +1272,7 @@ export default function FastingPage() {
                 Cancelar
               </Button>
               <Button
-                className="w-1/2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                className="w-1/2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg shadow-emerald-600/20"
                 onClick={handleEndFast}
               >
                 Guardar y Finalizar

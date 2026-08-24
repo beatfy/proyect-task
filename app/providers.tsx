@@ -5,6 +5,7 @@ import { Toaster } from "sonner";
 import { ThemeProvider } from "next-themes";
 import { OrganizationProvider } from "@/lib/organization-context";
 import { PWAInstaller } from "@/components/pwa/PWAInstaller";
+import { CommandMenu } from "@/components/layout/CommandMenu";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -14,6 +15,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           {children}
           <Toaster />
           <PWAInstaller />
+          <CommandMenu />
         </OrganizationProvider>
       </ThemeProvider>
     </SessionProvider>
