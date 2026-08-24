@@ -3,32 +3,32 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
-  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider transition-all backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  "inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
   {
     variants: {
       variant: {
         default:
-          "border-indigo-500/30 bg-indigo-500/10 text-indigo-400 dark:text-indigo-300 shadow-sm shadow-indigo-500/10",
-        indigo:
-          "border-indigo-500/30 bg-indigo-500/15 text-indigo-400 dark:text-indigo-300 shadow-sm shadow-indigo-500/10",
-        emerald:
-          "border-emerald-500/30 bg-emerald-500/15 text-emerald-400 dark:text-emerald-300 shadow-sm shadow-emerald-500/10",
-        success:
-          "border-emerald-500/30 bg-emerald-500/15 text-emerald-400 dark:text-emerald-300 shadow-sm shadow-emerald-500/10",
-        amber:
-          "border-amber-500/30 bg-amber-500/15 text-amber-400 dark:text-amber-300 shadow-sm shadow-amber-500/10",
-        warning:
-          "border-amber-500/30 bg-amber-500/15 text-amber-400 dark:text-amber-300 shadow-sm shadow-amber-500/10",
-        crimson:
-          "border-rose-500/40 bg-rose-500/20 text-rose-400 dark:text-rose-300 shadow-md shadow-rose-500/20 animate-pulse",
-        allergy:
-          "border-rose-500/50 bg-rose-600/30 text-rose-200 dark:text-rose-100 shadow-lg shadow-rose-600/30 font-bold uppercase tracking-widest animate-pulse",
-        destructive:
-          "border-rose-500/30 bg-rose-500/15 text-rose-400 dark:text-rose-300 shadow-sm shadow-rose-500/10",
+          "border-border bg-secondary text-secondary-foreground",
         secondary:
-          "border-slate-700/50 bg-slate-800/40 text-slate-300 hover:bg-slate-800/60",
+          "border-border bg-muted text-muted-foreground",
         outline:
-          "border-slate-700/60 text-foreground bg-transparent hover:bg-slate-800/30",
+          "border-border text-foreground bg-transparent",
+        indigo:
+          "border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-400",
+        emerald:
+          "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+        success:
+          "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+        amber:
+          "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+        warning:
+          "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+        crimson:
+          "border-destructive/20 bg-destructive/10 text-destructive",
+        allergy:
+          "border-destructive/30 bg-destructive/15 text-destructive font-semibold",
+        destructive:
+          "border-destructive/20 bg-destructive/10 text-destructive",
       },
     },
     defaultVariants: {

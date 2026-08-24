@@ -52,17 +52,6 @@ interface Project {
   labels?: ProjectLabel[];
 }
 
-
-const PRESET_LABELS = [
-  { name: "Campaña SEO", color: "#C75B39" },
-  { name: "Campaña SEM", color: "#2E5C8A" },
-  { name: "Gestión Redes", color: "#D4A373" },
-  { name: "Rediseño Web", color: "#52796F" },
-  { name: "Branding", color: "#8B5CF6" },
-  { name: "Consultoría", color: "#EC4899" },
-  { name: "Mantenimiento", color: "#10B981" },
-];
-
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const { organizations, selectedOrg, setSelectedOrg, loading: orgLoading } = useOrganization();
@@ -111,7 +100,6 @@ export default function ProjectsPage() {
     }
   }, [selectedOrg, fetchProjects, fetchLabels]);
 
-
   const handleCreate = async () => {
     if (!name.trim()) {
       toast.error("El nombre es requerido");
@@ -130,48 +118,51 @@ export default function ProjectsPage() {
         }),
       });
       if (response.ok) {
-        const project = await response.json();
-        setProjects([...projects, project]);
+        toast.success("Proyecto creado");
         setName("");
         setDescription("");
+        setColor("#6366f1");
         setSelectedLabels([]);
         setOpen(false);
-        toast.success("Proyecto creado");
+        fetchProjects();
+      } else {
+        toast.error("Error al crear proyecto");
       }
     } catch {
       toast.error("Error al crear proyecto");
     }
   };
 
-  const handleDelete = async (project: Project) => {
-    try {
-      const response = await fetch(`/api/projects/${project.id}`, { method: "DELETE" });
-      if (response.ok) {
-        setProjects(projects.filter((p) => p.id !== project.id));
-        setDeleteTarget(null);
-        toast.success("Proyecto eliminado");
-      } else {
-        const data = await response.json();
-        toast.error(data.error || "Error al eliminar proyecto");
-      }
-    } catch {
-      toast.error("Error al eliminar proyecto");
-    }
-  };
-
   const handleDuplicate = async (project: Project) => {
     try {
-      const response = await fetch(`/api/projects/${project.id}`, { method: "POST" });
+      const response = await fetch(`/api/projects/${project.id}/duplicate`, {
+        method: "POST",
+      });
       if (response.ok) {
-        const duplicated = await response.json();
-        setProjects([...projects, duplicated]);
-        toast.success(`Proyecto duplicado como "${duplicated.name}"`);
+        toast.success("Proyecto duplicado");
+        fetchProjects();
       } else {
-        const data = await response.json();
-        toast.error(data.error || "Error al duplicar proyecto");
+        toast.error("Error al duplicar proyecto");
       }
     } catch {
       toast.error("Error al duplicar proyecto");
+    }
+  };
+
+  const handleDelete = async (project: Project) => {
+    try {
+      const response = await fetch(`/api/projects/${project.id}`, {
+        method: "DELETE",
+      });
+      if (response.ok) {
+        toast.success("Proyecto eliminado");
+        setDeleteTarget(null);
+        fetchProjects();
+      } else {
+        toast.error("Error al eliminar proyecto");
+      }
+    } catch {
+      toast.error("Error al eliminar proyecto");
     }
   };
 
@@ -181,23 +172,24 @@ export default function ProjectsPage() {
     );
   };
 
-  if (loading) {
+  if (loading || orgLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-slate-400 dark:text-slate-500" />
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 max-w-7xl mx-auto py-2">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Proyectos</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">Gestiona tus proyectos de marketing</p>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">Proyectos</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">Gestiona y organiza tus proyectos</p>
         </div>
-        <Button onClick={() => setOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
+        <Button onClick={() => setOpen(true)} className="gap-2 font-medium">
+          <Plus className="h-4 w-4" />
           Nuevo Proyecto
         </Button>
       </div>
@@ -206,15 +198,15 @@ export default function ProjectsPage() {
       <div className="flex flex-wrap items-center gap-3">
         {organizations.length > 0 && (
           <div className="flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+            <Building2 className="h-4 w-4 text-muted-foreground" />
             <Select value={selectedOrg} onValueChange={(v) => { setSelectedOrg(v); setFilterLabel("all"); }}>
-              <SelectTrigger className="w-[280px] bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100">
+              <SelectTrigger className="w-[240px] text-xs">
                 <SelectValue placeholder="Selecciona agencia" />
               </SelectTrigger>
-              <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-                <SelectItem value="all" className="text-slate-900 dark:text-slate-100">Todas</SelectItem>
+              <SelectContent>
+                <SelectItem value="all">Todas las Agencias</SelectItem>
                 {organizations.map((org) => (
-                  <SelectItem key={org.id} value={org.id} className="text-slate-900 dark:text-slate-100">
+                  <SelectItem key={org.id} value={org.id}>
                     {org.name}
                   </SelectItem>
                 ))}
@@ -226,13 +218,13 @@ export default function ProjectsPage() {
         {/* Label filter chips */}
         {labels.length > 0 && (
           <div className="flex items-center gap-2 flex-wrap">
-            <Tag className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+            <Tag className="h-4 w-4 text-muted-foreground" />
             <button
               onClick={() => setFilterLabel("all")}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors border ${
                 filterLabel === "all"
-                  ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-secondary text-secondary-foreground border-border hover:bg-accent"
               }`}
             >
               Todos
@@ -241,10 +233,11 @@ export default function ProjectsPage() {
               <button
                 key={label.id}
                 onClick={() => setFilterLabel(filterLabel === label.id ? "all" : label.id)}
-                className="px-3 py-1 rounded-full text-xs font-medium transition-colors"
+                className="px-2.5 py-1 rounded-md text-xs font-medium transition-colors border"
                 style={{
-                  backgroundColor: filterLabel === label.id ? label.color : `${label.color}20`,
+                  backgroundColor: filterLabel === label.id ? label.color : `${label.color}15`,
                   color: filterLabel === label.id ? "#fff" : label.color,
+                  borderColor: filterLabel === label.id ? label.color : `${label.color}30`,
                 }}
               >
                 {label.name}
@@ -256,51 +249,53 @@ export default function ProjectsPage() {
 
       {/* Create Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-slate-900 dark:text-slate-100">Crear Proyecto</DialogTitle>
+            <DialogTitle className="text-base font-semibold">Crear Proyecto</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 pt-4">
-            <div className="space-y-2">
-              <Label className="text-slate-700 dark:text-slate-300">Nombre</Label>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Nombre</Label>
               <Input
                 placeholder="Nombre del proyecto"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
+                className="text-xs"
+                autoFocus
               />
             </div>
-            <div className="space-y-2">
-              <Label className="text-slate-700 dark:text-slate-300">Descripción</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Descripción</Label>
               <Input
                 placeholder="Descripción opcional"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100"
+                className="text-xs"
               />
             </div>
-            <div className="space-y-2">
-              <Label className="text-slate-700 dark:text-slate-300">Color</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Color</Label>
               <Input
                 type="color"
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
-                className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 h-10"
+                className="h-9 cursor-pointer"
               />
             </div>
             {labels.length > 0 && (
-              <div className="space-y-2">
-                <Label className="text-slate-700 dark:text-slate-300">Etiquetas</Label>
-                <div className="flex flex-wrap gap-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Etiquetas</Label>
+                <div className="flex flex-wrap gap-1.5">
                   {labels.map((label) => (
                     <button
                       key={label.id}
                       type="button"
                       onClick={() => toggleLabel(label.id)}
-                      className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-all"
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all border"
                       style={{
-                        backgroundColor: selectedLabels.includes(label.id) ? label.color : `${label.color}20`,
+                        backgroundColor: selectedLabels.includes(label.id) ? label.color : `${label.color}15`,
                         color: selectedLabels.includes(label.id) ? "#fff" : label.color,
+                        borderColor: selectedLabels.includes(label.id) ? label.color : `${label.color}30`,
                       }}
                     >
                       {label.name}
@@ -319,31 +314,30 @@ export default function ProjectsPage() {
 
       {/* Delete Confirmation */}
       <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <DialogContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-slate-900 dark:text-slate-100">Eliminar Proyecto</DialogTitle>
-            <DialogDescription className="text-slate-500 dark:text-slate-400">
+            <DialogTitle className="text-base font-semibold">Eliminar Proyecto</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
               ¿Eliminar este proyecto y todas sus tareas? Esta acción no se puede deshacer.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex justify-end gap-3 pt-4">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}
-              className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300">
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" size="sm" onClick={() => setDeleteTarget(null)}>
               Cancelar
             </Button>
-            <Button variant="destructive" onClick={() => deleteTarget && handleDelete(deleteTarget)}>
-              <Trash2 className="h-4 w-4 mr-2" /> Eliminar
+            <Button variant="destructive" size="sm" onClick={() => deleteTarget && handleDelete(deleteTarget)}>
+              <Trash2 className="h-3.5 w-3.5 mr-1" /> Eliminar
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
       {projects.length === 0 ? (
-        <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <FolderOpen className="h-12 w-12 text-slate-400 dark:text-slate-500 mb-4" />
-            <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-1">No hay proyectos</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm">Crea tu primer proyecto para comenzar</p>
+        <Card className="bg-card border-border">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <FolderOpen className="h-10 w-10 text-muted-foreground mb-3" />
+            <h3 className="text-sm font-semibold text-foreground mb-1">No hay proyectos</h3>
+            <p className="text-xs text-muted-foreground">Crea tu primer proyecto para comenzar</p>
           </CardContent>
         </Card>
       ) : (
@@ -351,46 +345,50 @@ export default function ProjectsPage() {
           {projects.map((project) => (
             <Card
               key={project.id}
-              className="hover:shadow-md transition-shadow bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
+              className="group bg-card hover:bg-card/80 border-border hover:border-primary/40 transition-all shadow-sm hover:shadow flex flex-col justify-between"
             >
-              <CardHeader>
+              <CardHeader className="pb-2.5">
                 <div className="flex items-center justify-between">
-                  <Link href={`/projects/${project.id}`} className="flex items-center gap-3 flex-1 min-w-0">
+                  <Link href={`/projects/${project.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
                     <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: project.color }} />
-                    <CardTitle className="text-lg text-slate-900 dark:text-slate-100 truncate">{project.name}</CardTitle>
+                    <CardTitle className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                      {project.name}
+                    </CardTitle>
                   </Link>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0 text-slate-500"
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
                         onClick={(e) => e.stopPropagation()}>
-                        <MoreHorizontal className="h-4 w-4" />
+                        <MoreHorizontal className="h-3.5 w-3.5" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDuplicate(project); }}
-                        className="text-slate-700 dark:text-slate-300">
-                        <Copy className="h-4 w-4 mr-2" /> Duplicar
+                    <DropdownMenuContent align="end" className="w-36 text-xs">
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDuplicate(project); }} className="gap-2 cursor-pointer">
+                        <Copy className="h-3.5 w-3.5" /> Duplicar
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setDeleteTarget(project); }}
-                        className="text-red-600 dark:text-red-400">
-                        <Trash2 className="h-4 w-4 mr-2" /> Eliminar
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setDeleteTarget(project); }} className="gap-2 cursor-pointer text-destructive focus:text-destructive">
+                        <Trash2 className="h-3.5 w-3.5" /> Eliminar
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
               </CardHeader>
               <Link href={`/projects/${project.id}`}>
-                <CardContent>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm mb-3">
+                <CardContent className="pt-0">
+                  <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
                     {project.description || "Sin descripción"}
                   </p>
                   {project.labels && project.labels.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-1">
                       {project.labels.map((pl) => (
                         <span
                           key={pl.id}
-                          className="px-2 py-0.5 rounded-full text-[10px] font-medium"
-                          style={{ backgroundColor: `${pl.label.color}20`, color: pl.label.color }}
+                          className="px-2 py-0.5 rounded text-[10px] font-medium border"
+                          style={{
+                            backgroundColor: `${pl.label.color}15`,
+                            color: pl.label.color,
+                            borderColor: `${pl.label.color}30`,
+                          }}
                         >
                           {pl.label.name}
                         </span>
