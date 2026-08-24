@@ -53,20 +53,28 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
 
   // Sync viewport updates
   useEffect(() => {
-    if (data.viewport && (data.viewport.x !== viewport.x || data.viewport.y !== viewport.y || data.viewport.zoom !== viewport.zoom)) {
+    if (
+      data.viewport &&
+      (data.viewport.x !== viewport.x ||
+        data.viewport.y !== viewport.y ||
+        data.viewport.zoom !== viewport.zoom)
+    ) {
       setViewport(data.viewport);
     }
   }, [data.viewport]);
 
   // Push state to undo/redo history
-  const pushHistory = useCallback((newData: MindMapData) => {
-    setHistory((prev) => {
-      const updated = prev.slice(0, historyIndex + 1);
-      return [...updated, newData];
-    });
-    setHistoryIndex((prev) => prev + 1);
-    onChange(newData);
-  }, [historyIndex, onChange]);
+  const pushHistory = useCallback(
+    (newData: MindMapData) => {
+      setHistory((prev) => {
+        const updated = prev.slice(0, historyIndex + 1);
+        return [...updated, newData];
+      });
+      setHistoryIndex((prev) => prev + 1);
+      onChange(newData);
+    },
+    [historyIndex, onChange]
+  );
 
   const undo = useCallback(() => {
     if (historyIndex > 0) {
@@ -157,7 +165,12 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
 
   // Pan Handlers
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button === 1 || isSpacePressed || e.target === containerRef.current || (e.target as HTMLElement).id === "canvas-grid") {
+    if (
+      e.button === 1 ||
+      isSpacePressed ||
+      e.target === containerRef.current ||
+      (e.target as HTMLElement).id === "canvas-grid"
+    ) {
       setIsPanning(true);
       setPanStart({ x: e.clientX - viewport.x, y: e.clientY - viewport.y });
     }
@@ -224,7 +237,7 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
     onChange({ ...data, viewport: newVp });
   };
 
-  // Node Node Update
+  // Node Update
   const handleUpdateNode = (nodeId: string, updates: Partial<NodeData>) => {
     const newNodes = data.nodes.map((n) => (n.id === nodeId ? { ...n, ...updates } : n));
     const newData = { ...data, nodes: newNodes };
@@ -232,25 +245,28 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
   };
 
   // Add Child Node
-  const handleAddChild = (parentNodeId: string, direction: "right" | "left" | "bottom" | "top" = "right") => {
+  const handleAddChild = (
+    parentNodeId: string,
+    direction: "right" | "left" | "bottom" | "top" = "right"
+  ) => {
     const parentNode = data.nodes.find((n) => n.id === parentNodeId);
     if (!parentNode) return;
 
     const newId = `node-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     const siblingCount = data.edges.filter((e) => e.source === parentNodeId).length;
 
-    let x = parentNode.x + 260;
+    let x = parentNode.x + 250;
     let y = parentNode.y + siblingCount * 80;
 
     if (direction === "bottom") {
       x = parentNode.x + (siblingCount - 1) * 120;
-      y = parentNode.y + 160;
+      y = parentNode.y + 150;
     } else if (direction === "left") {
-      x = parentNode.x - 260;
+      x = parentNode.x - 250;
       y = parentNode.y + siblingCount * 80;
     } else if (direction === "top") {
       x = parentNode.x + (siblingCount - 1) * 120;
-      y = parentNode.y - 160;
+      y = parentNode.y - 150;
     }
 
     const newNode: NodeData = {
@@ -259,7 +275,7 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
       x,
       y,
       parentId: parentNodeId,
-      color: parentNode.color || "indigo",
+      color: parentNode.color || "default",
       shape: "card",
     };
 
@@ -294,9 +310,9 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
       id: newId,
       label: "Nueva Idea",
       x: currentNode.x,
-      y: currentNode.y + 100,
+      y: currentNode.y + 90,
       parentId: parentId || null,
-      color: currentNode.color || "indigo",
+      color: currentNode.color || "default",
       shape: currentNode.shape || "card",
     };
 
@@ -325,7 +341,6 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
     const nodeToDelete = data.nodes.find((n) => n.id === nodeId);
     if (nodeToDelete?.isRoot && data.nodes.length === 1) return;
 
-    // Collect all descendant ids recursively
     const getDescendants = (id: string): string[] => {
       const children = data.edges.filter((e) => e.source === id).map((e) => e.target);
       return [id, ...children.flatMap(getDescendants)];
@@ -396,7 +411,7 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
     handleUpdateNode(nodeId, { collapsed: !node.collapsed });
   };
 
-  // Check hidden nodes due to collapsed ancestors
+  // Check hidden nodes
   const isNodeHidden = (node: NodeData): boolean => {
     let currParentId = node.parentId;
     while (currParentId) {
@@ -407,12 +422,12 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
     return false;
   };
 
-  // Calculate Bezier path between two nodes
+  // Calculate Bezier path
   const calculateEdgePath = (sourceNode: NodeData, targetNode: NodeData) => {
-    const sWidth = sourceNode.width || 180;
-    const sHeight = sourceNode.height || 70;
-    const tWidth = targetNode.width || 180;
-    const tHeight = targetNode.height || 70;
+    const sWidth = sourceNode.width || 190;
+    const sHeight = sourceNode.height || 65;
+    const tWidth = targetNode.width || 190;
+    const tHeight = targetNode.height || 65;
 
     const isTargetRight = targetNode.x >= sourceNode.x;
 
@@ -423,7 +438,7 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
     const endY = targetNode.y + tHeight / 2;
 
     const deltaX = Math.abs(endX - startX);
-    const controlPointOffset = Math.max(deltaX * 0.5, 50);
+    const controlPointOffset = Math.max(deltaX * 0.5, 40);
 
     const cp1X = isTargetRight ? startX + controlPointOffset : startX - controlPointOffset;
     const cp1Y = startY;
@@ -442,13 +457,14 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
       ref={containerRef}
       id="canvas-grid"
       className={cn(
-        "relative w-full h-full overflow-hidden select-none bg-slate-950 dark:bg-slate-950",
+        "relative w-full h-full overflow-hidden select-none bg-background text-foreground",
         isSpacePressed || isPanning ? "cursor-grab active:cursor-grabbing" : "cursor-default"
       )}
       style={{
-        backgroundImage: `radial-gradient(circle, rgba(148, 163, 184, 0.15) 1px, transparent 1px)`,
+        backgroundImage: `radial-gradient(circle, currentColor 1px, transparent 1px)`,
         backgroundSize: `${24 * viewport.zoom}px ${24 * viewport.zoom}px`,
         backgroundPosition: `${viewport.x}px ${viewport.y}px`,
+        color: "hsl(var(--muted-foreground) / 0.15)",
       }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
@@ -464,23 +480,7 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
         }}
       >
         {/* SVG Edges Layer */}
-        <svg
-          className="absolute inset-0 w-[50000px] h-[50000px] -translate-x-[25000px] -translate-y-[25000px] overflow-visible pointer-events-none"
-        >
-          <defs>
-            <marker
-              id="arrowhead"
-              viewBox="0 0 10 10"
-              refX="8"
-              refY="5"
-              markerWidth="6"
-              markerHeight="6"
-              orient="auto-start-reverse"
-            >
-              <path d="M 0 1 L 10 5 L 0 9 z" fill="#6366f1" />
-            </marker>
-          </defs>
-
+        <svg className="absolute inset-0 w-[50000px] h-[50000px] -translate-x-[25000px] -translate-y-[25000px] overflow-visible pointer-events-none">
           {data.edges.map((edge) => {
             const source = data.nodes.find((n) => n.id === edge.source);
             const target = data.nodes.find((n) => n.id === edge.target);
@@ -498,9 +498,9 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
                 <path
                   d={path}
                   fill="none"
-                  stroke={isHighlighted ? "#818cf8" : edge.color || "#475569"}
-                  strokeWidth={isHighlighted ? 3 : 2}
-                  strokeDasharray={edge.animated ? "5,5" : undefined}
+                  stroke={isHighlighted ? "hsl(var(--primary))" : "hsl(var(--border))"}
+                  strokeWidth={isHighlighted ? 2.5 : 1.75}
+                  strokeDasharray={edge.animated ? "4,4" : undefined}
                   className="transition-colors duration-200"
                 />
               </g>
@@ -510,11 +510,13 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
           {/* Active Live Wire Connection preview */}
           {connectingSourceNode && (
             <path
-              d={`M ${connectingSourceNode.x + 180} ${connectingSourceNode.y + 35} Q ${(connectingSourceNode.x + 180 + mousePos.x) / 2} ${(connectingSourceNode.y + 35 + mousePos.y) / 2} ${mousePos.x} ${mousePos.y}`}
+              d={`M ${connectingSourceNode.x + 190} ${connectingSourceNode.y + 32} Q ${
+                (connectingSourceNode.x + 190 + mousePos.x) / 2
+              } ${(connectingSourceNode.y + 32 + mousePos.y) / 2} ${mousePos.x} ${mousePos.y}`}
               fill="none"
-              stroke="#10b981"
-              strokeWidth={2.5}
-              strokeDasharray="6,4"
+              stroke="hsl(var(--primary))"
+              strokeWidth={2}
+              strokeDasharray="4,4"
               className="animate-pulse"
             />
           )}
@@ -529,10 +531,7 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
             const hasChildren = data.edges.some((e) => e.source === node.id);
 
             return (
-              <div
-                key={node.id}
-                onMouseDown={(e) => handleNodeMouseDown(node.id, e)}
-              >
+              <div key={node.id} onMouseDown={(e) => handleNodeMouseDown(node.id, e)}>
                 <MindMapNode
                   node={node}
                   isSelected={isSelected}

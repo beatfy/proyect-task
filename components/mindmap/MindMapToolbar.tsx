@@ -15,26 +15,21 @@ import {
   Upload,
   Sparkles,
   Save,
-  RotateCcw,
-  RotateCw,
   Plus,
   HelpCircle,
   FolderOpen,
   ArrowLeft,
   LayoutGrid,
   FileJson,
-  Image as ImageIcon,
   Check,
   CheckCircle2,
   Clock,
-  Share2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -45,7 +40,6 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import Link from "next/link";
 
 interface MindMapToolbarProps {
@@ -145,7 +139,6 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
     const rootY = 400;
     positionedNodes[root.id] = { x: rootX, y: rootY };
 
-    // Get children of root
     const children = data.edges
       .filter((e) => e.source === root.id)
       .map((e) => data.nodes.find((n) => n.id === e.target))
@@ -155,13 +148,11 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
     const rightChildren = children.slice(0, half);
     const leftChildren = children.slice(half);
 
-    // Layout right children
     rightChildren.forEach((child, index) => {
       const childY = rootY - ((rightChildren.length - 1) * 110) / 2 + index * 110;
-      const childX = rootX + 280;
+      const childX = rootX + 270;
       positionedNodes[child.id] = { x: childX, y: childY };
 
-      // Layout grandchildren
       const grandChildren = data.edges
         .filter((e) => e.source === child.id)
         .map((e) => data.nodes.find((n) => n.id === e.target))
@@ -169,19 +160,17 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
 
       grandChildren.forEach((gc, gcIndex) => {
         positionedNodes[gc.id] = {
-          x: childX + 260,
+          x: childX + 250,
           y: childY - ((grandChildren.length - 1) * 90) / 2 + gcIndex * 90,
         };
       });
     });
 
-    // Layout left children
     leftChildren.forEach((child, index) => {
       const childY = rootY - ((leftChildren.length - 1) * 110) / 2 + index * 110;
-      const childX = rootX - 280;
+      const childX = rootX - 270;
       positionedNodes[child.id] = { x: childX, y: childY };
 
-      // Layout grandchildren
       const grandChildren = data.edges
         .filter((e) => e.source === child.id)
         .map((e) => data.nodes.find((n) => n.id === e.target))
@@ -189,7 +178,7 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
 
       grandChildren.forEach((gc, gcIndex) => {
         positionedNodes[gc.id] = {
-          x: childX - 260,
+          x: childX - 250,
           y: childY - ((grandChildren.length - 1) * 90) / 2 + gcIndex * 90,
         };
       });
@@ -210,7 +199,7 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
       ...data,
       nodes: updatedNodes,
     });
-    toast.success("Mapa mental organizado automáticamente");
+    toast.success("Organización completada");
   };
 
   // AI Ideas / Smart Brainstorm Generator
@@ -226,7 +215,7 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
 
     const ideas = [
       {
-        label: "🎯 Plan de Ejecución",
+        label: "Plan de Ejecución",
         desc: "Definición de etapas clave y responsables",
         color: "indigo" as const,
         checklist: [
@@ -235,19 +224,19 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
         ],
       },
       {
-        label: "🛡️ Análisis de Riesgos",
-        desc: "Posibles cuellos de botella y mitigaciones",
+        label: "Análisis de Riesgos",
+        desc: "Posibles cuellos de botella y contingencias",
         color: "amber" as const,
       },
       {
-        label: "📈 Estrategia de Crecimiento",
+        label: "Estrategia de Crecimiento",
         desc: "Escalabilidad y métricas de retención",
         color: "emerald" as const,
       },
       {
-        label: "⚡ Automatización",
-        desc: "Herramientas e integraciones para optimizar",
-        color: "cyan" as const,
+        label: "Automatización & Procesos",
+        desc: "Herramientas e integraciones clave",
+        color: "blue" as const,
       },
     ];
 
@@ -287,7 +276,7 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
       edges: [...data.edges, ...newEdges],
     });
 
-    toast.success("4 ramas de ideas generadas para: " + targetNode.label);
+    toast.success("Ramas generadas para: " + targetNode.label);
   };
 
   // Export JSON
@@ -300,7 +289,7 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
     link.download = `${title.toLowerCase().replace(/\s+/g, "-")}-mindmap.json`;
     link.click();
     URL.revokeObjectURL(url);
-    toast.success("Archivo JSON descargado");
+    toast.success("Archivo JSON exportado");
   };
 
   // Import JSON
@@ -317,7 +306,7 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
           if (parsed.title) onTitleChange(parsed.title);
           toast.success("Mapa mental importado con éxito");
         } else {
-          toast.error("Formato de archivo inválido");
+          toast.error("Formato no compatible");
         }
       } catch (err) {
         toast.error("Error al leer el archivo JSON");
@@ -325,14 +314,6 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
     };
     reader.readAsText(file);
     if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  // Export PNG screenshot
-  const handleExportPNG = () => {
-    toast.info("Generando imagen PNG...");
-    setTimeout(() => {
-      toast.success("Exportación iniciada");
-    }, 500);
   };
 
   const toggleFullscreen = () => {
@@ -351,21 +332,21 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
     <>
       {/* Top Floating Bar */}
       <div className="absolute top-4 left-4 right-4 z-40 flex items-center justify-between pointer-events-none">
-        {/* Left Section: Back, Title, Project & Save state */}
-        <div className="flex items-center gap-2 bg-slate-900/90 dark:bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-xl p-1.5 shadow-xl pointer-events-auto">
+        {/* Left Section */}
+        <div className="flex items-center gap-2 bg-card/90 backdrop-blur-xl border border-border rounded-xl p-1.5 shadow-sm pointer-events-auto">
           <Link href="/mindmaps">
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 px-2 text-slate-300 hover:text-white hover:bg-slate-800"
+              className="h-8 px-2.5 text-muted-foreground hover:text-foreground text-xs"
               title="Volver a lista de Mapas"
             >
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              <span className="hidden sm:inline text-xs">Volver</span>
+              <ArrowLeft className="w-4 h-4 mr-1.5" />
+              <span>Mapas</span>
             </Button>
           </Link>
 
-          <div className="h-4 w-px bg-slate-800" />
+          <div className="h-4 w-px bg-border" />
 
           {/* Title Editor */}
           {isEditingTitle ? (
@@ -377,12 +358,12 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
                 onBlur={handleTitleSubmit}
                 onKeyDown={(e) => e.key === "Enter" && handleTitleSubmit()}
                 autoFocus
-                className="bg-slate-950 text-white text-xs font-semibold px-2 py-1 rounded border border-indigo-500 focus:outline-none"
+                className="bg-background text-foreground text-xs font-semibold px-2 py-1 rounded border border-primary focus:outline-none"
               />
               <button
                 type="button"
                 onClick={handleTitleSubmit}
-                className="p-1 rounded text-emerald-400 hover:bg-emerald-500/20"
+                className="p-1 rounded text-primary hover:bg-accent"
               >
                 <Check className="w-3.5 h-3.5" />
               </button>
@@ -393,7 +374,7 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
                 setTempTitle(title);
                 setIsEditingTitle(true);
               }}
-              className="text-xs sm:text-sm font-semibold text-slate-200 hover:text-white cursor-pointer px-2 py-1 rounded hover:bg-slate-800/60 max-w-[160px] sm:max-w-xs truncate"
+              className="text-xs sm:text-sm font-semibold text-foreground hover:text-primary cursor-pointer px-2 py-1 rounded hover:bg-accent/40 max-w-[160px] sm:max-w-xs truncate transition-colors"
               title="Haz clic para cambiar el título"
             >
               {title}
@@ -401,24 +382,24 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
           )}
 
           {projectName && (
-            <span className="hidden md:inline-flex items-center gap-1 text-[11px] font-medium text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/20">
+            <span className="hidden md:inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-md border border-border">
               <FolderOpen className="w-3 h-3" />
               {projectName}
             </span>
           )}
 
-          <div className="h-4 w-px bg-slate-800" />
+          <div className="h-4 w-px bg-border" />
 
           {/* Save status badge */}
           <div className="flex items-center gap-1.5 px-2">
             {saveStatus === "saving" && (
-              <span className="flex items-center gap-1 text-[11px] text-amber-400 animate-pulse">
+              <span className="flex items-center gap-1 text-[11px] text-amber-500 animate-pulse">
                 <Clock className="w-3 h-3" />
                 <span className="hidden sm:inline">Guardando...</span>
               </span>
             )}
             {saveStatus === "saved" && (
-              <span className="flex items-center gap-1 text-[11px] text-emerald-400">
+              <span className="flex items-center gap-1 text-[11px] text-emerald-500">
                 <CheckCircle2 className="w-3 h-3" />
                 <span className="hidden sm:inline">Guardado</span>
               </span>
@@ -427,7 +408,7 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
               <button
                 type="button"
                 onClick={onSaveManual}
-                className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-white"
+                className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
               >
                 <Save className="w-3 h-3" />
                 <span className="hidden sm:inline">Guardar</span>
@@ -436,18 +417,18 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
           </div>
         </div>
 
-        {/* Right Section: Actions, AI, Export, Settings */}
-        <div className="flex items-center gap-2 bg-slate-900/90 dark:bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-xl p-1.5 shadow-xl pointer-events-auto">
+        {/* Right Section */}
+        <div className="flex items-center gap-1.5 bg-card/90 backdrop-blur-xl border border-border rounded-xl p-1.5 shadow-sm pointer-events-auto">
           {/* AI Generator Button */}
           <Button
             variant="ghost"
             size="sm"
             onClick={handleAIBrainstorm}
-            className="h-8 px-2.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 hover:text-indigo-200 border border-indigo-500/30 gap-1.5"
-            title="Generar ideas asociadas con IA"
+            className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1.5"
+            title="Generar ideas asociadas"
           >
-            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-            <span className="hidden md:inline text-xs font-medium">Asistente Ideas</span>
+            <Sparkles className="w-3.5 h-3.5 text-primary" />
+            <span className="hidden md:inline font-medium">Asistente</span>
           </Button>
 
           {/* Auto Arrange Layout */}
@@ -455,11 +436,11 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
             variant="ghost"
             size="sm"
             onClick={handleAutoArrange}
-            className="h-8 px-2 text-slate-300 hover:text-white hover:bg-slate-800"
+            className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground"
             title="Auto-organizar ramas y nodos"
           >
-            <LayoutGrid className="w-4 h-4" />
-            <span className="hidden lg:inline text-xs ml-1">Organizar</span>
+            <LayoutGrid className="w-3.5 h-3.5" />
+            <span className="hidden lg:inline ml-1.5">Organizar</span>
           </Button>
 
           {/* Export / Import Dropdown */}
@@ -468,23 +449,23 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 px-2 text-slate-300 hover:text-white hover:bg-slate-800"
+                className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground"
                 title="Exportar o importar mapa"
               >
-                <Download className="w-4 h-4 mr-1" />
-                <span className="hidden sm:inline text-xs">Exportar</span>
+                <Download className="w-3.5 h-3.5 mr-1" />
+                <span className="hidden sm:inline">JSON</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 bg-slate-900 border-slate-800 text-slate-200">
-              <DropdownMenuItem onClick={handleExportJSON} className="gap-2 cursor-pointer">
-                <FileJson className="w-4 h-4 text-amber-400" />
-                <span>Descargar JSON</span>
+            <DropdownMenuContent align="end" className="w-44 bg-popover border-border text-popover-foreground shadow-lg">
+              <DropdownMenuItem onClick={handleExportJSON} className="gap-2 cursor-pointer text-xs">
+                <FileJson className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>Exportar JSON</span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => fileInputRef.current?.click()}
-                className="gap-2 cursor-pointer"
+                className="gap-2 cursor-pointer text-xs"
               >
-                <Upload className="w-4 h-4 text-blue-400" />
+                <Upload className="w-3.5 h-3.5 text-muted-foreground" />
                 <span>Importar JSON</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -498,15 +479,15 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
             className="hidden"
           />
 
-          <div className="h-4 w-px bg-slate-800" />
+          <div className="h-4 w-px bg-border" />
 
           {/* Help / Shortcuts Button */}
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setShowShortcuts(true)}
-            className="h-8 w-8 text-slate-400 hover:text-white hover:bg-slate-800"
-            title="Atajos de teclado y ayuda"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            title="Atajos de teclado"
           >
             <HelpCircle className="w-4 h-4" />
           </Button>
@@ -516,7 +497,7 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
             variant="ghost"
             size="icon"
             onClick={toggleFullscreen}
-            className="h-8 w-8 text-slate-400 hover:text-white hover:bg-slate-800"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
             title="Pantalla completa"
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -525,25 +506,25 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
       </div>
 
       {/* Bottom Center Floating Zoom & Node Controls Bar */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 bg-slate-900/90 dark:bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-full px-3 py-1.5 shadow-2xl">
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1 bg-card/90 backdrop-blur-xl border border-border rounded-full px-3 py-1.5 shadow-xl">
         <Button
-          variant="ghost"
+          variant="default"
           size="sm"
           onClick={onAddRootNode}
-          className="h-8 px-3 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs gap-1.5 shadow-lg shadow-indigo-500/20"
+          className="h-7 px-3 rounded-full text-xs font-medium gap-1.5 shadow-sm"
         >
-          <Plus className="w-3.5 h-3.5" />
+          <Plus className="w-3 h-3" />
           <span>Añadir Nodo</span>
         </Button>
 
-        <div className="h-4 w-px bg-slate-800 mx-1" />
+        <div className="h-4 w-px bg-border mx-1" />
 
         <Button
           variant="ghost"
           size="icon"
           onClick={() => handleZoom(0.85)}
-          className="h-7 w-7 rounded-full text-slate-300 hover:text-white hover:bg-slate-800"
-          title="Alejar (Zoom Out)"
+          className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground"
+          title="Alejar"
         >
           <ZoomOut className="w-3.5 h-3.5" />
         </Button>
@@ -551,8 +532,8 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
         <button
           type="button"
           onClick={handleResetZoom}
-          className="text-xs font-mono font-medium text-slate-300 hover:text-white px-2 py-0.5 rounded hover:bg-slate-800"
-          title="Restablecer al 100%"
+          className="text-xs font-mono font-medium text-muted-foreground hover:text-foreground px-2 py-0.5 rounded hover:bg-muted transition-colors"
+          title="Restablecer"
         >
           {zoomPercent}%
         </button>
@@ -561,20 +542,20 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
           variant="ghost"
           size="icon"
           onClick={() => handleZoom(1.15)}
-          className="h-7 w-7 rounded-full text-slate-300 hover:text-white hover:bg-slate-800"
-          title="Acercar (Zoom In)"
+          className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground"
+          title="Acercar"
         >
           <ZoomIn className="w-3.5 h-3.5" />
         </Button>
 
-        <div className="h-4 w-px bg-slate-800 mx-1" />
+        <div className="h-4 w-px bg-border mx-1" />
 
         <Button
           variant="ghost"
           size="sm"
           onClick={handleFitView}
-          className="h-7 px-2.5 text-xs text-slate-300 hover:text-white hover:bg-slate-800 rounded-full"
-          title="Ajustar mapa a la pantalla"
+          className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground rounded-full"
+          title="Ajustar a la pantalla"
         >
           Ajustar
         </Button>
@@ -582,45 +563,45 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
 
       {/* Keyboard Shortcuts Dialog */}
       <Dialog open={showShortcuts} onOpenChange={setShowShortcuts}>
-        <DialogContent className="bg-slate-900 border-slate-800 text-slate-200 max-w-md">
+        <DialogContent className="bg-popover border-border text-popover-foreground max-w-md shadow-xl">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold flex items-center gap-2 text-indigo-400">
-              <HelpCircle className="w-5 h-5" />
-              Atajos y Guía de Uso
+            <DialogTitle className="text-base font-semibold flex items-center gap-2">
+              <HelpCircle className="w-4 h-4 text-primary" />
+              Atajos de Teclado
             </DialogTitle>
-            <DialogDescription className="text-slate-400 text-xs">
-              Usa estos atajos para crear y organizar mapas mentales a toda velocidad.
+            <DialogDescription className="text-muted-foreground text-xs">
+              Accesos directos para agilizar el flujo de trabajo en el lienzo.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-2.5 py-2 text-xs">
-            <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950/60 border border-slate-800/80">
-              <span className="text-slate-300">Crear nodo hijo</span>
-              <kbd className="px-2 py-1 bg-slate-800 rounded text-indigo-300 font-mono">Tab</kbd>
+          <div className="space-y-2 py-2 text-xs">
+            <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50 border border-border">
+              <span className="text-foreground">Crear nodo hijo</span>
+              <kbd className="px-2 py-0.5 bg-background border border-border rounded text-foreground font-mono text-[11px]">Tab</kbd>
             </div>
-            <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950/60 border border-slate-800/80">
-              <span className="text-slate-300">Crear nodo hermano</span>
-              <kbd className="px-2 py-1 bg-slate-800 rounded text-indigo-300 font-mono">Enter</kbd>
+            <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50 border border-border">
+              <span className="text-foreground">Crear nodo hermano</span>
+              <kbd className="px-2 py-0.5 bg-background border border-border rounded text-foreground font-mono text-[11px]">Enter</kbd>
             </div>
-            <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950/60 border border-slate-800/80">
-              <span className="text-slate-300">Eliminar nodo seleccionado</span>
-              <kbd className="px-2 py-1 bg-slate-800 rounded text-rose-300 font-mono">Supr / Backspace</kbd>
+            <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50 border border-border">
+              <span className="text-foreground">Eliminar nodo seleccionado</span>
+              <kbd className="px-2 py-0.5 bg-background border border-border rounded text-destructive font-mono text-[11px]">Supr / Backspace</kbd>
             </div>
-            <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950/60 border border-slate-800/80">
-              <span className="text-slate-300">Desplazar lienzo (Pan)</span>
-              <span className="text-slate-400 font-mono">Espacio + Arrastrar / Rueda</span>
+            <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50 border border-border">
+              <span className="text-foreground">Desplazar lienzo</span>
+              <span className="text-muted-foreground font-mono">Espacio + Arrastrar</span>
             </div>
-            <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950/60 border border-slate-800/80">
-              <span className="text-slate-300">Conectar nodos libremente</span>
-              <span className="text-slate-400">Arrastrar desde el puerto derecho del nodo</span>
+            <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50 border border-border">
+              <span className="text-foreground">Conectar nodos</span>
+              <span className="text-muted-foreground">Arrastrar desde el puerto circular</span>
             </div>
-            <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950/60 border border-slate-800/80">
-              <span className="text-slate-300">Deshacer / Rehacer</span>
-              <kbd className="px-2 py-1 bg-slate-800 rounded text-slate-300 font-mono">Ctrl + Z / Ctrl + Y</kbd>
+            <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50 border border-border">
+              <span className="text-foreground">Deshacer / Rehacer</span>
+              <kbd className="px-2 py-0.5 bg-background border border-border rounded text-foreground font-mono text-[11px]">Ctrl + Z / Ctrl + Y</kbd>
             </div>
-            <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950/60 border border-slate-800/80">
-              <span className="text-slate-300">Editar texto de nodo</span>
-              <span className="text-slate-400 font-mono">Doble Clic en nodo</span>
+            <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50 border border-border">
+              <span className="text-foreground">Editar título</span>
+              <span className="text-muted-foreground font-mono">Doble Clic</span>
             </div>
           </div>
         </DialogContent>

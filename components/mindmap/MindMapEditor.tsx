@@ -209,7 +209,7 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
     : null;
 
   return (
-    <div className="relative w-full h-[calc(100vh-3.5rem)] md:h-screen -m-4 sm:-m-6 md:-m-8 overflow-hidden bg-slate-950">
+    <div className="relative w-full h-[calc(100vh-3.5rem)] md:h-screen -m-4 sm:-m-6 md:-m-8 overflow-hidden bg-background">
       {/* Floating Toolbar */}
       <MindMapToolbar
         title={title}
@@ -238,38 +238,38 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
         open={!!exportingNodeId}
         onOpenChange={(open) => !open && setExportingNodeId(null)}
       >
-        <DialogContent className="bg-slate-900 border-slate-800 text-slate-200 sm:max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-semibold flex items-center gap-2 text-emerald-400">
-              <CheckSquare className="w-5 h-5" />
-              Convertir Idea en Tarea
+            <DialogTitle className="text-base font-semibold flex items-center gap-2">
+              <CheckSquare className="w-4 h-4 text-primary" />
+              Convertir en Tarea
             </DialogTitle>
-            <DialogDescription className="text-slate-400 text-xs">
+            <DialogDescription className="text-xs text-muted-foreground">
               Crea una tarea oficial en taskProject a partir de este nodo del mapa mental.
             </DialogDescription>
           </DialogHeader>
 
           {exportingNode && (
             <div className="space-y-4 py-2">
-              <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
-                <p className="text-xs font-semibold text-white">{exportingNode.label}</p>
+              <div className="p-3 rounded-lg bg-muted/50 border border-border">
+                <p className="text-xs font-semibold text-foreground">{exportingNode.label}</p>
                 {exportingNode.description && (
-                  <p className="text-[11px] text-slate-400 mt-1">{exportingNode.description}</p>
+                  <p className="text-[11px] text-muted-foreground mt-1">{exportingNode.description}</p>
                 )}
                 {exportingNode.checklist && exportingNode.checklist.length > 0 && (
-                  <p className="text-[10px] text-indigo-400 mt-2">
+                  <p className="text-[10px] text-primary mt-2">
                     ✓ Se incluirán {exportingNode.checklist.length} subtareas del checklist.
                   </p>
                 )}
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-300">Asignar a Proyecto</Label>
+                <Label className="text-xs">Asignar a Proyecto</Label>
                 <Select value={targetProjectId} onValueChange={setTargetProjectId}>
-                  <SelectTrigger className="bg-slate-950 border-slate-800 text-xs">
+                  <SelectTrigger className="text-xs">
                     <SelectValue placeholder="Selecciona un proyecto (opcional)" />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                  <SelectContent>
                     <SelectItem value="none">Sin proyecto específico</SelectItem>
                     {projects.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
@@ -287,12 +287,12 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-300">Prioridad</Label>
+                <Label className="text-xs">Prioridad</Label>
                 <Select value={taskPriority} onValueChange={setTaskPriority}>
-                  <SelectTrigger className="bg-slate-950 border-slate-800 text-xs">
+                  <SelectTrigger className="text-xs">
                     <SelectValue placeholder="Prioridad" />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                  <SelectContent>
                     <SelectItem value="NONE">Sin Prioridad</SelectItem>
                     <SelectItem value="LOW">Baja</SelectItem>
                     <SelectItem value="MEDIUM">Media</SelectItem>
@@ -307,7 +307,7 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => setExportingNodeId(null)}
               disabled={isExporting}
@@ -319,9 +319,8 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
               size="sm"
               onClick={handleConfirmExportToTask}
               disabled={isExporting}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium"
             >
-              {isExporting ? "Creando tarea..." : "Crear Tarea"}
+              {isExporting ? "Creando..." : "Crear Tarea"}
             </Button>
           </DialogFooter>
         </DialogContent>

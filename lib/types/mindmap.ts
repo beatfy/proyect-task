@@ -1,22 +1,20 @@
 export type NodeShape =
+  | "card"
   | "rounded"
   | "pill"
   | "rectangle"
-  | "circle"
-  | "card"
   | "sticky"
-  | "cloud";
+  | "circle";
 
 export type NodeColor =
+  | "default"
   | "indigo"
-  | "blue"
   | "emerald"
   | "amber"
   | "rose"
   | "purple"
-  | "cyan"
-  | "slate"
-  | "orange";
+  | "blue"
+  | "slate";
 
 export type EdgeStyle = "curved" | "straight" | "orthogonal";
 
@@ -71,7 +69,7 @@ export interface MindMapData {
   edges: MindMapEdge[];
   viewport: MindMapViewport;
   grid?: boolean;
-  theme?: "modern" | "dark" | "pastel" | "cyberpunk" | "minimal";
+  theme?: "modern" | "dark" | "minimal";
 }
 
 export interface MindMapRecord {

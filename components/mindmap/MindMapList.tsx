@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { MindMapRecord } from "@/lib/types/mindmap";
-import { MINDMAP_TEMPLATES, TemplateDefinition } from "./MindMapTemplates";
+import { MINDMAP_TEMPLATES } from "./MindMapTemplates";
 import {
   Plus,
   Search,
@@ -11,7 +11,6 @@ import {
   Trash2,
   Copy,
   Network,
-  Sparkles,
   ArrowRight,
   Lightbulb,
   Rocket,
@@ -54,7 +53,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -107,7 +105,7 @@ export const MindMapList: React.FC<MindMapListProps> = ({
       if (!res.ok) throw new Error("Error al crear el mapa");
 
       const created = await res.json();
-      toast.success("Mapa mental creado con éxito");
+      toast.success("Mapa mental creado");
       setIsCreating(false);
       router.push(`/mindmaps/${created.id}`);
     } catch (err) {
@@ -140,7 +138,7 @@ export const MindMapList: React.FC<MindMapListProps> = ({
   const handleDeleteMap = async (mapId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    if (!confirm("¿Seguro que deseas eliminar este mapa mental?")) return;
+    if (!confirm("¿Deseas eliminar este mapa mental?")) return;
 
     try {
       setMaps((prev) => prev.filter((m) => m.id !== mapId));
@@ -171,9 +169,9 @@ export const MindMapList: React.FC<MindMapListProps> = ({
       if (!res.ok) throw new Error();
       const duplicate = await res.json();
       setMaps((prev) => [duplicate, ...prev]);
-      toast.success("Mapa mental duplicado");
+      toast.success("Mapa duplicado");
     } catch (err) {
-      toast.error("Error al duplicar el mapa");
+      toast.error("Error al duplicar");
     }
   };
 
@@ -194,111 +192,105 @@ export const MindMapList: React.FC<MindMapListProps> = ({
   const getTemplateIcon = (iconName: string) => {
     switch (iconName) {
       case "Lightbulb":
-        return <Lightbulb className="w-5 h-5 text-amber-400" />;
+        return <Lightbulb className="w-4 h-4 text-amber-500" />;
       case "Rocket":
-        return <Rocket className="w-5 h-5 text-rose-400" />;
+        return <Rocket className="w-4 h-4 text-rose-500" />;
       case "Target":
-        return <Target className="w-5 h-5 text-blue-400" />;
+        return <Target className="w-4 h-4 text-primary" />;
       case "Network":
-        return <Network className="w-5 h-5 text-indigo-400" />;
+        return <Network className="w-4 h-4 text-primary" />;
       case "PlusCircle":
       default:
-        return <PlusCircle className="w-5 h-5 text-emerald-400" />;
+        return <PlusCircle className="w-4 h-4 text-emerald-500" />;
     }
   };
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto py-4">
-      {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-950/60 via-slate-900/80 to-slate-950 border border-indigo-500/20 p-6 md:p-8 shadow-2xl">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-semibold uppercase tracking-wider">
-              <Network className="w-3.5 h-3.5" />
-              Lienzo Infinito & Ideas
-            </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
-              Mapas Mentales Interactivos
+    <div className="space-y-8 max-w-7xl mx-auto py-2">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-6">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+              Mapas Mentales
             </h1>
-            <p className="text-sm text-slate-300 max-w-2xl">
-              Estructura proyectos, conecta ideas arrastrando nodos con físicas fluidas, genera lluvia de ideas y conviértelas en tareas reales de tu equipo con un solo clic.
-            </p>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground border border-border">
+              {maps.length} {maps.length === 1 ? "mapa" : "mapas"}
+            </span>
           </div>
-
-          <Button
-            size="lg"
-            onClick={() => {
-              setNewTitle("");
-              setNewDescription("");
-              setNewTemplateId("brainstorming");
-              setIsCreating(true);
-            }}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold shadow-lg shadow-indigo-500/25 gap-2 shrink-0 self-start md:self-auto"
-          >
-            <Plus className="w-5 h-5" />
-            Nuevo Mapa Mental
-          </Button>
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            Lienzo infinito para estructurar ideas, flujos de trabajo y transformarlas en tareas.
+          </p>
         </div>
 
-        {/* Decorative background glow */}
-        <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
+        <Button
+          onClick={() => {
+            setNewTitle("");
+            setNewDescription("");
+            setNewTemplateId("brainstorming");
+            setIsCreating(true);
+          }}
+          className="gap-2 shrink-0 font-medium"
+        >
+          <Plus className="w-4 h-4" />
+          Nuevo Mapa
+        </Button>
       </div>
 
-      {/* Quick Starter Templates */}
+      {/* Starter Templates */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-indigo-400" />
-            Plantillas de Inicio Rápido
-          </h2>
-        </div>
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Plantillas de Inicio
+        </h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {MINDMAP_TEMPLATES.map((tmpl) => (
             <div
               key={tmpl.id}
               onClick={() => handleCreateMap(tmpl.id)}
-              className="group relative cursor-pointer rounded-xl bg-slate-900/60 hover:bg-slate-900 border border-slate-800/80 hover:border-indigo-500/50 p-4 transition-all duration-200 hover:shadow-xl hover:scale-[1.02] flex flex-col justify-between"
+              className="group cursor-pointer rounded-xl bg-card hover:bg-card/80 border border-border hover:border-primary/50 p-3.5 transition-all shadow-sm hover:shadow flex flex-col justify-between"
             >
               <div className="space-y-2">
-                <div className="w-10 h-10 rounded-lg bg-slate-800/80 border border-slate-700 flex items-center justify-center group-hover:border-indigo-500/40 transition-colors">
+                <div className="w-8 h-8 rounded-lg bg-muted border border-border flex items-center justify-center">
                   {getTemplateIcon(tmpl.icon)}
                 </div>
-                <h3 className="text-xs font-semibold text-slate-200 group-hover:text-indigo-300 transition-colors">
-                  {tmpl.name}
-                </h3>
-                <p className="text-[11px] text-slate-400 line-clamp-2">
-                  {tmpl.description}
-                </p>
+                <div>
+                  <h3 className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
+                    {tmpl.name}
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">
+                    {tmpl.description}
+                  </p>
+                </div>
               </div>
 
-              <div className="mt-4 pt-2 border-t border-white/5 flex items-center justify-between text-[10px] text-indigo-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="mt-3 pt-2 border-t border-border flex items-center justify-between text-[10px] text-muted-foreground group-hover:text-primary font-medium transition-colors">
                 <span>Comenzar</span>
-                <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
+      {/* Filter and Search */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
         <div className="relative w-full sm:w-80">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar mapa por título o nota..."
+            placeholder="Buscar por título..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 bg-slate-900/80 border-slate-800 text-xs"
+            className="pl-9 text-xs"
           />
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-            <SelectTrigger className="w-full sm:w-48 bg-slate-900/80 border-slate-800 text-xs">
-              <SelectValue placeholder="Filtrar por proyecto" />
+            <SelectTrigger className="w-full sm:w-48 text-xs">
+              <SelectValue placeholder="Todos los proyectos" />
             </SelectTrigger>
-            <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+            <SelectContent>
               <SelectItem value="all">Todos los proyectos</SelectItem>
               {projects.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
@@ -309,17 +301,12 @@ export const MindMapList: React.FC<MindMapListProps> = ({
           </Select>
 
           <Button
-            variant={onlyFavorites ? "default" : "outline"}
+            variant={onlyFavorites ? "secondary" : "outline"}
             size="sm"
             onClick={() => setOnlyFavorites(!onlyFavorites)}
-            className={cn(
-              "text-xs gap-1.5 shrink-0",
-              onlyFavorites
-                ? "bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30"
-                : "border-slate-800 text-slate-400 hover:text-white"
-            )}
+            className="text-xs gap-1.5 shrink-0"
           >
-            <Star className={cn("w-3.5 h-3.5", onlyFavorites && "fill-amber-400 text-amber-400")} />
+            <Star className={cn("w-3.5 h-3.5", onlyFavorites && "fill-amber-500 text-amber-500")} />
             <span>Favoritos</span>
           </Button>
         </div>
@@ -327,23 +314,23 @@ export const MindMapList: React.FC<MindMapListProps> = ({
 
       {/* Grid of Mind Maps */}
       {filteredMaps.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-12 text-center rounded-2xl border border-dashed border-slate-800 bg-slate-950/40 space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
-            <Network className="w-7 h-7" />
+        <div className="flex flex-col items-center justify-center p-12 text-center rounded-xl border border-dashed border-border bg-card/40 space-y-3">
+          <div className="w-10 h-10 rounded-xl bg-muted border border-border flex items-center justify-center text-muted-foreground">
+            <Network className="w-5 h-5" />
           </div>
-          <div className="space-y-1">
-            <h3 className="text-base font-semibold text-white">No se encontraron mapas mentales</h3>
-            <p className="text-xs text-slate-400 max-w-sm">
-              Crea tu primer mapa mental con un lienzo infinito o selecciona una de las plantillas superiores.
+          <div className="space-y-0.5">
+            <h3 className="text-sm font-semibold text-foreground">No hay mapas registrados</h3>
+            <p className="text-xs text-muted-foreground">
+              Comienza un nuevo lienzo o selecciona una de las plantillas.
             </p>
           </div>
           <Button
             onClick={() => setIsCreating(true)}
             size="sm"
-            className="bg-indigo-600 hover:bg-indigo-500 text-white gap-1.5"
+            className="gap-1.5 text-xs font-medium"
           >
-            <Plus className="w-4 h-4" />
-            Crear Mapa Mental
+            <Plus className="w-3.5 h-3.5" />
+            Nuevo Mapa
           </Button>
         </div>
       ) : (
@@ -358,35 +345,31 @@ export const MindMapList: React.FC<MindMapListProps> = ({
 
             return (
               <Link key={map.id} href={`/mindmaps/${map.id}`}>
-                <Card className="group h-full bg-slate-900/60 hover:bg-slate-900 border-slate-800 hover:border-indigo-500/40 transition-all duration-200 hover:shadow-xl hover:scale-[1.01] flex flex-col justify-between cursor-pointer">
-                  <CardHeader className="pb-3">
+                <Card className="group h-full bg-card hover:bg-card/80 border-border hover:border-primary/50 transition-all shadow-sm hover:shadow flex flex-col justify-between cursor-pointer">
+                  <CardHeader className="pb-2.5">
                     <div className="flex items-start justify-between gap-2">
                       <div className="space-y-1 flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <CardTitle className="text-sm font-bold text-slate-200 group-hover:text-indigo-300 transition-colors truncate">
-                            {map.title}
-                          </CardTitle>
-                        </div>
+                        <CardTitle className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                          {map.title}
+                        </CardTitle>
                         {map.description && (
-                          <CardDescription className="text-xs text-slate-400 line-clamp-2">
+                          <CardDescription className="text-xs text-muted-foreground line-clamp-2">
                             {map.description}
                           </CardDescription>
                         )}
                       </div>
 
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div className="flex items-center gap-0.5 shrink-0">
                         <button
                           type="button"
                           onClick={(e) => handleToggleFavorite(map, e)}
-                          className="p-1 rounded text-slate-400 hover:text-amber-400"
+                          className="p-1 rounded text-muted-foreground hover:text-amber-500 transition-colors"
                           title={map.isFavorite ? "Quitar de favoritos" : "Marcar como favorito"}
                         >
                           <Star
                             className={cn(
-                              "w-4 h-4",
-                              map.isFavorite
-                                ? "fill-amber-400 text-amber-400"
-                                : "hover:scale-110"
+                              "w-3.5 h-3.5",
+                              map.isFavorite && "fill-amber-500 text-amber-500"
                             )}
                           />
                         </button>
@@ -399,23 +382,23 @@ export const MindMapList: React.FC<MindMapListProps> = ({
                                 e.stopPropagation();
                                 e.preventDefault();
                               }}
-                              className="p-1 rounded text-slate-400 hover:text-white"
+                              className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors"
                             >
-                              <MoreVertical className="w-4 h-4" />
+                              <MoreVertical className="w-3.5 h-3.5" />
                             </button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-40 bg-slate-900 border-slate-800 text-slate-200">
+                          <DropdownMenuContent align="end" className="w-36 text-xs">
                             <DropdownMenuItem
                               onClick={(e) => handleDuplicateMap(map, e)}
                               className="gap-2 cursor-pointer"
                             >
-                              <Copy className="w-3.5 h-3.5 text-blue-400" />
+                              <Copy className="w-3.5 h-3.5" />
                               <span>Duplicar</span>
                             </DropdownMenuItem>
-                            <DropdownMenuSeparator className="bg-slate-800" />
+                            <DropdownMenuSeparator />
                             <DropdownMenuItem
                               onClick={(e) => handleDeleteMap(map.id, e)}
-                              className="gap-2 cursor-pointer text-rose-400 focus:text-rose-300"
+                              className="gap-2 cursor-pointer text-destructive focus:text-destructive"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                               <span>Eliminar</span>
@@ -426,35 +409,29 @@ export const MindMapList: React.FC<MindMapListProps> = ({
                     </div>
                   </CardHeader>
 
-                  <CardContent className="pb-3">
-                    <div className="flex items-center gap-2 flex-wrap text-[11px] text-slate-400">
-                      <div className="flex items-center gap-1 bg-slate-950/80 px-2 py-0.5 rounded border border-slate-800">
-                        <Layers className="w-3 h-3 text-indigo-400" />
+                  <CardContent className="pb-2.5">
+                    <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground">
+                      <div className="flex items-center gap-1 bg-muted px-2 py-0.5 rounded border border-border">
+                        <Layers className="w-3 h-3 text-muted-foreground" />
                         <span>{nodeCount} {nodeCount === 1 ? "nodo" : "nodos"}</span>
                       </div>
 
                       {map.project && (
-                        <div
-                          className="flex items-center gap-1 px-2 py-0.5 rounded text-white"
-                          style={{
-                            backgroundColor: `${map.project.color}20`,
-                            border: `1px solid ${map.project.color}40`,
-                          }}
-                        >
-                          <FolderOpen className="w-3 h-3" style={{ color: map.project.color }} />
+                        <div className="flex items-center gap-1 bg-secondary px-2 py-0.5 rounded border border-border text-secondary-foreground">
+                          <FolderOpen className="w-3 h-3" />
                           <span className="truncate max-w-[120px]">{map.project.name}</span>
                         </div>
                       )}
                     </div>
                   </CardContent>
 
-                  <CardFooter className="pt-2 border-t border-white/5 text-[11px] text-slate-400 flex items-center justify-between">
+                  <CardFooter className="pt-2.5 border-t border-border text-[11px] text-muted-foreground flex items-center justify-between">
                     <span className="flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
                       {formattedDate}
                     </span>
-                    <span className="text-indigo-400 group-hover:translate-x-0.5 transition-transform font-medium">
-                      Abrir lienzo →
+                    <span className="text-foreground font-medium group-hover:text-primary transition-colors flex items-center gap-1">
+                      Abrir <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
                     </span>
                   </CardFooter>
                 </Card>
@@ -466,49 +443,48 @@ export const MindMapList: React.FC<MindMapListProps> = ({
 
       {/* Create New Mind Map Modal */}
       <Dialog open={isCreating} onOpenChange={setIsCreating}>
-        <DialogContent className="bg-slate-900 border-slate-800 text-slate-200 sm:max-w-lg">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold flex items-center gap-2 text-white">
-              <Network className="w-5 h-5 text-indigo-400" />
-              Crear Nuevo Mapa Mental
+            <DialogTitle className="text-base font-semibold">
+              Nuevo Mapa Mental
             </DialogTitle>
-            <DialogDescription className="text-slate-400 text-xs">
-              Personaliza el título y elige la plantilla inicial para tu lienzo.
+            <DialogDescription className="text-xs text-muted-foreground">
+              Define el título y selecciona una plantilla para comenzar.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300">Título del Mapa</Label>
+              <Label className="text-xs">Título</Label>
               <Input
-                placeholder="Ej: Estrategia Q3, Lanzamiento App, etc."
+                placeholder="Ej: Plan Estratégico, Arquitectura..."
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
-                className="bg-slate-950 border-slate-800 text-xs"
+                className="text-xs"
                 autoFocus
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300">Descripción (Opcional)</Label>
+              <Label className="text-xs">Descripción (Opcional)</Label>
               <Input
-                placeholder="Breve resumen del objetivo del mapa"
+                placeholder="Breve resumen del objetivo"
                 value={newDescription}
                 onChange={(e) => setNewDescription(e.target.value)}
-                className="bg-slate-950 border-slate-800 text-xs"
+                className="text-xs"
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300">Plantilla Inicial</Label>
+              <Label className="text-xs">Plantilla</Label>
               <Select value={newTemplateId} onValueChange={setNewTemplateId}>
-                <SelectTrigger className="bg-slate-950 border-slate-800 text-xs">
-                  <SelectValue placeholder="Selecciona una plantilla" />
+                <SelectTrigger className="text-xs">
+                  <SelectValue placeholder="Selecciona plantilla" />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                <SelectContent>
                   {MINDMAP_TEMPLATES.map((tmpl) => (
                     <SelectItem key={tmpl.id} value={tmpl.id}>
-                      {tmpl.name} ({tmpl.category})
+                      {tmpl.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -516,22 +492,16 @@ export const MindMapList: React.FC<MindMapListProps> = ({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300">Asociar a Proyecto (Opcional)</Label>
+              <Label className="text-xs">Proyecto (Opcional)</Label>
               <Select value={newProjectId} onValueChange={setNewProjectId}>
-                <SelectTrigger className="bg-slate-950 border-slate-800 text-xs">
+                <SelectTrigger className="text-xs">
                   <SelectValue placeholder="Sin proyecto específico" />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                <SelectContent>
                   <SelectItem value="none">Sin proyecto específico</SelectItem>
                   {projects.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="w-2.5 h-2.5 rounded-full"
-                          style={{ backgroundColor: p.color || "#6366f1" }}
-                        />
-                        <span>{p.name}</span>
-                      </div>
+                      {p.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -542,7 +512,7 @@ export const MindMapList: React.FC<MindMapListProps> = ({
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => setIsCreating(false)}
               disabled={isLoading}
@@ -554,9 +524,8 @@ export const MindMapList: React.FC<MindMapListProps> = ({
               size="sm"
               onClick={() => handleCreateMap()}
               disabled={isLoading}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium"
             >
-              {isLoading ? "Creando lienzo..." : "Comenzar Mapa"}
+              {isLoading ? "Creando..." : "Crear Mapa"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -5,7 +5,6 @@ import {
   MindMapNode as NodeData,
   NodeColor,
   NodeShape,
-  ChecklistItem,
 } from "@/lib/types/mindmap";
 import {
   Plus,
@@ -13,19 +12,17 @@ import {
   CheckSquare,
   Square,
   Sparkles,
-  ExternalLink,
   ChevronDown,
   ChevronRight,
-  Edit2,
+  Edit3,
   Check,
   X,
   Palette,
   Shapes,
   ListTodo,
-  Tag,
-  AlertCircle,
   MoreHorizontal,
   FolderPlus,
+  Flag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -57,90 +54,64 @@ interface MindMapNodeProps {
   zoom: number;
 }
 
-const COLOR_MAP: Record<NodeColor, {
-  bg: string;
-  border: string;
-  text: string;
-  glow: string;
-  accent: string;
-  badge: string;
+const ACCENT_STYLES: Record<NodeColor, {
+  bar: string;
+  dot: string;
+  tag: string;
+  name: string;
 }> = {
-  indigo: {
-    bg: "bg-indigo-950/80 dark:bg-indigo-950/90",
-    border: "border-indigo-500/60 hover:border-indigo-400",
-    text: "text-indigo-100",
-    glow: "shadow-indigo-500/20",
-    accent: "bg-indigo-500",
-    badge: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
+  default: {
+    bar: "border-l-primary/70",
+    dot: "bg-primary",
+    tag: "bg-muted text-muted-foreground border-border",
+    name: "Neutro",
   },
-  blue: {
-    bg: "bg-blue-950/80 dark:bg-blue-950/90",
-    border: "border-blue-500/60 hover:border-blue-400",
-    text: "text-blue-100",
-    glow: "shadow-blue-500/20",
-    accent: "bg-blue-500",
-    badge: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+  indigo: {
+    bar: "border-l-indigo-500",
+    dot: "bg-indigo-500",
+    tag: "bg-indigo-500/10 text-indigo-400 dark:text-indigo-300 border-indigo-500/20",
+    name: "Índigo",
   },
   emerald: {
-    bg: "bg-emerald-950/80 dark:bg-emerald-950/90",
-    border: "border-emerald-500/60 hover:border-emerald-400",
-    text: "text-emerald-100",
-    glow: "shadow-emerald-500/20",
-    accent: "bg-emerald-500",
-    badge: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+    bar: "border-l-emerald-500",
+    dot: "bg-emerald-500",
+    tag: "bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border-emerald-500/20",
+    name: "Esmeralda",
   },
   amber: {
-    bg: "bg-amber-950/80 dark:bg-amber-950/90",
-    border: "border-amber-500/60 hover:border-amber-400",
-    text: "text-amber-100",
-    glow: "shadow-amber-500/20",
-    accent: "bg-amber-500",
-    badge: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+    bar: "border-l-amber-500",
+    dot: "bg-amber-500",
+    tag: "bg-amber-500/10 text-amber-500 dark:text-amber-400 border-amber-500/20",
+    name: "Ámbar",
   },
   rose: {
-    bg: "bg-rose-950/80 dark:bg-rose-950/90",
-    border: "border-rose-500/60 hover:border-rose-400",
-    text: "text-rose-100",
-    glow: "shadow-rose-500/20",
-    accent: "bg-rose-500",
-    badge: "bg-rose-500/20 text-rose-300 border-rose-500/30",
+    bar: "border-l-rose-500",
+    dot: "bg-rose-500",
+    tag: "bg-rose-500/10 text-rose-500 dark:text-rose-400 border-rose-500/20",
+    name: "Rosa",
   },
   purple: {
-    bg: "bg-purple-950/80 dark:bg-purple-950/90",
-    border: "border-purple-500/60 hover:border-purple-400",
-    text: "text-purple-100",
-    glow: "shadow-purple-500/20",
-    accent: "bg-purple-500",
-    badge: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+    bar: "border-l-purple-500",
+    dot: "bg-purple-500",
+    tag: "bg-purple-500/10 text-purple-400 dark:text-purple-300 border-purple-500/20",
+    name: "Púrpura",
   },
-  cyan: {
-    bg: "bg-cyan-950/80 dark:bg-cyan-950/90",
-    border: "border-cyan-500/60 hover:border-cyan-400",
-    text: "text-cyan-100",
-    glow: "shadow-cyan-500/20",
-    accent: "bg-cyan-500",
-    badge: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
+  blue: {
+    bar: "border-l-sky-500",
+    dot: "bg-sky-500",
+    tag: "bg-sky-500/10 text-sky-500 dark:text-sky-400 border-sky-500/20",
+    name: "Azul",
   },
   slate: {
-    bg: "bg-slate-900/90 dark:bg-slate-900/95",
-    border: "border-slate-600 hover:border-slate-400",
-    text: "text-slate-100",
-    glow: "shadow-slate-500/10",
-    accent: "bg-slate-500",
-    badge: "bg-slate-500/20 text-slate-300 border-slate-500/30",
-  },
-  orange: {
-    bg: "bg-orange-950/80 dark:bg-orange-950/90",
-    border: "border-orange-500/60 hover:border-orange-400",
-    text: "text-orange-100",
-    glow: "shadow-orange-500/20",
-    accent: "bg-orange-500",
-    badge: "bg-orange-500/20 text-orange-300 border-orange-500/30",
+    bar: "border-l-slate-400",
+    dot: "bg-slate-400",
+    tag: "bg-slate-500/10 text-slate-400 border-slate-500/20",
+    name: "Pizarra",
   },
 };
 
-const SHAPES: NodeShape[] = ["rounded", "pill", "rectangle", "card", "sticky", "circle", "cloud"];
-const COLORS: NodeColor[] = ["indigo", "blue", "emerald", "amber", "rose", "purple", "cyan", "slate", "orange"];
+const SHAPES: NodeShape[] = ["card", "rounded", "pill", "rectangle", "sticky", "circle"];
+const COLORS: NodeColor[] = ["default", "indigo", "emerald", "amber", "rose", "purple", "blue", "slate"];
 
 export const MindMapNode: React.FC<MindMapNodeProps> = ({
   node,
@@ -164,7 +135,7 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
   const [newChecklistText, setNewChecklistText] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const colorConfig = COLOR_MAP[node.color || "indigo"] || COLOR_MAP.indigo;
+  const colorConfig = ACCENT_STYLES[node.color || "default"] || ACCENT_STYLES.default;
   const shape = node.shape || (node.isRoot ? "rounded" : "card");
 
   useEffect(() => {
@@ -232,22 +203,21 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
   const totalCount = node.checklist?.length || 0;
   const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
-  // Shape specific CSS styling
+  // Refined shape styling
   const getShapeClasses = () => {
     switch (shape) {
       case "pill":
-        return "rounded-full px-6 py-3";
+        return "rounded-full px-5 py-2.5 border-l-4";
       case "rectangle":
-        return "rounded-none p-4";
+        return "rounded-sm p-4 border-l-4";
       case "circle":
-        return "rounded-full aspect-square flex flex-col items-center justify-center p-6 text-center";
+        return "rounded-full aspect-square flex flex-col items-center justify-center p-6 text-center border-2";
       case "sticky":
-        return "rounded-sm p-4 shadow-xl rotate-[-1deg] border-t-4 border-t-amber-400 bg-amber-950/90 text-amber-100 border-amber-500/40";
-      case "cloud":
-        return "rounded-[2rem] p-5 shadow-2xl border-dashed";
+        return "rounded-md p-4 shadow-sm border-t-2 border-t-amber-400/80 bg-amber-500/5 text-card-foreground border-border";
       case "card":
+      case "rounded":
       default:
-        return "rounded-2xl p-4";
+        return "rounded-xl p-3.5 border-l-4";
     }
   };
 
@@ -256,21 +226,20 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
       id={`node-${node.id}`}
       data-node-id={node.id}
       className={cn(
-        "group absolute select-none transition-shadow duration-200 backdrop-blur-md border cursor-grab active:cursor-grabbing",
+        "group absolute select-none transition-all duration-150 backdrop-blur-xl cursor-grab active:cursor-grabbing",
+        "bg-card/95 text-card-foreground border border-border shadow-sm hover:shadow-md",
         getShapeClasses(),
-        shape !== "sticky" && colorConfig.bg,
-        shape !== "sticky" && colorConfig.border,
-        shape !== "sticky" && colorConfig.text,
+        shape !== "sticky" && colorConfig.bar,
         isSelected
-          ? "ring-2 ring-indigo-400 ring-offset-2 ring-offset-slate-950 shadow-2xl scale-[1.02] z-30"
-          : "shadow-lg hover:shadow-xl z-10",
-        node.isRoot && "ring-2 ring-indigo-500/50 shadow-indigo-500/20 font-bold",
-        isConnectingSource && "ring-2 ring-emerald-400 animate-pulse"
+          ? "ring-2 ring-primary ring-offset-2 ring-offset-background shadow-xl z-30"
+          : "hover:border-border/90 z-10",
+        node.isRoot && "border-primary/40 font-semibold shadow-md",
+        isConnectingSource && "ring-2 ring-emerald-500/80 animate-pulse"
       )}
       style={{
         left: `${node.x}px`,
         top: `${node.y}px`,
-        minWidth: shape === "circle" ? "140px" : node.isRoot ? "220px" : "180px",
+        minWidth: shape === "circle" ? "140px" : node.isRoot ? "220px" : "190px",
         maxWidth: "340px",
       }}
       onClick={(e) => {
@@ -287,50 +256,52 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
     >
       {/* Port Anchor (Right Connect Handle) */}
       <div
-        title="Arrastra para conectar con otro nodo"
-        className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-indigo-500/80 hover:bg-indigo-400 hover:scale-125 border-2 border-slate-900 shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-crosshair z-40"
+        title="Conectar con otro nodo"
+        className="absolute -right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-card hover:bg-primary border border-border hover:border-primary shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-crosshair z-40 hover:scale-110"
         onMouseDown={(e) => {
           e.stopPropagation();
           onStartConnect(node.id, e);
         }}
       >
-        <div className="w-2 h-2 rounded-full bg-white animate-ping" />
+        <div className="w-1.5 h-1.5 rounded-full bg-primary group-hover:bg-primary-foreground" />
       </div>
 
       {/* Quick Add Child Button (Right) */}
       <button
         type="button"
-        title="Añadir nodo hijo a la derecha (Tab)"
-        className="absolute -right-9 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-800/90 hover:bg-indigo-600 text-slate-300 hover:text-white border border-slate-700 shadow-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-40 hover:scale-110"
+        title="Añadir nodo hijo (Tab)"
+        className="absolute -right-8 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-card hover:bg-primary text-muted-foreground hover:text-primary-foreground border border-border shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-40 hover:scale-110"
         onClick={(e) => {
           e.stopPropagation();
           onAddChild(node.id, "right");
         }}
       >
-        <Plus className="w-3.5 h-3.5" />
+        <Plus className="w-3 h-3" />
       </button>
 
       {/* Quick Add Child Button (Bottom) */}
       <button
         type="button"
-        title="Añadir nodo hijo abajo"
-        className="absolute left-1/2 -translate-x-1/2 -bottom-9 w-6 h-6 rounded-full bg-slate-800/90 hover:bg-indigo-600 text-slate-300 hover:text-white border border-slate-700 shadow-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-40 hover:scale-110"
+        title="Añadir nodo abajo"
+        className="absolute left-1/2 -translate-x-1/2 -bottom-7 w-5 h-5 rounded-full bg-card hover:bg-primary text-muted-foreground hover:text-primary-foreground border border-border shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-40 hover:scale-110"
         onClick={(e) => {
           e.stopPropagation();
           onAddChild(node.id, "bottom");
         }}
       >
-        <Plus className="w-3.5 h-3.5" />
+        <Plus className="w-3 h-3" />
       </button>
 
-      {/* Collapse / Expand Toggle Button for parent nodes */}
+      {/* Collapse / Expand Toggle Button */}
       {hasChildren && (
         <button
           type="button"
-          title={node.collapsed ? "Expandir ramas" : "Colapsar ramas"}
+          title={node.collapsed ? "Expandir" : "Colapsar"}
           className={cn(
-            "absolute -left-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full border border-slate-700 bg-slate-900 shadow-md flex items-center justify-center transition-transform z-40",
-            node.collapsed ? "text-amber-400 bg-amber-950/80 border-amber-500/50" : "text-slate-400 hover:text-white"
+            "absolute -left-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full border border-border bg-card shadow-sm flex items-center justify-center transition-all z-40",
+            node.collapsed
+              ? "text-primary bg-accent border-primary/40 font-bold"
+              : "text-muted-foreground hover:text-foreground"
           )}
           onClick={(e) => {
             e.stopPropagation();
@@ -345,18 +316,24 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
         </button>
       )}
 
-      {/* Node Header & Actions Bar on Hover / Selection */}
-      <div className="flex items-center justify-between gap-2 mb-1.5">
+      {/* Node Header & Actions Bar */}
+      <div className="flex items-center justify-between gap-2 mb-1">
         <div className="flex items-center gap-1.5 flex-wrap">
+          {node.isRoot && (
+            <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">
+              Raíz
+            </span>
+          )}
+
           {node.priority && node.priority !== "NONE" && (
             <Badge
               variant="outline"
               className={cn(
-                "text-[10px] uppercase font-semibold px-1.5 py-0",
-                node.priority === "URGENT" && "bg-rose-500/20 text-rose-300 border-rose-500/40",
-                node.priority === "HIGH" && "bg-amber-500/20 text-amber-300 border-amber-500/40",
-                node.priority === "MEDIUM" && "bg-blue-500/20 text-blue-300 border-blue-500/40",
-                node.priority === "LOW" && "bg-slate-500/20 text-slate-300 border-slate-500/40"
+                "text-[9px] uppercase font-medium px-1.5 py-0 h-4 border",
+                node.priority === "URGENT" && "bg-destructive/10 text-destructive border-destructive/30",
+                node.priority === "HIGH" && "bg-amber-500/10 text-amber-500 border-amber-500/30",
+                node.priority === "MEDIUM" && "bg-blue-500/10 text-blue-500 border-blue-500/30",
+                node.priority === "LOW" && "bg-muted text-muted-foreground border-border"
               )}
             >
               {node.priority}
@@ -366,7 +343,7 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
           {node.taskId && (
             <Badge
               variant="outline"
-              className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-[10px] flex items-center gap-1 px-1.5 py-0"
+              className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[9px] flex items-center gap-1 px-1.5 py-0 h-4"
               title="Tarea vinculada en taskProject"
             >
               <CheckSquare className="w-2.5 h-2.5" />
@@ -376,70 +353,69 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
         </div>
 
         {/* Dropdown Menu for Node customization */}
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="w-6 h-6 rounded-md hover:bg-white/10 flex items-center justify-center text-slate-300 hover:text-white"
+                className="w-5 h-5 rounded hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
                 onClick={(e) => e.stopPropagation()}
               >
                 <MoreHorizontal className="w-3.5 h-3.5" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 bg-slate-900 border-slate-800 text-slate-200">
+            <DropdownMenuContent align="end" className="w-48 bg-popover border-border text-popover-foreground shadow-lg">
               <DropdownMenuItem
                 onClick={() => setIsEditing(true)}
-                className="gap-2 cursor-pointer"
+                className="gap-2 cursor-pointer text-xs"
               >
-                <Edit2 className="w-3.5 h-3.5 text-indigo-400" />
+                <Edit3 className="w-3.5 h-3.5 text-muted-foreground" />
                 <span>Editar Título</span>
               </DropdownMenuItem>
 
               <DropdownMenuSub>
-                <DropdownMenuSubTrigger className="gap-2 cursor-pointer">
-                  <Palette className="w-3.5 h-3.5 text-pink-400" />
-                  <span>Color</span>
+                <DropdownMenuSubTrigger className="gap-2 cursor-pointer text-xs">
+                  <Palette className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span>Acento de Color</span>
                 </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="bg-slate-900 border-slate-800 p-2 grid grid-cols-3 gap-1.5">
+                <DropdownMenuSubContent className="bg-popover border-border p-2 grid grid-cols-4 gap-1.5">
                   {COLORS.map((col) => (
                     <button
                       key={col}
                       type="button"
                       className={cn(
-                        "w-7 h-7 rounded-md border flex items-center justify-center transition-all",
-                        COLOR_MAP[col].bg,
-                        COLOR_MAP[col].border,
-                        node.color === col && "ring-2 ring-white scale-110"
+                        "w-6 h-6 rounded-md border flex items-center justify-center transition-all",
+                        ACCENT_STYLES[col].bar,
+                        "border-l-4 bg-muted hover:scale-105",
+                        node.color === col && "ring-2 ring-primary"
                       )}
                       onClick={() => onUpdate(node.id, { color: col })}
-                      title={col}
+                      title={ACCENT_STYLES[col].name}
                     >
-                      {node.color === col && <Check className="w-3 h-3 text-white" />}
+                      {node.color === col && <Check className="w-2.5 h-2.5 text-foreground" />}
                     </button>
                   ))}
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
 
               <DropdownMenuSub>
-                <DropdownMenuSubTrigger className="gap-2 cursor-pointer">
-                  <Shapes className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Forma</span>
+                <DropdownMenuSubTrigger className="gap-2 cursor-pointer text-xs">
+                  <Shapes className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span>Estilo</span>
                 </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="bg-slate-900 border-slate-800">
+                <DropdownMenuSubContent className="bg-popover border-border">
                   {SHAPES.map((sh) => (
                     <DropdownMenuItem
                       key={sh}
                       onClick={() => onUpdate(node.id, { shape: sh })}
-                      className={cn("capitalize cursor-pointer", node.shape === sh && "font-bold text-indigo-400")}
+                      className={cn("capitalize cursor-pointer text-xs", node.shape === sh && "font-semibold text-primary")}
                     >
                       {sh === "card" && "Tarjeta"}
                       {sh === "rounded" && "Redondeado"}
                       {sh === "pill" && "Píldora"}
                       {sh === "rectangle" && "Rectángulo"}
-                      {sh === "sticky" && "Post-it"}
+                      {sh === "sticky" && "Nota"}
                       {sh === "circle" && "Círculo"}
-                      {sh === "cloud" && "Nube"}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuSubContent>
@@ -447,28 +423,28 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
 
               <DropdownMenuItem
                 onClick={() => setShowChecklistInput(true)}
-                className="gap-2 cursor-pointer"
+                className="gap-2 cursor-pointer text-xs"
               >
-                <ListTodo className="w-3.5 h-3.5 text-emerald-400" />
+                <ListTodo className="w-3.5 h-3.5 text-muted-foreground" />
                 <span>Añadir Checklist</span>
               </DropdownMenuItem>
 
               <DropdownMenuItem
                 onClick={() => onExportToTask(node.id)}
-                className="gap-2 cursor-pointer text-emerald-300 focus:text-emerald-200"
+                className="gap-2 cursor-pointer text-xs text-emerald-600 dark:text-emerald-400"
               >
-                <FolderPlus className="w-3.5 h-3.5 text-emerald-400" />
+                <FolderPlus className="w-3.5 h-3.5" />
                 <span>Convertir a Tarea</span>
               </DropdownMenuItem>
 
-              <DropdownMenuSeparator className="bg-slate-800" />
+              <DropdownMenuSeparator />
 
               <DropdownMenuItem
                 onClick={() => onDelete(node.id)}
-                className="gap-2 cursor-pointer text-rose-400 focus:text-rose-300"
+                className="gap-2 cursor-pointer text-xs text-destructive focus:text-destructive"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>Eliminar Nodo</span>
+                <span>Eliminar</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -485,12 +461,12 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
             onChange={(e) => setEditLabel(e.target.value)}
             onKeyDown={handleKeyDown}
             onBlur={handleSaveLabel}
-            className="w-full bg-slate-950/90 text-white px-2 py-1 text-sm rounded border border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-400 font-medium"
+            className="w-full bg-background text-foreground px-2 py-1 text-xs rounded border border-primary focus:outline-none focus:ring-1 focus:ring-primary font-medium"
           />
           <button
             type="button"
             onClick={handleSaveLabel}
-            className="p-1 rounded hover:bg-emerald-600/30 text-emerald-400"
+            className="p-1 rounded text-primary hover:bg-accent"
           >
             <Check className="w-3.5 h-3.5" />
           </button>
@@ -498,11 +474,11 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
       ) : (
         <h4
           className={cn(
-            "font-medium leading-snug break-words tracking-tight",
-            node.fontSize === "xl" && "text-base md:text-lg font-bold",
-            node.fontSize === "lg" && "text-sm md:text-base font-semibold",
-            (!node.fontSize || node.fontSize === "base") && "text-xs md:text-sm font-medium",
-            node.fontSize === "sm" && "text-xs"
+            "font-medium leading-snug break-words tracking-tight text-foreground",
+            node.fontSize === "xl" && "text-base font-bold",
+            node.fontSize === "lg" && "text-sm font-semibold",
+            (!node.fontSize || node.fontSize === "base") && "text-xs font-medium",
+            node.fontSize === "sm" && "text-[11px]"
           )}
         >
           {node.label}
@@ -511,44 +487,42 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
 
       {/* Node Description / Notes */}
       {node.description && (
-        <p className="text-[11px] text-slate-300/80 mt-1 leading-relaxed line-clamp-3">
+        <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed line-clamp-3">
           {node.description}
         </p>
       )}
 
       {/* Checklist / Subtasks list in Node */}
       {node.checklist && node.checklist.length > 0 && (
-        <div className="mt-2.5 pt-2 border-t border-white/10 space-y-1.5">
-          {/* Progress bar */}
-          <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
-            <span>Subtareas</span>
-            <span className="font-mono">{completedCount}/{totalCount} ({progressPercent}%)</span>
+        <div className="mt-2.5 pt-2 border-t border-border space-y-1.5">
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+            <span>Progreso</span>
+            <span className="font-mono text-[9px]">{completedCount}/{totalCount}</span>
           </div>
-          <div className="w-full bg-slate-800/80 rounded-full h-1.5 overflow-hidden">
+          <div className="w-full bg-muted rounded-full h-1 overflow-hidden">
             <div
-              className="bg-emerald-400 h-full transition-all duration-300 rounded-full"
+              className="bg-primary h-full transition-all duration-300 rounded-full"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
 
-          {/* Checklist items */}
-          <div className="space-y-1 mt-1.5 max-h-32 overflow-y-auto pr-1">
+          <div className="space-y-0.5 mt-1 max-h-28 overflow-y-auto pr-1">
             {node.checklist.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between gap-1.5 text-xs group/item hover:bg-white/5 px-1 py-0.5 rounded"
+                className="flex items-center justify-between gap-1.5 text-xs group/item hover:bg-accent/40 px-1 py-0.5 rounded transition-colors"
                 onClick={(e) => handleToggleChecklist(item.id, e)}
               >
                 <div className="flex items-center gap-1.5 min-w-0 flex-1 cursor-pointer">
                   {item.completed ? (
-                    <CheckSquare className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <CheckSquare className="w-3 h-3 text-primary shrink-0" />
                   ) : (
-                    <Square className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <Square className="w-3 h-3 text-muted-foreground shrink-0" />
                   )}
                   <span
                     className={cn(
                       "truncate text-[11px]",
-                      item.completed ? "line-through text-slate-400" : "text-slate-200"
+                      item.completed ? "line-through text-muted-foreground/70" : "text-foreground"
                     )}
                   >
                     {item.text}
@@ -556,7 +530,7 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
                 </div>
                 <button
                   type="button"
-                  className="opacity-0 group-hover/item:opacity-100 p-0.5 text-slate-400 hover:text-rose-400"
+                  className="opacity-0 group-hover/item:opacity-100 p-0.5 text-muted-foreground hover:text-destructive transition-opacity"
                   onClick={(e) => handleDeleteChecklistItem(item.id, e)}
                 >
                   <X className="w-2.5 h-2.5" />
@@ -567,9 +541,9 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
         </div>
       )}
 
-      {/* Inline add checklist item form */}
+      {/* Inline add checklist item input */}
       {showChecklistInput && (
-        <div className="mt-2 pt-2 border-t border-white/10 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+        <div className="mt-2 pt-2 border-t border-border flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
           <input
             type="text"
             placeholder="Nueva subtarea..."
@@ -579,15 +553,15 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
               if (e.key === "Enter") handleAddChecklistItem();
               if (e.key === "Escape") setShowChecklistInput(false);
             }}
-            className="w-full bg-slate-950/80 text-white text-[11px] px-2 py-1 rounded border border-slate-700 focus:outline-none focus:border-indigo-400"
+            className="w-full bg-background text-foreground text-[11px] px-2 py-1 rounded border border-border focus:outline-none focus:border-primary"
             autoFocus
           />
           <button
             type="button"
             onClick={handleAddChecklistItem}
-            className="p-1 text-emerald-400 hover:bg-emerald-500/20 rounded"
+            className="p-1 text-primary hover:bg-accent rounded"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-3 h-3" />
           </button>
         </div>
       )}
