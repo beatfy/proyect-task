@@ -23,6 +23,7 @@ import {
   MoreHorizontal,
   FolderPlus,
   Flag,
+  Link2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -42,12 +43,13 @@ interface MindMapNodeProps {
   isSelected: boolean;
   hasChildren: boolean;
   isConnectingSource: boolean;
+  isConnectingMode?: boolean;
   onSelect: (nodeId: string, multi?: boolean) => void;
   onUpdate: (nodeId: string, updates: Partial<NodeData>) => void;
   onDelete: (nodeId: string) => void;
   onAddChild: (parentNodeId: string, direction?: "right" | "left" | "bottom" | "top") => void;
   onAddSibling: (nodeId: string) => void;
-  onStartConnect: (nodeId: string, e: React.MouseEvent) => void;
+  onStartConnect: (nodeId: string, e?: React.MouseEvent) => void;
   onEndConnect: (nodeId: string) => void;
   onExportToTask: (nodeId: string) => void;
   onToggleCollapse: (nodeId: string) => void;
@@ -118,6 +120,7 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
   isSelected,
   hasChildren,
   isConnectingSource,
+  isConnectingMode = false,
   onSelect,
   onUpdate,
   onDelete,
@@ -221,6 +224,8 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
     }
   };
 
+  const isTargetCandidate = isConnectingMode && !isConnectingSource;
+
   return (
     <div
       id={`node-${node.id}`}
@@ -234,7 +239,8 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
           ? "ring-2 ring-primary ring-offset-2 ring-offset-background shadow-xl z-30"
           : "hover:border-border/90 z-10",
         node.isRoot && "border-primary/40 font-semibold shadow-md",
-        isConnectingSource && "ring-2 ring-emerald-500/80 animate-pulse"
+        isConnectingSource && "ring-2 ring-emerald-500 ring-offset-2 ring-offset-background animate-pulse z-40",
+        isTargetCandidate && "ring-2 ring-primary ring-dashed ring-offset-2 ring-offset-background hover:scale-105 hover:border-primary cursor-pointer z-30 shadow-lg"
       )}
       style={{
         left: `${node.x}px`,
@@ -244,6 +250,10 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
       }}
       onClick={(e) => {
         e.stopPropagation();
+        if (isTargetCandidate) {
+          onEndConnect(node.id);
+          return;
+        }
         onSelect(node.id, e.shiftKey || e.metaKey || e.ctrlKey);
       }}
       onDoubleClick={(e) => {
@@ -251,20 +261,99 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
         setIsEditing(true);
       }}
       onMouseUp={() => {
-        onEndConnect(node.id);
+        if (isConnectingMode && !isConnectingSource) {
+          onEndConnect(node.id);
+        }
       }}
     >
+      {/* Full-surface Click Catcher for Connection Target */}
+      {isTargetCandidate && (
+        <div
+          title="Haz clic para conectar aquí"
+          className="absolute inset-0 rounded-[inherit] bg-primary/10 hover:bg-primary/25 z-50 cursor-pointer flex items-center justify-center border-2 border-dashed border-primary shadow-lg animate-pulse"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEndConnect(node.id);
+          }}
+          onMouseUp={(e) => {
+            e.stopPropagation();
+            onEndConnect(node.id);
+          }}
+        >
+          <div className="bg-primary text-primary-foreground text-[11px] font-bold px-3 py-1 rounded-full shadow-xl pointer-events-none flex items-center gap-1.5 animate-bounce">
+            <Link2 className="w-3.5 h-3.5" />
+            <span>Vincular aquí</span>
+          </div>
+        </div>
+      )}
+
       {/* Port Anchor (Right Connect Handle) */}
       <div
         title="Conectar con otro nodo"
-        className="absolute -right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-card hover:bg-primary border border-border hover:border-primary shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-crosshair z-40 hover:scale-110"
-        onMouseDown={(e) => {
+        className={cn(
+          "absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-card hover:bg-primary border-2 border-primary shadow-md flex items-center justify-center transition-all cursor-crosshair z-40 hover:scale-125",
+          isSelected || isConnectingMode ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+        )}
+        onClick={(e) => {
           e.stopPropagation();
-          onStartConnect(node.id, e);
+          if (isTargetCandidate) {
+            onEndConnect(node.id);
+          } else if (!isConnectingMode) {
+            onStartConnect(node.id);
+          }
+        }}
+        onMouseUp={(e) => {
+          if (isTargetCandidate) {
+            e.stopPropagation();
+            onEndConnect(node.id);
+          }
         }}
       >
-        <div className="w-1.5 h-1.5 rounded-full bg-primary group-hover:bg-primary-foreground" />
+        <div className="w-2 h-2 rounded-full bg-primary group-hover:bg-primary-foreground pointer-events-none" />
       </div>
+
+      {/* Port Anchor (Left Connect Handle) */}
+      <div
+        title="Conectar con otro nodo"
+        className={cn(
+          "absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-card hover:bg-primary border-2 border-primary shadow-md flex items-center justify-center transition-all cursor-crosshair z-40 hover:scale-125",
+          isSelected || isConnectingMode ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+        )}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (isTargetCandidate) {
+            onEndConnect(node.id);
+          } else if (!isConnectingMode) {
+            onStartConnect(node.id);
+          }
+        }}
+        onMouseUp={(e) => {
+          if (isTargetCandidate) {
+            e.stopPropagation();
+            onEndConnect(node.id);
+          }
+        }}
+      >
+        <div className="w-2 h-2 rounded-full bg-primary group-hover:bg-primary-foreground pointer-events-none" />
+      </div>
+
+      {/* Quick Connect Button (Top Right of Node) */}
+      {!isConnectingMode && (
+        <button
+          type="button"
+          title="Conectar con otro nodo"
+          className={cn(
+            "absolute -right-3 -top-3 w-6 h-6 rounded-full bg-card hover:bg-primary text-primary hover:text-primary-foreground border border-primary/40 shadow-md flex items-center justify-center transition-all z-40 hover:scale-110",
+            isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+          )}
+          onClick={(e) => {
+            e.stopPropagation();
+            onStartConnect(node.id);
+          }}
+        >
+          <Link2 className="w-3 h-3" />
+        </button>
+      )}
 
       {/* Quick Add Child Button (Right) */}
       <button
@@ -365,6 +454,14 @@ export const MindMapNode: React.FC<MindMapNodeProps> = ({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 bg-popover border-border text-popover-foreground shadow-lg">
+              <DropdownMenuItem
+                onClick={() => onStartConnect(node.id)}
+                className="gap-2 cursor-pointer text-xs text-primary"
+              >
+                <Link2 className="w-3.5 h-3.5" />
+                <span>Conectar con otro nodo</span>
+              </DropdownMenuItem>
+
               <DropdownMenuItem
                 onClick={() => setIsEditing(true)}
                 className="gap-2 cursor-pointer text-xs"
