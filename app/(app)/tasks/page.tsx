@@ -835,49 +835,59 @@ function TasksPageContent() {
     if (task) setDraggedTask(task);
   };
 
-  const dndHandleDragOver = (event: DragOverEvent) => {
+  const dndHandleDragOver = () => {
+    // Do not call setTasks during onDragOver to prevent React error #185 (Maximum update depth exceeded)
+  };
+
+  const dndHandleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-    if (!over) return;
-    const activeTask = tasks.find(t => t.id === active.id);
-    if (!activeTask) return;
-    
+    const originalTask = draggedTask;
+    setDraggedTask(null);
+
+    if (!over || !originalTask) return;
+
     let targetStageId: string | null = null;
     for (const stage of stagesToRender) {
-      if (stage.id === over.id || tasks.some(t => t.id === over.id && isTaskInStage(t, stage.id, stagesToRender))) {
+      if (
+        stage.id === over.id ||
+        tasks.some(t => t.id === over.id && isTaskInStage(t, stage.id, stagesToRender))
+      ) {
         targetStageId = stage.id;
         break;
       }
     }
-    if (targetStageId && activeTask.stageId !== targetStageId) {
-      setTasks(prev => prev.map(t => t.id === active.id ? { ...t, stageId: targetStageId!, status: targetStageId! } : t));
-    }
-  };
 
-  const dndHandleDragEnd = async (event: DragEndEvent) => {
-    const { active } = event;
-    const originalTask = draggedTask;
-    setDraggedTask(null);
+    if (!targetStageId) return;
 
-    if (!originalTask) return;
+    const currentStage = stagesToRender.find(s => isTaskInStage(originalTask, s.id, stagesToRender));
+    const currentStageId = currentStage ? currentStage.id : (originalTask.stageId || originalTask.status);
 
-    const currentTask = tasks.find(t => t.id === active.id);
-    if (!currentTask) return;
+    if (targetStageId !== currentStageId) {
+      // Optimistic update
+      setTasks(prev =>
+        prev.map(t =>
+          t.id === active.id
+            ? { ...t, stageId: targetStageId!, status: targetStageId! }
+            : t
+        )
+      );
 
-    if (currentTask.stageId !== originalTask.stageId) {
       try {
         const response = await fetch("/api/tasks", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
             id: active.id, 
-            stageId: currentTask.stageId,
-            status: currentTask.stageId
+            stageId: targetStageId,
+            status: targetStageId
           }),
         });
         if (!response.ok) {
           const data = await response.json();
           toast.error(data.error || "Error al mover tarea");
           fetchTasks();
+        } else {
+          toast.success("Tarea movida");
         }
       } catch {
         toast.error("Error al mover tarea");

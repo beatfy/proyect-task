@@ -254,48 +254,35 @@ function KanbanBoard({ tasks, setTasks, onTaskClick, handleDeleteTask, projectId
     }
   };
 
-  const handleDragOver = (event: DragOverEvent) => {
+  const handleDragOver = () => {
+    // Do not call setTasks during onDragOver to prevent React error #185 (Maximum update depth exceeded)
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    if (!over) return;
+    setActiveId(null);
+    if (!over) {
+      setOriginalStatus(null);
+      return;
+    }
 
     const activeTask = tasks.find(t => t.id === active.id);
-    if (!activeTask) return;
+    if (!activeTask) {
+      setOriginalStatus(null);
+      return;
+    }
 
-    // Determine target column
     let targetStatus: string | null = null;
-
-    // Dropped over a column container (id like "column-TODO")
     if (typeof over.id === "string" && over.id.startsWith("column-")) {
       targetStatus = over.id.replace("column-", "");
     } else {
-      // Dropped over another task — find that task's column
       const overTask = tasks.find(t => t.id === over.id);
       if (overTask) targetStatus = overTask.status;
     }
 
     if (targetStatus && activeTask.status !== targetStatus) {
       setTasks(prev => prev.map(t => t.id === activeTask.id ? { ...t, status: targetStatus! } : t));
-    }
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveId(null);
-    if (!over) return;
-
-    const activeTask = tasks.find(t => t.id === active.id);
-    if (!activeTask) return;
-
-    let targetStatus: string | null = null;
-    if (typeof over.id === "string" && over.id.startsWith("column-")) {
-      targetStatus = over.id.replace("column-", "");
-    } else {
-      const overTask = tasks.find(t => t.id === over.id);
-      if (overTask) targetStatus = overTask.status;
-    }
-
-    if (targetStatus && originalStatus !== null && originalStatus !== targetStatus) {
-      updateTaskStatus(activeTask.id, targetStatus, originalStatus);
+      updateTaskStatus(activeTask.id, targetStatus, originalStatus || activeTask.status);
     }
     setOriginalStatus(null);
   };
