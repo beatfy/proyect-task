@@ -5,7 +5,7 @@ import {
   Timer, Flame, Droplets, Zap, BookOpen, Bell, Play, Square,
   RotateCcw, CheckCircle2, MessageSquare, Sparkles, Clock, Activity,
   Info, ChevronRight, Award, Smile, Frown, Meh, TrendingUp, Calendar,
-  ShieldAlert, Send, Bot, RefreshCw, Check
+  ShieldAlert, Send, Bot, RefreshCw, Check, Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -259,6 +259,7 @@ export default function FastingPage() {
         }
         setFeelingModal(false);
         setFastNotes("");
+        setActiveFast(null);
         fetchFastingStatus();
         fetchHistory();
       } else {
@@ -266,6 +267,49 @@ export default function FastingPage() {
       }
     } catch (err) {
       console.error("End fast error:", err);
+      toast.error("Error de conexión");
+    }
+  };
+
+  const handleDiscardFast = async () => {
+    if (!confirm("¿Deseas cancelar el ayuno actual y reiniciar el contador a cero?")) {
+      return;
+    }
+    try {
+      const res = await fetch("/api/v1/fasting/status", {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setActiveFast(null);
+        toast.success("Ayuno cancelado. Contador reiniciado a cero.");
+        fetchFastingStatus();
+        fetchHistory();
+      } else {
+        toast.error("Error al cancelar el ayuno");
+      }
+    } catch (err) {
+      console.error("Discard fast error:", err);
+      toast.error("Error de conexión");
+    }
+  };
+
+  const handleDeleteHistoryItem = async (id: string) => {
+    if (!confirm("¿Deseas eliminar este registro de ayuno?")) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/v1/fasting/history?id=${id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        toast.success("Registro eliminado del historial");
+        fetchFastingStatus();
+        fetchHistory();
+      } else {
+        toast.error("Error al eliminar");
+      }
+    } catch (err) {
+      console.error("Delete history error:", err);
       toast.error("Error de conexión");
     }
   };
@@ -519,14 +563,24 @@ export default function FastingPage() {
                     </div>
 
                     {/* Botones de Acción */}
-                    <div className="flex items-center gap-3 w-full max-w-md">
+                    <div className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-md">
                       <Button
                         size="lg"
-                        className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl shadow-lg shadow-rose-600/20"
+                        className="w-full sm:flex-1 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl shadow-lg shadow-rose-600/20"
                         onClick={() => setFeelingModal(true)}
                       >
                         <Square className="w-4 h-4 mr-2 fill-current" />
                         Finalizar / Romper Ayuno
+                      </Button>
+                      <Button
+                        size="lg"
+                        variant="outline"
+                        className="w-full sm:w-auto text-muted-foreground hover:text-destructive hover:border-destructive hover:bg-destructive/10 rounded-xl"
+                        onClick={handleDiscardFast}
+                        title="Cancelar ayuno actual y reiniciar el contador a cero"
+                      >
+                        <RotateCcw className="w-4 h-4 mr-2" />
+                        Reiniciar a 0
                       </Button>
                     </div>
                   </div>
@@ -915,7 +969,7 @@ export default function FastingPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
                         <Badge variant="outline" className={item.completed ? "bg-emerald-500/10 text-emerald-500" : "bg-muted"}>
                           {item.completed ? "Objetivo Cumplido" : "Parcial / Interrumpido"}
                         </Badge>
@@ -924,6 +978,15 @@ export default function FastingPage() {
                             Sentimiento: {item.feeling}
                           </span>
                         )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
+                          onClick={() => handleDeleteHistoryItem(item.id)}
+                          title="Eliminar este registro"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
                   ))}

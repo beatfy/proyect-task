@@ -98,9 +98,9 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Obtenemos el ayuno activo si existe
+    // Obtenemos el ayuno activo (aquel que no tiene fecha de fin endTime)
     const activeFast = await prisma.fastingLog.findFirst({
-      where: { userId, completed: false },
+      where: { userId, endTime: null },
       orderBy: { startTime: "desc" },
     });
 
@@ -133,15 +133,15 @@ export async function GET(req: NextRequest) {
       };
     }
 
-    // Calcular estadísticas
-    const completedFasts = await prisma.fastingLog.findMany({
-      where: { userId, completed: true },
+    // Calcular estadísticas sobre todos los ayunos finalizados
+    const finishedFasts = await prisma.fastingLog.findMany({
+      where: { userId, endTime: { not: null } },
       orderBy: { startTime: "desc" },
     });
 
-    const totalFasts = completedFasts.length;
+    const totalFasts = finishedFasts.length;
     let totalHours = 0;
-    completedFasts.forEach((f) => {
+    finishedFasts.forEach((f) => {
       if (f.endTime) {
         const h = (new Date(f.endTime).getTime() - new Date(f.startTime).getTime()) / (1000 * 60 * 60);
         totalHours += Math.max(0, h);
@@ -150,10 +150,10 @@ export async function GET(req: NextRequest) {
 
     // Racha actual (días consecutivos con al menos 1 ayuno completado o activo)
     let currentStreak = 0;
-    if (completedFasts.length > 0 || activeFast) {
+    if (finishedFasts.length > 0 || activeFast) {
       const datesWithFast = new Set<string>();
       if (activeFast) datesWithFast.add(new Date(activeFast.startTime).toISOString().split("T")[0]);
-      completedFasts.forEach((f) => datesWithFast.add(new Date(f.startTime).toISOString().split("T")[0]));
+      finishedFasts.forEach((f) => datesWithFast.add(new Date(f.startTime).toISOString().split("T")[0]));
 
       let checkDate = new Date();
       while (true) {
@@ -238,3 +238,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Error al actualizar configuración" }, { status: 500 });
   }
 }
+
+// Cancelar / eliminar el ayuno activo actual (reset a cero)
+export async function DELETE(req: NextRequest) {
+  try {
+    const authResult = await authenticateRequest(req);
+    if (!authResult) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const userId = authResult.userId;
+
+    const deleted = await prisma.fastingLog.deleteMany({
+      where: { userId, endTime: null },
+    });
+
+    return NextResponse.json({ success: true, deletedCount: deleted.count });
+  } catch (error) {
+    console.error("DELETE /api/v1/fasting/status error:", error);
+    return NextResponse.json({ error: "Error al cancelar el ayuno" }, { status: 500 });
+  }
+}
+

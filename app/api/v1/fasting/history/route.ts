@@ -38,3 +38,29 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Error al obtener historial de ayunos" }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const authResult = await authenticateRequest(req);
+    if (!authResult) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ error: "ID requerido" }, { status: 400 });
+    }
+
+    await prisma.fastingLog.deleteMany({
+      where: { id, userId: authResult.userId },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("DELETE /api/v1/fasting/history error:", error);
+    return NextResponse.json({ error: "Error al eliminar registro de ayuno" }, { status: 500 });
+  }
+}
+

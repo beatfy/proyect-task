@@ -14,15 +14,23 @@ export async function POST(req: NextRequest) {
 
     const userId = authResult.userId;
     const body = await req.json().catch(() => ({}));
-    const { feeling, notes } = body;
+    const { feeling, notes, discard } = body;
 
     const activeFast = await prisma.fastingLog.findFirst({
-      where: { userId, completed: false },
+      where: { userId, endTime: null },
       orderBy: { startTime: "desc" },
     });
 
     if (!activeFast) {
       return NextResponse.json({ error: "No hay ningún ayuno activo para finalizar" }, { status: 404 });
+    }
+
+    if (discard) {
+      // Si el usuario quiere descartar o resetear el ayuno a cero sin guardarlo
+      await prisma.fastingLog.delete({
+        where: { id: activeFast.id },
+      });
+      return NextResponse.json({ success: true, discarded: true, message: "Ayuno descartado correctamente" });
     }
 
     const now = new Date();

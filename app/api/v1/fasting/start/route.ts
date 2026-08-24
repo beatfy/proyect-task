@@ -15,9 +15,9 @@ export async function POST(req: NextRequest) {
     const userId = authResult.userId;
     const body = await req.json().catch(() => ({}));
 
-    // Si hay un ayuno activo, cancelarlo o cerrarlo antes de iniciar otro
+    // Si hay un ayuno activo sin finalizar, cerrarlo antes de iniciar otro
     const existingActive = await prisma.fastingLog.findFirst({
-      where: { userId, completed: false },
+      where: { userId, endTime: null },
     });
 
     if (existingActive) {
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
         data: {
           endTime: new Date(),
           completed: false,
-          notes: "Cancelado / Interrumpido al iniciar uno nuevo",
+          notes: "Interrumpido al iniciar un nuevo ayuno",
         },
       });
     }
