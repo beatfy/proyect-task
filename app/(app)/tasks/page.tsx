@@ -523,22 +523,49 @@ function TasksPageContent() {
   };
 
   const isTaskInStage = (task: Task, stageId: string, allStages: TaskPipelineStage[]) => {
+    // 1. Direct match by stageId
     if (task.stageId === stageId) return true;
-    if (task.stageId && allStages.some(s => s.id === task.stageId)) {
-      return false;
+
+    const targetStage = allStages.find((s) => s.id === stageId);
+    if (!targetStage) return false;
+
+    // 2. Match by stage name if task has an assigned stage object
+    if (task.stage?.name && targetStage.name) {
+      if (task.stage.name.trim().toLowerCase() === targetStage.name.trim().toLowerCase()) {
+        return true;
+      }
     }
-    const columnIndex = allStages.findIndex(s => s.id === stageId);
+
+    // 3. Fallback to canonical status and column position
+    const columnIndex = allStages.findIndex((s) => s.id === stageId);
     if (columnIndex === -1) return false;
-    
-    const taskStatusUpper = (task.status || "TODO").toUpperCase();
-    if (taskStatusUpper === "TODO" && columnIndex === 0) return true;
-    if (taskStatusUpper === "INPROGRESS" && columnIndex === 1) return true;
-    if (taskStatusUpper === "INREVIEW" && columnIndex === 2) return true;
-    if (taskStatusUpper === "DONE" && columnIndex === (allStages.length - 1)) return true;
-    
-    if (columnIndex === 0 && !["INPROGRESS", "INREVIEW", "DONE"].includes(taskStatusUpper)) {
+
+    const taskStatusUpper = (task.status || "TODO").toUpperCase().trim();
+    if (
+      (taskStatusUpper === "DONE" || taskStatusUpper === "COMPLETED" || taskStatusUpper === "HECHO") &&
+      columnIndex === allStages.length - 1
+    ) {
       return true;
     }
+    if (
+      (taskStatusUpper === "INREVIEW" || taskStatusUpper === "REVISION" || taskStatusUpper === "REVISIÓN") &&
+      columnIndex === 2
+    ) {
+      return true;
+    }
+    if (
+      (taskStatusUpper === "INPROGRESS" || taskStatusUpper === "PROGRESO" || taskStatusUpper === "EN PROGRESO") &&
+      columnIndex === 1
+    ) {
+      return true;
+    }
+    if (
+      columnIndex === 0 &&
+      !["INPROGRESS", "INREVIEW", "DONE", "COMPLETED", "HECHO", "REVISION", "PROGRESO"].includes(taskStatusUpper)
+    ) {
+      return true;
+    }
+
     return false;
   };
 
@@ -647,15 +674,29 @@ function TasksPageContent() {
     }
 
     try {
+      const targetStage = stagesToRender.find((s) => s.id === stageId);
+      const canonicalStatus = targetStage
+        ? targetStage.position === 3 || targetStage.name?.toLowerCase().includes("hecho")
+          ? "DONE"
+          : targetStage.position === 2 || targetStage.name?.toLowerCase().includes("revis")
+          ? "INREVIEW"
+          : targetStage.position === 1 || targetStage.name?.toLowerCase().includes("progres")
+          ? "INPROGRESS"
+          : "TODO"
+        : status;
+
       const response = await fetch("/api/tasks", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: editingTask.id, title, description, 
-          status: stageId || status, 
+          id: editingTask.id,
+          title,
+          description,
+          status: canonicalStatus,
           priority,
           dueDate: dueDate || null,
-          assignedTo: assignedTo || null, projectId: projectId === "none" ? null : projectId || null,
+          assignedTo: assignedTo || null,
+          projectId: projectId === "none" ? null : projectId || null,
           pipelineId: activePipeline?.id || null,
           stageId: stageId || null,
         }),
@@ -663,11 +704,12 @@ function TasksPageContent() {
 
       if (response.ok) {
         const updatedTask = await response.json();
-        setTasks(tasks.map(t => t.id === editingTask.id ? updatedTask : t));
+        setTasks((prev) => prev.map((t) => (t.id === editingTask.id ? updatedTask : t)));
         resetForm();
         setEditOpen(false);
         setEditingTask(null);
         toast.success("Tarea actualizada");
+        fetchTasks();
       }
     } catch {
       toast.error("Error al actualizar tarea");
@@ -846,28 +888,42 @@ function TasksPageContent() {
 
     if (!over || !originalTask) return;
 
-    let targetStageId: string | null = null;
+    let targetStage: TaskPipelineStage | undefined = undefined;
     for (const stage of stagesToRender) {
       if (
         stage.id === over.id ||
-        tasks.some(t => t.id === over.id && isTaskInStage(t, stage.id, stagesToRender))
+        tasks.some((t) => t.id === over.id && isTaskInStage(t, stage.id, stagesToRender))
       ) {
-        targetStageId = stage.id;
+        targetStage = stage;
         break;
       }
     }
 
-    if (!targetStageId) return;
+    if (!targetStage) return;
 
-    const currentStage = stagesToRender.find(s => isTaskInStage(originalTask, s.id, stagesToRender));
-    const currentStageId = currentStage ? currentStage.id : (originalTask.stageId || originalTask.status);
+    const currentStage = stagesToRender.find((s) => isTaskInStage(originalTask, s.id, stagesToRender));
+    const isSameStage = currentStage && currentStage.id === targetStage.id;
 
-    if (targetStageId !== currentStageId) {
+    if (!isSameStage) {
+      const targetCanonicalStatus =
+        targetStage.position === 3 || targetStage.name?.toLowerCase().includes("hecho")
+          ? "DONE"
+          : targetStage.position === 2 || targetStage.name?.toLowerCase().includes("revis")
+          ? "INREVIEW"
+          : targetStage.position === 1 || targetStage.name?.toLowerCase().includes("progres")
+          ? "INPROGRESS"
+          : "TODO";
+
       // Optimistic update
-      setTasks(prev =>
-        prev.map(t =>
+      setTasks((prev) =>
+        prev.map((t) =>
           t.id === active.id
-            ? { ...t, stageId: targetStageId!, status: targetStageId! }
+            ? {
+                ...t,
+                stageId: targetStage!.id,
+                status: targetCanonicalStatus,
+                stage: targetStage,
+              }
             : t
         )
       );
@@ -876,10 +932,10 @@ function TasksPageContent() {
         const response = await fetch("/api/tasks", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            id: active.id, 
-            stageId: targetStageId,
-            status: targetStageId
+          body: JSON.stringify({
+            id: active.id,
+            stageId: targetStage.id,
+            status: targetCanonicalStatus,
           }),
         });
         if (!response.ok) {
@@ -887,7 +943,8 @@ function TasksPageContent() {
           toast.error(data.error || "Error al mover tarea");
           fetchTasks();
         } else {
-          toast.success("Tarea movida");
+          toast.success(`Tarea movida a "${targetStage.name}"`);
+          fetchTasks();
         }
       } catch {
         toast.error("Error al mover tarea");
@@ -1728,10 +1785,48 @@ function TasksPageContent() {
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">Estado</label>
                 <Select 
-                  value={detailTask?.stageId || detailTask?.status || "TODO"} 
+                  value={
+                    stagesToRender.find((s) => detailTask && isTaskInStage(detailTask, s.id, stagesToRender))?.id ||
+                    detailTask?.stageId ||
+                    detailTask?.status ||
+                    "TODO"
+                  } 
                   onValueChange={async (v) => {
-                    await autoSaveField("stageId", v);
-                    await autoSaveField("status", v);
+                    if (!detailTask) return;
+                    const targetStage = stagesToRender.find((s) => s.id === v);
+                    const canonical = targetStage
+                      ? targetStage.position === 3 || targetStage.name?.toLowerCase().includes("hecho")
+                        ? "DONE"
+                        : targetStage.position === 2 || targetStage.name?.toLowerCase().includes("revis")
+                        ? "INREVIEW"
+                        : targetStage.position === 1 || targetStage.name?.toLowerCase().includes("progres")
+                        ? "INPROGRESS"
+                        : "TODO"
+                      : v;
+
+                    try {
+                      const res = await fetch("/api/tasks", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          id: detailTask.id,
+                          stageId: v,
+                          status: canonical,
+                        }),
+                      });
+                      if (res.ok) {
+                        const updated = await res.json();
+                        setDetailTask(updated);
+                        setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+                        toast.success("Estado actualizado");
+                        fetchTasks();
+                      } else {
+                        const data = await res.json();
+                        toast.error(data.error || "Error al actualizar estado");
+                      }
+                    } catch {
+                      toast.error("Error al actualizar estado");
+                    }
                   }}
                 >
                   <SelectTrigger className="w-full h-9 bg-white dark:bg-slate-900 border-border">

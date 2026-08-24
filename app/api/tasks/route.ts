@@ -102,6 +102,25 @@ async function maybeConvertLongDescription(
   return shortDesc;
 }
 
+function getCanonicalStatus(
+  statusOrStageId?: string | null,
+  stageName?: string | null,
+  position?: number | null
+): string {
+  const val = (statusOrStageId || "").toUpperCase().trim();
+  if (val === "DONE" || val === "HECHO" || val === "COMPLETED" || val === "COMPLETADO") return "DONE";
+  if (val === "INREVIEW" || val === "IN_REVIEW" || val === "REVISION" || val === "REVISIÓN") return "INREVIEW";
+  if (val === "INPROGRESS" || val === "IN_PROGRESS" || val === "PROGRESO" || val === "EN PROGRESO") return "INPROGRESS";
+  if (val === "PLANNING") return "PLANNING";
+  if (val === "TODO" || val === "POR HACER" || val === "PENDING") return "TODO";
+
+  const sName = (stageName || "").toLowerCase().trim();
+  if (sName.includes("hecho") || sName.includes("done") || sName.includes("completad") || sName.includes("finalizad") || position === 3) return "DONE";
+  if (sName.includes("revis") || position === 2) return "INREVIEW";
+  if (sName.includes("progres") || position === 1) return "INPROGRESS";
+  return "TODO";
+}
+
 async function syncPipelineAndStage(
   tx: any,
   data: {
@@ -337,12 +356,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    let createStageObj = null;
+    if (finalStageId) {
+      createStageObj = await prisma.taskPipelineStage.findUnique({
+        where: { id: finalStageId },
+        select: { name: true, position: true },
+      });
+    }
+    const createCanonicalStatus = getCanonicalStatus(status, createStageObj?.name, createStageObj?.position);
+
     const task = await prisma.task.create({
       data: {
         id: cuid(),
         title,
         description,
-        status: finalStageId || status || "TODO",
+        status: createCanonicalStatus,
         priority: priority || "NONE",
         dueDate: dueDate ? new Date(dueDate) : null,
         projectId: projectId || null,
@@ -487,9 +515,19 @@ export async function PATCH(request: NextRequest) {
       finalStageId = syncResult.stageId;
     }
 
+    let stageObj = null;
+    if (finalStageId) {
+      stageObj = await prisma.taskPipelineStage.findUnique({
+        where: { id: finalStageId },
+        select: { name: true, position: true },
+      });
+    }
+
+    const canonicalStatus = getCanonicalStatus(status, stageObj?.name, stageObj?.position);
+
     const updateData: Record<string, unknown> = {};
     if (status !== undefined || finalStageId !== undefined) {
-      updateData.status = finalStageId || status || "TODO";
+      updateData.status = canonicalStatus;
     }
     if (finalPipelineId !== undefined) updateData.pipelineId = finalPipelineId || null;
     if (finalStageId !== undefined) updateData.stageId = finalStageId || null;

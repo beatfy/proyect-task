@@ -69,6 +69,8 @@ interface Task {
   dueDate: string | null;
   assignee: { id: string; name: string | null; email: string } | null;
   assignees?: Assignee[];
+  stageId?: string | null;
+  stage?: { id: string; name: string } | null;
 }
 
 const columns = [
@@ -222,7 +224,46 @@ function KanbanBoard({ tasks, setTasks, onTaskClick, handleDeleteTask, projectId
     useSensor(KeyboardSensor)
   );
 
-  const getTasksByStatus = (s: string) => tasks.filter(t => t.status === s);
+  const getTasksByStatus = (s: string) =>
+    tasks.filter((t) => {
+      const statusUpper = (t.status || "TODO").toUpperCase();
+      if (s === "DONE") {
+        return (
+          statusUpper === "DONE" ||
+          statusUpper === "COMPLETED" ||
+          statusUpper === "HECHO" ||
+          t.stage?.name?.toLowerCase().includes("hecho")
+        );
+      }
+      if (s === "INREVIEW") {
+        return (
+          statusUpper === "INREVIEW" ||
+          statusUpper === "REVISION" ||
+          statusUpper === "REVISIÓN" ||
+          t.stage?.name?.toLowerCase().includes("revis")
+        );
+      }
+      if (s === "INPROGRESS") {
+        return (
+          statusUpper === "INPROGRESS" ||
+          statusUpper === "PROGRESO" ||
+          statusUpper === "EN PROGRESO" ||
+          t.stage?.name?.toLowerCase().includes("progres")
+        );
+      }
+      if (s === "TODO") {
+        return (
+          statusUpper === "TODO" ||
+          statusUpper === "PLANNING" ||
+          statusUpper === "POR HACER" ||
+          (!["INPROGRESS", "INREVIEW", "DONE"].includes(statusUpper) &&
+            !t.stage?.name?.toLowerCase().includes("hecho") &&
+            !t.stage?.name?.toLowerCase().includes("revis") &&
+            !t.stage?.name?.toLowerCase().includes("progres"))
+        );
+      }
+      return t.status === s;
+    });
 
   const updateTaskStatus = useCallback(async (taskId: string, newStatus: string, rollbackStatus: string) => {
     try {
