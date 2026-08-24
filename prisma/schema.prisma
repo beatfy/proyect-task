@@ -36,6 +36,7 @@ model User {
   agentDocuments AgentDocument[]
   fastingConfig  FastingConfig?
   fastingLogs    FastingLog[]
+  mindMaps       MindMap[]
 }
 
 model Project {
@@ -62,6 +63,7 @@ model Project {
   invoices         Invoice[]
   labels           ProjectLabel[]
   taskPipelines    TaskPipeline[]
+  mindMaps         MindMap[]
 }
 
 model ProjectMember {
@@ -632,5 +634,25 @@ model FastingLog {
   updatedAt   DateTime  @updatedAt
 
   @@index([userId, startTime])
+}
+
+// ========== MAPAS MENTALES ==========
+
+model MindMap {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  data        Json     // Nodes, edges, viewport, styles, checklist state
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  isFavorite  Boolean  @default(false)
+  thumbnail   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([projectId])
 }
 
