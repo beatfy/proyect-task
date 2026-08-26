@@ -48,20 +48,25 @@ async function sendEmailSafely({
   html: string;
 }) {
   try {
+    const fromAddress =
+      process.env.RESEND_FROM_EMAIL ||
+      process.env.EMAIL_FROM ||
+      `${brand.name} <onboarding@resend.dev>`;
+
     const res = await resend.emails.send({
-      from: `${brand.name} <onboarding@resend.dev>`,
+      from: fromAddress,
       to,
       subject,
       html,
     });
     if (res.error) {
       console.error(`Resend error sending to ${to}:`, res.error);
-      return false;
+      return { success: false, error: res.error.message || JSON.stringify(res.error) };
     }
-    return true;
-  } catch (err) {
+    return { success: true };
+  } catch (err: any) {
     console.error(`Resend catch error sending to ${to}:`, err);
-    return false;
+    return { success: false, error: err?.message || String(err) };
   }
 }
 
@@ -77,7 +82,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const forceNearExpiry = searchParams.get("forceNearExpiry") === "true";
   const forceDailySummary = searchParams.get("forceDailySummary") === "true";
-  const forceHour = searchParams.get("hour");
+  const skipDailySummary = searchParams.get("skipDailySummary") === "true";
   const testEmail = searchParams.get("testEmail");
 
   const results = {
@@ -218,13 +223,13 @@ export async function GET(request: NextRequest) {
           </div>
         `;
 
-        const sent = await sendEmailSafely({
+        const sentResult = await sendEmailSafely({
           to: testEmail || userInfo.email,
           subject: `⚠️ Tarea cerca de vencer: ${task.title}`,
           html: emailHtml,
         });
 
-        if (sent) {
+        if (sentResult.success) {
           await prisma.notification.create({
             data: {
               id: cuid(),
@@ -237,26 +242,18 @@ export async function GET(request: NextRequest) {
           });
           results.nearExpiryEmailsSent++;
         } else {
-          results.errors.push(`Failed to send near-expiry email to ${userInfo.email} for task ${task.id}`);
+          results.errors.push(
+            `Failed to send near-expiry email to ${userInfo.email} for task ${task.id}: ${sentResult.error}`
+          );
         }
       }
     }
 
     // ==========================================
-    // 2) DAILY SUMMARY (At 9 AM local Spain time)
+    // 2) DAILY SUMMARY
     // ==========================================
-    const currentHourMadrid = forceHour 
-      ? parseInt(forceHour)
-      : parseInt(
-          new Date().toLocaleTimeString("en-US", {
-            timeZone: "Europe/Madrid",
-            hour12: false,
-            hour: "2-digit",
-          })
-        );
-
-    // If it is 9 AM in Madrid time or we are forcing it, trigger daily summary
-    if (currentHourMadrid === 9 || forceDailySummary) {
+    // Run daily summary unless explicitly skipped (each user only gets 1 email per day due to notification check)
+    if (!skipDailySummary || forceDailySummary) {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
       const todayEnd = new Date();
@@ -424,13 +421,13 @@ export async function GET(request: NextRequest) {
           </div>
         `;
 
-        const sent = await sendEmailSafely({
+        const sentResult = await sendEmailSafely({
           to: testEmail || user.email,
           subject: `📅 Resumen de tus tareas para hoy - ${brand.name}`,
           html: emailHtml,
         });
 
-        if (sent) {
+        if (sentResult.success) {
           await prisma.notification.create({
             data: {
               id: cuid(),
@@ -443,7 +440,9 @@ export async function GET(request: NextRequest) {
           });
           results.dailySummaryEmailsSent++;
         } else {
-          results.errors.push(`Failed to send daily summary email to ${user.email}`);
+          results.errors.push(
+            `Failed to send daily summary email to ${user.email}: ${sentResult.error}`
+          );
         }
       }
     }

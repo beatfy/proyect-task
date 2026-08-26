@@ -53,6 +53,49 @@ function calculateFastingPhase(elapsedHours: number) {
   }
 }
 
+function calculateEatingPhase(elapsedHours: number, targetEatingHours: number) {
+  const earlyPhase = 1.5;
+  const closingWindow = Math.max(earlyPhase, targetEatingHours - 2);
+
+  if (elapsedHours < earlyPhase) {
+    return {
+      phase: "Apertura Digestiva & Fast Breaker",
+      code: "fast_breaker",
+      icon: "🥣",
+      shortDesc: "Reactivación suave del sistema digestivo tras el ayuno.",
+      detailDesc: "Tu sensibilidad a la insulina es máxima. Tu estómago y páncreas reactivan la secreción de enzimas digestivas progresivamente.",
+      tips: "Rompe el ayuno con proteínas limpias, grasas saludables (huevos, aguacate, aceite de oliva, caldo de huesos) y verduras. Evita ultraprocesados o dulces masivos de golpe.",
+    };
+  } else if (elapsedHours < closingWindow) {
+    return {
+      phase: "Ventana de Nutrición & Absorción",
+      code: "nourishment",
+      icon: "🍽️",
+      shortDesc: "Comidas principales y reposición de macronutrientes.",
+      detailDesc: "Fase óptima para aportar aminoácidos a los músculos, recargar depósitos de glucógeno y asimilar micronutrientes y vitaminas.",
+      tips: "Realiza tus comidas ricas en proteínas de alta biodisponibilidad y vegetales variados. Mantén una buena ingesta de agua entre comidas.",
+    };
+  } else if (elapsedHours <= targetEatingHours) {
+    return {
+      phase: "Última Comida & Cierre de Ventana",
+      code: "window_closing",
+      icon: "🥑",
+      shortDesc: "Preparación para el siguiente ayuno y descanso nocturno.",
+      detailDesc: "Última ingesta del día. Tu cuerpo necesita tiempo para digerir adecuadamente antes del reposo y del próximo ciclo de autofagia.",
+      tips: "Prioriza alimentos saciantes altos en fibra y proteína limpia. Evita carbohidratos pesados y deja 2-3 horas antes de acostarte.",
+    };
+  } else {
+    return {
+      phase: "Ventana Vencida — ¡Hora de Ayunar!",
+      code: "window_ended",
+      icon: "⏳",
+      shortDesc: "Has alcanzado el límite de tu ventana de alimentación.",
+      detailDesc: `Han transcurrido más de ${targetEatingHours} horas desde que abriste tu ventana. Para mantener los beneficios metabólicos y tu ritmo circadiano, es momento de iniciar tu nuevo ayuno.`,
+      tips: "Termina tu última bebida o infusión y pulsa 'Iniciar Siguiente Ayuno' para reactivar tu temporizador.",
+    };
+  }
+}
+
 export async function GET(req: NextRequest) {
   try {
     const authResult = await authenticateRequest(req);
@@ -105,15 +148,22 @@ export async function GET(req: NextRequest) {
     });
 
     let activeData = null;
+    let eatingData = null;
+    let mode: "FASTING" | "EATING_WINDOW" | "IDLE" = "IDLE";
+
     if (activeFast) {
+      mode = "FASTING";
       const now = new Date();
       const startTime = new Date(activeFast.startTime);
       const elapsedMs = Math.max(0, now.getTime() - startTime.getTime());
       const elapsedHours = elapsedMs / (1000 * 60 * 60);
-      const targetHours = activeFast.targetHours || config.targetFastHours;
+      const targetHours = activeFast.targetHours || config.targetFastHours || 16;
       const targetMs = targetHours * 60 * 60 * 1000;
       const remainingMs = Math.max(0, targetMs - elapsedMs);
       const progressPercent = Math.min(100, Math.round((elapsedMs / targetMs) * 100));
+      const isGoalReached = elapsedMs >= targetMs;
+      const extraHours = isGoalReached ? Number(((elapsedMs - targetMs) / (1000 * 60 * 60)).toFixed(2)) : 0;
+      const extraMinutes = isGoalReached ? Math.floor((elapsedMs - targetMs) / (1000 * 60)) : 0;
 
       const expectedEndTime = new Date(startTime.getTime() + targetMs);
       const currentPhase = calculateFastingPhase(elapsedHours);
@@ -128,9 +178,58 @@ export async function GET(req: NextRequest) {
         remainingMinutes: Math.floor(remainingMs / (1000 * 60)),
         progressPercent,
         expectedEndTime,
-        isGoalReached: elapsedMs >= targetMs,
+        isGoalReached,
+        extraHours,
+        extraMinutes,
         currentPhase,
       };
+    } else {
+      // Si no hay ayuno activo, comprobamos si hay un ayuno previo finalizado para calcular la ventana de alimentación
+      const lastFast = await prisma.fastingLog.findFirst({
+        where: { userId, endTime: { not: null } },
+        orderBy: { endTime: "desc" },
+      });
+
+      if (lastFast && lastFast.endTime) {
+        mode = "EATING_WINDOW";
+        const now = new Date();
+        const startTime = new Date(lastFast.endTime);
+        const elapsedMs = Math.max(0, now.getTime() - startTime.getTime());
+        const elapsedHours = elapsedMs / (1000 * 60 * 60);
+        const targetEatingHours = config.targetEatingHours || 8;
+        const targetMs = targetEatingHours * 60 * 60 * 1000;
+        const remainingMs = Math.max(0, targetMs - elapsedMs);
+        const progressPercent = Math.min(100, Math.round((elapsedMs / targetMs) * 100));
+        const isWindowEnded = elapsedMs >= targetMs;
+        const expectedEndTime = new Date(startTime.getTime() + targetMs);
+        const currentPhase = calculateEatingPhase(elapsedHours, targetEatingHours);
+
+        const hoursSinceFast = Number((elapsedMs / (1000 * 60 * 60)).toFixed(1));
+
+        eatingData = {
+          lastFastId: lastFast.id,
+          startTime: lastFast.endTime,
+          targetEatingHours,
+          elapsedHours: Number(elapsedHours.toFixed(2)),
+          elapsedMinutes: Math.floor(elapsedMs / (1000 * 60)),
+          remainingMinutes: Math.floor(remainingMs / (1000 * 60)),
+          progressPercent,
+          expectedEndTime,
+          isWindowEnded,
+          hoursSinceFast,
+          currentPhase,
+          lastFast: {
+            id: lastFast.id,
+            protocol: lastFast.protocol,
+            targetHours: lastFast.targetHours,
+            startTime: lastFast.startTime,
+            endTime: lastFast.endTime,
+            durationHours: Number(((new Date(lastFast.endTime).getTime() - new Date(lastFast.startTime).getTime()) / (1000 * 60 * 60)).toFixed(1)),
+            completed: lastFast.completed,
+            firstMeal: lastFast.firstMeal,
+          },
+        };
+      }
     }
 
     // Calcular estadísticas sobre todos los ayunos finalizados
@@ -173,8 +272,10 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({
+      mode,
       config,
       activeFast: activeData,
+      eatingWindow: eatingData,
       stats: {
         totalFasts,
         totalHours: Number(totalHours.toFixed(1)),

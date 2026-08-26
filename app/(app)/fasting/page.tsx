@@ -5,7 +5,8 @@ import {
   Timer, Flame, Droplets, Zap, BookOpen, Bell, Play, Square,
   RotateCcw, CheckCircle2, MessageSquare, Sparkles, Clock, Activity,
   Info, ChevronRight, Award, Smile, Frown, Meh, TrendingUp, Calendar,
-  ShieldAlert, Send, Bot, RefreshCw, Check, Trash2
+  ShieldAlert, Send, Bot, RefreshCw, Check, Trash2, Utensils, Coffee,
+  Moon, Sun, Apple, HeartPulse, ChevronDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +27,15 @@ interface MetabolicPhase {
   tips: string;
 }
 
+interface EatingPhase {
+  phase: string;
+  code: string;
+  icon: string;
+  shortDesc: string;
+  detailDesc: string;
+  tips: string;
+}
+
 interface ActiveFastData {
   id: string;
   protocol: string;
@@ -37,7 +47,33 @@ interface ActiveFastData {
   progressPercent: number;
   expectedEndTime: string;
   isGoalReached: boolean;
+  extraHours?: number;
+  extraMinutes?: number;
   currentPhase: MetabolicPhase;
+}
+
+interface EatingWindowData {
+  lastFastId: string;
+  startTime: string;
+  targetEatingHours: number;
+  elapsedHours: number;
+  elapsedMinutes: number;
+  remainingMinutes: number;
+  progressPercent: number;
+  expectedEndTime: string;
+  isWindowEnded: boolean;
+  hoursSinceFast: number;
+  currentPhase: EatingPhase;
+  lastFast?: {
+    id: string;
+    protocol: string;
+    targetHours: number;
+    startTime: string;
+    endTime: string;
+    durationHours: number;
+    completed: boolean;
+    firstMeal?: string | null;
+  };
 }
 
 interface FastingConfig {
@@ -143,12 +179,22 @@ const METABOLIC_TIMELINE = [
   { hours: "16 - 24h+", title: "Autofagia Celular", desc: "Reciclaje de células dañadas, regeneración de tejidos y reducción de inflamación.", icon: "🧬", color: "from-rose-500 to-purple-600" },
 ];
 
+const EATING_TIMELINE = [
+  { hours: "0 - 1.5h", title: "Apertura & Fast Breaker", desc: "Reactivación enzimática suave. Alta sensibilidad insulínica. Grasas saludables y proteínas limpias.", icon: "🥣", color: "from-amber-500 to-emerald-500" },
+  { hours: "1.5 - 6h", title: "Nutrición & Absorción", desc: "Comidas principales completas, recarga de depósitos de glucógeno y síntesis proteica.", icon: "🍽️", color: "from-emerald-500 to-teal-500" },
+  { hours: "6 - 8h", title: "Última Comida & Cierre", desc: "Comida saciante rica en fibra/proteína. Dejar 2-3h antes de dormir para preparar el nuevo ayuno.", icon: "🥑", color: "from-teal-500 to-indigo-500" },
+  { hours: "> 8h+", title: "Ventana Finalizada", desc: "Límite de ventana completado. Momento idóneo para iniciar el nuevo ciclo de ayuno.", icon: "⏳", color: "from-indigo-500 to-purple-500" },
+];
+
 export default function FastingPage() {
   const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState<FastingConfig | null>(null);
   const [activeFast, setActiveFast] = useState<ActiveFastData | null>(null);
+  const [eatingWindow, setEatingWindow] = useState<EatingWindowData | null>(null);
+  const [fastingMode, setFastingMode] = useState<"FASTING" | "EATING_WINDOW" | "IDLE">("IDLE");
   const [stats, setStats] = useState<FastingStats | null>(null);
   const [history, setHistory] = useState<FastingLog[]>([]);
+  const [timelineTab, setTimelineTab] = useState<"fasting" | "eating">("fasting");
 
   // Chat con Doc
   const [docMessages, setDocMessages] = useState<Array<{ role: string; content: string }>>([
@@ -178,7 +224,15 @@ export default function FastingPage() {
         const data = await res.json();
         setConfig(data.config);
         setActiveFast(data.activeFast);
+        setEatingWindow(data.eatingWindow);
+        setFastingMode(data.mode || (data.activeFast ? "FASTING" : data.eatingWindow ? "EATING_WINDOW" : "IDLE"));
         setStats(data.stats);
+
+        if (data.mode === "EATING_WINDOW") {
+          setTimelineTab("eating");
+        } else if (data.mode === "FASTING") {
+          setTimelineTab("fasting");
+        }
       }
     } catch (err) {
       console.error("Error fetching fasting status:", err);
@@ -207,12 +261,10 @@ export default function FastingPage() {
   // Actualización periódica cada 30s del temporizador
   useEffect(() => {
     const interval = setInterval(() => {
-      if (activeFast) {
-        fetchFastingStatus();
-      }
+      fetchFastingStatus();
     }, 30000);
     return () => clearInterval(interval);
-  }, [activeFast, fetchFastingStatus]);
+  }, [fetchFastingStatus]);
 
   const handleStartFast = async (protocolId?: string, targetH?: number) => {
     try {
@@ -484,34 +536,119 @@ export default function FastingPage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* TAB 1: TIMER & ACTIVE FAST */}
+        {/* TAB 1: TIMER & ACTIVE FAST / EATING WINDOW */}
         <TabsContent value="timer" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Columna Principal: Reloj y Control */}
-            <Card className="lg:col-span-2 border-emerald-500/20 shadow-xl overflow-hidden relative">
-              <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500"></div>
+            <Card className={cn(
+              "lg:col-span-2 shadow-xl overflow-hidden relative border-2",
+              fastingMode === "FASTING" ? "border-emerald-500/20" : fastingMode === "EATING_WINDOW" ? "border-amber-500/30 bg-card" : "border-muted"
+            )}>
+              <div className={cn(
+                "absolute top-0 left-0 right-0 h-1.5",
+                fastingMode === "FASTING"
+                  ? "bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500"
+                  : fastingMode === "EATING_WINDOW"
+                  ? "bg-gradient-to-r from-amber-500 via-orange-500 to-emerald-500"
+                  : "bg-muted"
+              )}></div>
+
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <CardTitle className="text-xl font-bold flex items-center gap-2">
-                      <Clock className="w-5 h-5 text-emerald-500" />
-                      Estado Actual de Ayuno
+                      {fastingMode === "FASTING" ? (
+                        <>
+                          <Clock className="w-5 h-5 text-emerald-500" />
+                          <span>Estado: Ayuno Intermitente Activo</span>
+                        </>
+                      ) : fastingMode === "EATING_WINDOW" ? (
+                        <>
+                          <Utensils className="w-5 h-5 text-amber-500" />
+                          <span>Estado: Ventana de Alimentación</span>
+                        </>
+                      ) : (
+                        <>
+                          <Clock className="w-5 h-5 text-muted-foreground" />
+                          <span>Estado Actual de Ayuno</span>
+                        </>
+                      )}
                     </CardTitle>
                     <CardDescription>
-                      {activeFast ? `Protocolo activo ${activeFast.protocol}` : "No tienes un ayuno en curso actualmente."}
+                      {fastingMode === "FASTING" && activeFast
+                        ? `Protocolo ${activeFast.protocol} — Meta: ${activeFast.targetHours} horas de descanso digestivo.`
+                        : fastingMode === "EATING_WINDOW" && eatingWindow
+                        ? `Ventana de ${eatingWindow.targetEatingHours} horas para nutrirte e hidratarte de forma consciente.`
+                        : "No tienes un ciclo en curso actualmente. ¡Inicia uno para comenzar!"}
                     </CardDescription>
                   </div>
-                  {activeFast && (
-                    <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 px-3 py-1 font-semibold">
-                      En Curso ({activeFast.protocol})
-                    </Badge>
-                  )}
+
+                  <div>
+                    {fastingMode === "FASTING" && activeFast && (
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "px-3 py-1 font-semibold text-xs",
+                          activeFast.isGoalReached
+                            ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/40 animate-pulse"
+                            : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                        )}
+                      >
+                        {activeFast.isGoalReached
+                          ? `🎉 ¡Objetivo Cumplido! (+${activeFast.extraHours || 0}h)`
+                          : `En Ayuno (${activeFast.protocol})`}
+                      </Badge>
+                    )}
+
+                    {fastingMode === "EATING_WINDOW" && eatingWindow && (
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "px-3 py-1 font-semibold text-xs",
+                          eatingWindow.isWindowEnded
+                            ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                            : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                        )}
+                      >
+                        {eatingWindow.isWindowEnded
+                          ? "⏰ Ventana Finalizada — Hora de Ayunar"
+                          : `🍽️ Ventana Abierta (${eatingWindow.targetEatingHours}h)`}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
+
               <CardContent className="space-y-8">
-                {activeFast ? (
+                {/* 1. MODO AYUNO ACTIVO */}
+                {fastingMode === "FASTING" && activeFast && (
                   <div className="flex flex-col items-center justify-center space-y-6 py-4">
-                    {/* Ring Visual del Temporizador */}
+                    {/* Alerta Destacada si ya alcanzó o superó el objetivo de ayuno */}
+                    {activeFast.isGoalReached && (
+                      <div className="w-full max-w-lg p-5 rounded-3xl bg-gradient-to-r from-emerald-500/15 via-teal-500/15 to-cyan-500/15 border-2 border-emerald-500/40 shadow-lg flex flex-col items-center text-center gap-3 animate-in fade-in zoom-in-95">
+                        <div className="flex items-center justify-center gap-2 font-extrabold text-base text-emerald-600 dark:text-emerald-400">
+                          <Sparkles className="w-5 h-5 text-emerald-500 animate-bounce" />
+                          <span>🎯 ¡Meta de {activeFast.targetHours}h Completada! Ya puedes comer</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground max-w-md leading-relaxed">
+                          Has alcanzado tu objetivo de ayuno. Tu ventana de alimentación ({config?.targetEatingHours || 8}h) está lista para abrirse. Puedes romper tu ayuno ahora para pasar a la fase de comida o seguir en modo ayuno extendido.
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-2 w-full pt-1">
+                          <Button
+                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs py-5 shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2"
+                            onClick={() => setFeelingModal(true)}
+                          >
+                            <Utensils className="w-4 h-4" />
+                            <span>🍽️ Romper Ayuno & Abrir Ventana para Comer</span>
+                          </Button>
+                          <Badge variant="outline" className="px-3 py-2 text-xs font-semibold justify-center border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                            +{activeFast.extraHours || 0}h en autofagia
+                          </Badge>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Ring Visual del Temporizador de Ayuno */}
                     <div className="relative w-64 h-64 md:w-72 md:h-72 flex items-center justify-center">
                       <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                         {/* Track ring */}
@@ -532,7 +669,7 @@ export default function FastingPage() {
                           stroke="url(#gradientFast)"
                           strokeWidth="7"
                           strokeDasharray={263.89}
-                          strokeDashoffset={263.89 - (263.89 * (activeFast.progressPercent || 0)) / 100}
+                          strokeDashoffset={263.89 - (263.89 * Math.min(100, activeFast.progressPercent || 0)) / 100}
                           strokeLinecap="round"
                           className="transition-all duration-1000 ease-out"
                           fill="transparent"
@@ -554,37 +691,55 @@ export default function FastingPage() {
                         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mt-1">
                           de {activeFast.targetHours}h objetivo
                         </span>
-                        <div className="mt-2 text-xs font-medium px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                          {activeFast.progressPercent}% completado
+                        <div className={cn(
+                          "mt-2 text-xs font-medium px-2.5 py-0.5 rounded-full",
+                          activeFast.isGoalReached
+                            ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold"
+                            : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                        )}>
+                          {activeFast.isGoalReached ? "🎉 ¡100% Meta Completada!" : `${activeFast.progressPercent}% completado`}
                         </div>
                       </div>
                     </div>
 
                     {/* Meta y Fin Estimado */}
-                    <div className="grid grid-cols-2 gap-4 w-full max-w-md bg-muted/40 p-4 rounded-2xl border text-center text-sm">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 w-full max-w-lg bg-muted/40 p-4 rounded-2xl border text-center text-sm">
                       <div>
-                        <div className="text-muted-foreground text-xs">Inicio</div>
+                        <div className="text-muted-foreground text-xs">Inicio Ayuno</div>
                         <div className="font-semibold text-foreground">
                           {new Date(activeFast.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
                       </div>
                       <div>
-                        <div className="text-muted-foreground text-xs">Apertura de Ventana</div>
+                        <div className="text-muted-foreground text-xs">Apertura Ventana</div>
                         <div className="font-semibold text-emerald-600 dark:text-emerald-400">
                           {new Date(activeFast.expectedEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                      <div className="col-span-2 sm:col-span-1">
+                        <div className="text-muted-foreground text-xs">
+                          {activeFast.isGoalReached ? "Tiempo Extra" : "Falta para Comer"}
+                        </div>
+                        <div className={cn(
+                          "font-semibold",
+                          activeFast.isGoalReached ? "text-amber-500" : "text-foreground"
+                        )}>
+                          {activeFast.isGoalReached
+                            ? `+${formatHoursMinutes(activeFast.extraMinutes || 0)}`
+                            : formatHoursMinutes(activeFast.remainingMinutes)}
                         </div>
                       </div>
                     </div>
 
                     {/* Deep Work / Focus Peak Banner */}
                     {activeFast.elapsedHours >= 12 && (
-                      <div className="w-full max-w-md p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-rose-500/15 border border-amber-500/30 flex flex-col gap-3">
+                      <div className="w-full max-w-lg p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-rose-500/15 border border-amber-500/30 flex flex-col gap-3">
                         <div className="flex items-center gap-2 font-bold text-sm text-amber-600 dark:text-amber-400">
                           <Zap className="w-4 h-4 text-amber-500 fill-current" />
                           <span>Pico de Claridad Mental & Enfoque (Deep Work)</span>
                         </div>
                         <p className="text-xs text-muted-foreground leading-relaxed">
-                          Tu cerebro está operando con cetonas y tienes máxima lucidez cognitiva. Es el momento perfecto para resolver tareas prioritarias.
+                          Tu cerebro está operando con cetonas y tienes máxima lucidez cognitiva. Es el momento perfecto para resolver tareas complejas.
                         </p>
                         <Button
                           size="sm"
@@ -598,14 +753,14 @@ export default function FastingPage() {
                     )}
 
                     {/* Botones de Acción */}
-                    <div className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-md">
+                    <div className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-lg">
                       <Button
                         size="lg"
-                        className="w-full sm:flex-1 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl shadow-lg shadow-rose-600/20"
+                        className="w-full sm:flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow-lg shadow-emerald-600/20"
                         onClick={() => setFeelingModal(true)}
                       >
-                        <Square className="w-4 h-4 mr-2 fill-current" />
-                        Finalizar / Romper Ayuno
+                        <Utensils className="w-4 h-4 mr-2" />
+                        Finalizar Ayuno / Empezar a Comer
                       </Button>
                       <Button
                         size="lg"
@@ -619,15 +774,167 @@ export default function FastingPage() {
                       </Button>
                     </div>
                   </div>
-                ) : (
+                )}
+
+                {/* 2. MODO VENTANA DE ALIMENTACIÓN (EATING WINDOW) */}
+                {fastingMode === "EATING_WINDOW" && eatingWindow && (
+                  <div className="flex flex-col items-center justify-center space-y-6 py-4">
+                    {/* Banner de Ventana de Ingesta */}
+                    <div className={cn(
+                      "w-full max-w-lg p-5 rounded-3xl border-2 shadow-lg flex flex-col items-center text-center gap-3",
+                      eatingWindow.isWindowEnded
+                        ? "bg-amber-500/10 border-amber-500/40 text-amber-800 dark:text-amber-200"
+                        : "bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-emerald-500/10 border-amber-500/30"
+                    )}>
+                      <div className="flex items-center justify-center gap-2 font-extrabold text-base text-amber-600 dark:text-amber-400">
+                        <Utensils className="w-5 h-5 text-amber-500" />
+                        <span>
+                          {eatingWindow.isWindowEnded
+                            ? "⏰ Ventana de Alimentación Cumplida"
+                            : "🍽️ ¡Estás en tu Ventana de Alimentación!"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground max-w-md leading-relaxed">
+                        {eatingWindow.isWindowEnded
+                          ? `Han pasado las ${eatingWindow.targetEatingHours} horas de tu ventana de comida. Es recomendable cerrar tu última ingesta e iniciar tu siguiente ayuno para descansar tu sistema digestivo.`
+                          : `Aprovecha esta ventana de ${eatingWindow.targetEatingHours}h para realizar comidas ricas en proteínas, grasas saludables y nutrientes de calidad sin prisas.`}
+                      </p>
+
+                      {eatingWindow.lastFast?.firstMeal && (
+                        <div className="w-full bg-card/60 p-2.5 rounded-xl border text-xs text-left">
+                          <span className="font-semibold text-foreground">🥗 Rompiste ayuno con: </span>
+                          <span className="text-muted-foreground">{eatingWindow.lastFast.firstMeal}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Ring Visual de la Ventana de Alimentación */}
+                    <div className="relative w-64 h-64 md:w-72 md:h-72 flex items-center justify-center">
+                      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                        {/* Track ring */}
+                        <circle
+                          cx="50"
+                          cy="50"
+                          r="42"
+                          stroke="currentColor"
+                          strokeWidth="7"
+                          className="text-muted/30"
+                          fill="transparent"
+                        />
+                        {/* Progress ring */}
+                        <circle
+                          cx="50"
+                          cy="50"
+                          r="42"
+                          stroke="url(#gradientEating)"
+                          strokeWidth="7"
+                          strokeDasharray={263.89}
+                          strokeDashoffset={263.89 - (263.89 * Math.min(100, eatingWindow.progressPercent || 0)) / 100}
+                          strokeLinecap="round"
+                          className="transition-all duration-1000 ease-out"
+                          fill="transparent"
+                        />
+                        <defs>
+                          <linearGradient id="gradientEating" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#f59e0b" />
+                            <stop offset="50%" stopColor="#f97316" />
+                            <stop offset="100%" stopColor="#10b981" />
+                          </linearGradient>
+                        </defs>
+                      </svg>
+
+                      {/* Info central del reloj de comida */}
+                      <div className="absolute flex flex-col items-center text-center p-4">
+                        <span className="text-4xl md:text-5xl font-black tracking-tight text-foreground font-mono">
+                          {formatHoursMinutes(eatingWindow.elapsedMinutes)}
+                        </span>
+                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mt-1">
+                          de {eatingWindow.targetEatingHours}h ventana
+                        </span>
+                        <div className={cn(
+                          "mt-2 text-xs font-medium px-2.5 py-0.5 rounded-full",
+                          eatingWindow.isWindowEnded
+                            ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold"
+                            : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                        )}>
+                          {eatingWindow.isWindowEnded
+                            ? "Tiempo de Iniciar Siguiente Ayuno"
+                            : `Quedan ${formatHoursMinutes(eatingWindow.remainingMinutes)}`}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Métricas de la Ventana */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 w-full max-w-lg bg-muted/40 p-4 rounded-2xl border text-center text-sm">
+                      <div>
+                        <div className="text-muted-foreground text-xs">Apertura Ventana</div>
+                        <div className="font-semibold text-foreground">
+                          {new Date(eatingWindow.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground text-xs">Cierre Recomendado</div>
+                        <div className="font-semibold text-amber-600 dark:text-amber-400">
+                          {new Date(eatingWindow.expectedEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                      <div className="col-span-2 sm:col-span-1">
+                        <div className="text-muted-foreground text-xs">Estado</div>
+                        <div className="font-semibold text-foreground">
+                          {eatingWindow.isWindowEnded ? "Expirada" : "Activa"}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Formulario y Botón para Iniciar el Siguiente Ayuno */}
+                    <div className="w-full max-w-lg p-5 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-indigo-500/10 border border-emerald-500/30 flex flex-col gap-3 shadow-md">
+                      <div className="flex items-center justify-between">
+                        <div className="font-bold text-sm text-foreground flex items-center gap-2">
+                          <Timer className="w-4 h-4 text-emerald-500" />
+                          <span>Iniciar Siguiente Ciclo de Ayuno</span>
+                        </div>
+                        <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
+                          Plan {config?.protocol || "16:8"} ({config?.targetFastHours || 16}h)
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        ¿Has terminado tu última comida del día? Inicia tu nuevo ayuno ahora para continuar tu ciclo continuo de 24 horas y mantener tu racha.
+                      </p>
+
+                      <div className="space-y-3 pt-1">
+                        <div className="space-y-1">
+                          <Label className="text-[11px] font-semibold text-muted-foreground">¿Terminaste de comer hace un rato? (Opcional)</Label>
+                          <Input
+                            type="datetime-local"
+                            value={startTimeOverride}
+                            onChange={(e) => setStartTimeOverride(e.target.value)}
+                            className="rounded-xl text-xs h-9"
+                          />
+                        </div>
+
+                        <Button
+                          size="lg"
+                          className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/20 text-sm flex items-center justify-center gap-2"
+                          onClick={() => handleStartFast()}
+                        >
+                          <Play className="w-4 h-4 fill-current" />
+                          Iniciar Siguiente Ayuno Ahora
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. MODO IDLE (SIN AYUNO NI VENTANA PREVIA) */}
+                {fastingMode === "IDLE" && (
                   <div className="flex flex-col items-center justify-center py-12 text-center space-y-6">
                     <div className="w-20 h-20 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 text-emerald-500">
                       <Timer className="w-10 h-10 animate-bounce" />
                     </div>
                     <div className="space-y-2 max-w-md">
-                      <h3 className="text-xl font-bold text-foreground">¿Listo para iniciar tu ayuno?</h3>
+                      <h3 className="text-xl font-bold text-foreground">¿Listo para iniciar tu ciclo de ayuno?</h3>
                       <p className="text-sm text-muted-foreground">
-                        Selecciona tu plan preferido ({config?.protocol || "16:8"}) o personaliza la hora de inicio si empezaste hace un rato.
+                        Selecciona tu plan preferido ({config?.protocol || "16:8"}) o ajusta la hora de inicio si comenzaste después de tu última comida.
                       </p>
                     </div>
 
@@ -655,18 +962,35 @@ export default function FastingPage() {
               </CardContent>
             </Card>
 
-            {/* Columna Derecha: Fase Metabólica Actual e Hidratación */}
+            {/* Columna Derecha: Fase Actual (Metabólica o Nutricional) e Hidratación */}
             <div className="space-y-6">
-              {/* Card de Fase Metabólica */}
-              <Card className="border-cyan-500/20 shadow-lg">
+              {/* Card de Fase Actual (Dinámica según Ayuno o Ventana de Comida) */}
+              <Card className={cn(
+                "shadow-lg border-2",
+                fastingMode === "FASTING" ? "border-cyan-500/20" : fastingMode === "EATING_WINDOW" ? "border-amber-500/30" : "border-muted"
+              )}>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base font-bold flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-cyan-500" />
-                    Fase Metabólica Actual
+                    {fastingMode === "FASTING" ? (
+                      <>
+                        <Activity className="w-4 h-4 text-cyan-500" />
+                        <span>Fase Metabólica Actual (Ayuno)</span>
+                      </>
+                    ) : fastingMode === "EATING_WINDOW" ? (
+                      <>
+                        <Utensils className="w-4 h-4 text-amber-500" />
+                        <span>Fase de la Ventana de Comida</span>
+                      </>
+                    ) : (
+                      <>
+                        <Activity className="w-4 h-4 text-muted-foreground" />
+                        <span>Fase Actual</span>
+                      </>
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {activeFast ? (
+                  {fastingMode === "FASTING" && activeFast ? (
                     <div className="space-y-3">
                       <div className="p-3.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 space-y-2">
                         <div className="flex items-center gap-2 font-bold text-cyan-700 dark:text-cyan-300">
@@ -681,6 +1005,23 @@ export default function FastingPage() {
                       <div className="bg-muted/40 p-3 rounded-xl border text-xs space-y-1">
                         <span className="font-semibold text-emerald-600 dark:text-emerald-400 block">💡 Consejo de Doc:</span>
                         <p className="text-muted-foreground">{activeFast.currentPhase.tips}</p>
+                      </div>
+                    </div>
+                  ) : fastingMode === "EATING_WINDOW" && eatingWindow ? (
+                    <div className="space-y-3">
+                      <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-2">
+                        <div className="flex items-center gap-2 font-bold text-amber-700 dark:text-amber-300">
+                          <span className="text-2xl">{eatingWindow.currentPhase.icon}</span>
+                          <span>{eatingWindow.currentPhase.phase}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          {eatingWindow.currentPhase.detailDesc}
+                        </p>
+                      </div>
+
+                      <div className="bg-muted/40 p-3 rounded-xl border text-xs space-y-1">
+                        <span className="font-semibold text-amber-600 dark:text-amber-400 block">💡 Consejo Nutricional de Doc:</span>
+                        <p className="text-muted-foreground">{eatingWindow.currentPhase.tips}</p>
                       </div>
                     </div>
                   ) : (
@@ -748,40 +1089,113 @@ export default function FastingPage() {
             </div>
           </div>
 
-          {/* Timeline Completo de Fases Metabólicas */}
-          <Card className="border-muted">
-            <CardHeader>
-              <CardTitle className="text-lg font-bold flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-amber-500" />
-                Línea de Tiempo de Fases Metabólicas
-              </CardTitle>
-              <CardDescription>
-                Descubre lo que sucede en tu organismo en cada etapa del ayuno.
-              </CardDescription>
+          {/* Timeline Completo: Selector entre Fases Metabólicas (Ayuno) y Fases de Ventana de Alimentación (Comida) */}
+          <Card className="border-muted shadow-lg">
+            <CardHeader className="pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-lg font-bold flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-amber-500" />
+                    Línea de Tiempo del Ciclo Completo
+                  </CardTitle>
+                  <CardDescription>
+                    Conoce en detalle lo que sucede en tu organismo tanto en la fase de ayuno como en la ventana de alimentación.
+                  </CardDescription>
+                </div>
+
+                <div className="flex items-center gap-1.5 bg-muted/60 p-1 rounded-xl border w-fit">
+                  <Button
+                    size="sm"
+                    variant={timelineTab === "fasting" ? "default" : "ghost"}
+                    className={cn("rounded-lg text-xs font-semibold h-8", timelineTab === "fasting" && "bg-emerald-600 hover:bg-emerald-700 text-white")}
+                    onClick={() => setTimelineTab("fasting")}
+                  >
+                    <Flame className="w-3.5 h-3.5 mr-1" />
+                    Fases Metabólicas (Ayuno)
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={timelineTab === "eating" ? "default" : "ghost"}
+                    className={cn("rounded-lg text-xs font-semibold h-8", timelineTab === "eating" && "bg-amber-600 hover:bg-amber-700 text-white")}
+                    onClick={() => setTimelineTab("eating")}
+                  >
+                    <Utensils className="w-3.5 h-3.5 mr-1" />
+                    Ventana para Comer ({config?.targetEatingHours || 8}h)
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                {METABOLIC_TIMELINE.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className={cn(
-                      "p-4 rounded-2xl border transition-all duration-200 hover:shadow-md space-y-2 relative overflow-hidden",
-                      activeFast && activeFast.elapsedHours >= (idx === 0 ? 0 : idx === 1 ? 4 : idx === 2 ? 8 : idx === 3 ? 12 : 16) && activeFast.elapsedHours < (idx === 0 ? 4 : idx === 1 ? 8 : idx === 2 ? 12 : idx === 3 ? 16 : 999)
-                        ? "border-emerald-500 ring-2 ring-emerald-500/30 bg-emerald-500/5"
-                        : "bg-card/50"
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-2xl">{item.icon}</span>
-                      <Badge variant="secondary" className="text-[10px] font-bold">
-                        {item.hours}
-                      </Badge>
-                    </div>
-                    <h4 className="font-bold text-sm text-foreground">{item.title}</h4>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{item.desc}</p>
-                  </div>
-                ))}
-              </div>
+              {timelineTab === "fasting" ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                  {METABOLIC_TIMELINE.map((item, idx) => {
+                    const isCurrentPhase = activeFast && (
+                      (idx === 0 && activeFast.elapsedHours < 4) ||
+                      (idx === 1 && activeFast.elapsedHours >= 4 && activeFast.elapsedHours < 8) ||
+                      (idx === 2 && activeFast.elapsedHours >= 8 && activeFast.elapsedHours < 12) ||
+                      (idx === 3 && activeFast.elapsedHours >= 12 && activeFast.elapsedHours < 16) ||
+                      (idx === 4 && activeFast.elapsedHours >= 16)
+                    );
+                    return (
+                      <div
+                        key={idx}
+                        className={cn(
+                          "p-4 rounded-2xl border transition-all duration-200 hover:shadow-md space-y-2 relative overflow-hidden",
+                          isCurrentPhase
+                            ? "border-emerald-500 ring-2 ring-emerald-500/30 bg-emerald-500/10"
+                            : "bg-card/50"
+                        )}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-2xl">{item.icon}</span>
+                          <Badge
+                            variant={isCurrentPhase ? "default" : "secondary"}
+                            className={cn("text-[10px] font-bold", isCurrentPhase && "bg-emerald-600 text-white")}
+                          >
+                            {item.hours}
+                          </Badge>
+                        </div>
+                        <h4 className="font-bold text-sm text-foreground">{item.title}</h4>
+                        <p className="text-xs text-muted-foreground leading-relaxed">{item.desc}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {EATING_TIMELINE.map((item, idx) => {
+                    const isCurrentEatingPhase = eatingWindow && (
+                      (idx === 0 && eatingWindow.elapsedHours < 1.5) ||
+                      (idx === 1 && eatingWindow.elapsedHours >= 1.5 && eatingWindow.elapsedHours < Math.max(1.5, eatingWindow.targetEatingHours - 2)) ||
+                      (idx === 2 && eatingWindow.elapsedHours >= Math.max(1.5, eatingWindow.targetEatingHours - 2) && eatingWindow.elapsedHours <= eatingWindow.targetEatingHours) ||
+                      (idx === 3 && eatingWindow.elapsedHours > eatingWindow.targetEatingHours)
+                    );
+                    return (
+                      <div
+                        key={idx}
+                        className={cn(
+                          "p-4 rounded-2xl border transition-all duration-200 hover:shadow-md space-y-2 relative overflow-hidden",
+                          isCurrentEatingPhase
+                            ? "border-amber-500 ring-2 ring-amber-500/30 bg-amber-500/10"
+                            : "bg-card/50"
+                        )}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-2xl">{item.icon}</span>
+                          <Badge
+                            variant={isCurrentEatingPhase ? "default" : "secondary"}
+                            className={cn("text-[10px] font-bold", isCurrentEatingPhase && "bg-amber-600 text-white")}
+                          >
+                            {item.hours}
+                          </Badge>
+                        </div>
+                        <h4 className="font-bold text-sm text-foreground">{item.title}</h4>
+                        <p className="text-xs text-muted-foreground leading-relaxed">{item.desc}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
