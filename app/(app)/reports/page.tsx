@@ -72,8 +72,11 @@ function ReportsContent() {
   const [gaData, setGaData] = useState<GAMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [gaToken, setGaToken] = useState("");
+  const [metaToken, setMetaToken] = useState("");
+  const [showManualMeta, setShowManualMeta] = useState(false);
   const [connectingGA, setConnectingGA] = useState(false);
   const [connectingMeta, setConnectingMeta] = useState(false);
+  const [connectingManualMeta, setConnectingManualMeta] = useState(false);
   const { selectedOrg } = useOrganization();
   const searchParams = useSearchParams();
 
@@ -137,7 +140,7 @@ function ReportsContent() {
   const connectMeta = async () => {
     setConnectingMeta(true);
     try {
-      const appId = "26660198940346902";
+      const appId = process.env.NEXT_PUBLIC_META_APP_ID || "26660198940346902";
       const redirectUri = `${window.location.origin}/api/integrations/meta/callback`;
       const scope = "ads_read,pages_show_list,pages_read_engagement,business_management";
       const authUrl =
@@ -151,6 +154,35 @@ function ReportsContent() {
       toast.error("Error al iniciar conexión con Meta");
       console.error("Error connecting Meta:", error);
       setConnectingMeta(false);
+    }
+  };
+
+  const connectManualMeta = async () => {
+    if (!metaToken.trim()) {
+      toast.error("Introduce un token de acceso de Meta");
+      return;
+    }
+    setConnectingManualMeta(true);
+    try {
+      const res = await fetch("/api/integrations/meta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken: metaToken.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMetaToken("");
+        setShowManualMeta(false);
+        toast.success("✅ Meta Ads conectado correctamente");
+        fetchAllData();
+      } else {
+        toast.error(data.error || "Token de Meta inválido o sin permisos");
+      }
+    } catch (err) {
+      toast.error("Error al conectar con Meta");
+      console.error("Manual meta connect error:", err);
+    } finally {
+      setConnectingManualMeta(false);
     }
   };
 
@@ -341,13 +373,45 @@ function ReportsContent() {
                     </>
                   ) : (
                     <>
-                      <Link2 className="h-4 w-4 mr-2" /> Conectar con Meta
+                      <Link2 className="h-4 w-4 mr-2" /> Conectar con Meta (OAuth)
                     </>
                   )}
                 </Button>
-                <p className="text-xs text-muted-foreground">
-                  Serás redirigido a Facebook para autorizar el acceso
-                </p>
+
+                <div className="pt-2 border-t border-border/50">
+                  <button
+                    type="button"
+                    onClick={() => setShowManualMeta(!showManualMeta)}
+                    className="text-xs text-muted-foreground hover:text-foreground flex items-center justify-between w-full font-medium py-1 transition-colors"
+                  >
+                    <span>¿Prefieres conectar con Token de Acceso?</span>
+                    <span className="text-[11px] text-primary">{showManualMeta ? "Ocultar" : "Mostrar"}</span>
+                  </button>
+
+                  {showManualMeta && (
+                    <div className="mt-2.5 space-y-2 animate-in fade-in duration-200">
+                      <div className="flex gap-2">
+                        <input
+                          type="password"
+                          placeholder="Token de acceso (Graph API)..."
+                          value={metaToken}
+                          onChange={(e) => setMetaToken(e.target.value)}
+                          className="flex-1 px-3 py-2 rounded-md border border-input bg-background text-sm"
+                        />
+                        <Button
+                          onClick={connectManualMeta}
+                          disabled={connectingManualMeta || !metaToken.trim()}
+                          size="sm"
+                        >
+                          {connectingManualMeta ? <Loader2 className="h-4 w-4 animate-spin" /> : "Conectar"}
+                        </Button>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground leading-normal">
+                        Introduce un User o System Token de Meta Business con permisos <code>ads_read</code>. Se detectará tu cuenta publicitaria automáticamente.
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </CardContent>

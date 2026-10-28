@@ -84,19 +84,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Token inválido" }, { status: 400 });
     }
 
+    let finalAdAccountId = adAccountId;
+    let finalAdAccountName = adAccountName;
+
+    if (!finalAdAccountId) {
+      try {
+        const accountsRes = await fetch(
+          `https://graph.facebook.com/v18.0/me/adaccounts?fields=id,name&access_token=${accessToken}`
+        );
+        const accountsData = await accountsRes.json();
+        if (accountsData.data && accountsData.data.length > 0) {
+          finalAdAccountId = accountsData.data[0].id;
+          finalAdAccountName = accountsData.data[0].name;
+        }
+      } catch (accErr) {
+        console.error("Error auto-fetching ad accounts for token:", accErr);
+      }
+    }
+
     await prisma.metaConnection.upsert({
       where: { userId: authResult.userId },
       create: {
         userId: authResult.userId,
         accessToken,
-        adAccountId: adAccountId || null,
-        adAccountName: adAccountName || null,
+        adAccountId: finalAdAccountId || null,
+        adAccountName: finalAdAccountName || null,
         status: "CONNECTED",
       },
       update: {
         accessToken,
-        adAccountId: adAccountId || null,
-        adAccountName: adAccountName || null,
+        adAccountId: finalAdAccountId || null,
+        adAccountName: finalAdAccountName || null,
         status: "CONNECTED",
         updatedAt: new Date(),
       },

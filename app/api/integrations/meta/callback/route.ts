@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(reportsUrl);
   }
 
-  const appId = process.env.META_APP_ID;
+  const appId = process.env.META_APP_ID || process.env.NEXT_PUBLIC_META_APP_ID || "26660198940346902";
   const appSecret = process.env.META_APP_SECRET;
 
   if (!appId || !appSecret) {
@@ -38,7 +38,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/meta/callback`;
+    const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || request.nextUrl.host;
+    const proto = request.headers.get("x-forwarded-proto") || (request.url.startsWith("https") ? "https" : "http");
+    const origin = `${proto}://${host}`;
+    const redirectUri = `${origin}/api/integrations/meta/callback`;
 
     const tokenRes = await fetch(
       `https://graph.facebook.com/v18.0/oauth/access_token?` +
