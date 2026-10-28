@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Copy, Check, Terminal } from "lucide-react";
+import PlanActionCard from "./PlanActionCard";
 
 interface Block {
   type: "paragraph" | "heading" | "list" | "ordered-list" | "code" | "blockquote" | "table";
@@ -326,7 +327,13 @@ function parseMarkdown(text: string): Block[] {
   return blocks;
 }
 
-export default function MarkdownRenderer({ content }: { content: string }) {
+export default function MarkdownRenderer({
+  content,
+  projectId,
+}: {
+  content: string;
+  projectId?: string | null;
+}) {
   if (!content) return null;
 
   const blocks = parseMarkdown(content);
@@ -350,6 +357,21 @@ export default function MarkdownRenderer({ content }: { content: string }) {
             );
 
           case "code":
+            if (
+              block.lang?.includes("task-plan") ||
+              (block.lang?.toLowerCase() === "json" &&
+                block.content?.includes('"phases"') &&
+                block.content?.includes('"pipelineName"'))
+            ) {
+              try {
+                const planData = JSON.parse(block.content || "");
+                if (planData && Array.isArray(planData.phases) && planData.phases.length > 0) {
+                  return <PlanActionCard key={idx} planData={planData} projectId={projectId} />;
+                }
+              } catch {
+                // fallback to code block
+              }
+            }
             return <CodeBlock key={idx} code={block.content || ""} lang={block.lang} />;
 
           case "blockquote":

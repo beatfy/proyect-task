@@ -20,6 +20,7 @@ const AGENTS: Record<string, { name: string; emoji: string; description: string 
 /* ── Templates por agente ── */
 const AGENT_TEMPLATES: Record<string, { label: string; prompt: string; emoji: string }[]> = {
   "doc": [
+    { label: "Plan de Negocio y Lanzamiento", prompt: "Hazme un plan de negocio y lanzamiento completo para este proyecto, estructurado por fases, tareas accionables, subtareas, prioridades y fechas.", emoji: "🚀" },
     { label: "Organizar mi día", prompt: "Ayúdame a organizar mis tareas de hoy usando la cola de enfoque y mi nivel de energía actual.", emoji: "🧠" },
     { label: "Superar parálisis de inicio", prompt: "Tengo que empezar una tarea pesada pero siento parálisis. Ayúdame a descomponerla con micro-pasos.", emoji: "⚡" },
     { label: "Revisar Focus Flow", prompt: "Muéstrame la lista de mis tareas activas en el Focus Flow y ayúdame a priorizarlas o aliviar su carga emocional.", emoji: "📊" },
@@ -774,7 +775,7 @@ export default function AgentChatPage() {
                   )}
                 >
                   {msg.role === "assistant" ? (
-                    <MarkdownRenderer content={msg.content} />
+                    <MarkdownRenderer content={msg.content} projectId={selectedClient?.id} />
                   ) : (
                     <p className="whitespace-pre-wrap font-medium">{msg.content}</p>
                   )}

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { authenticateRequest } from "@/lib/api-auth";
 import { agentRateLimit } from "@/lib/ai-rate-limit";
 import { cuid } from "@/lib/utils";
+import { executePlanToPipeline, PlanData } from "@/lib/plan-executor";
 import crypto, { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 
@@ -243,6 +244,38 @@ export async function POST(req: NextRequest) {
         `   - GET ${appBaseUrl}/api/mail/inbox — Leer correos electrónicos (?folder=INBOX|Sent|Drafts|Trash&limit=X).\n` +
         `   - GET ${appBaseUrl}/api/mail/<id> — Obtener el contenido de un correo (?folder=X).\n` +
         `   - POST ${appBaseUrl}/api/mail/send — Enviar un correo electrónico vía SMTP. Cuerpo JSON: { to: "destinatario@ejemplo.com", subject: "asunto", body: "cuerpo del mensaje" }.\n\n` +
+        `4. Generación de Planes de Negocio y Proyectos (Estilo Notion AI):\n` +
+        `   Cuando el usuario te pida crear un plan de negocio, plan de proyecto, estrategia de lanzamiento, roadmap o plan estructurado para un cliente:\n` +
+        `   a) Explica detalladamente el plan en tu respuesta con buen formato Markdown (resumen ejecutivo, fases, tareas, estrategia, análisis).\n` +
+        `   b) OBLIGATORIO: Al final de tu mensaje, incluye SIEMPRE un bloque de código estructurado con la sintaxis exacta \`\`\`json:task-plan ... \`\`\` con el siguiente formato JSON para que el usuario pueda cargarlo en el proyecto con un solo clic o diciendo "ahora carga el plan":\n` +
+        `\`\`\`json:task-plan\n` +
+        `{\n` +
+        `  "pipelineName": "Plan de Negocio: Nombre del Proyecto",\n` +
+        `  "description": "Breve descripción del plan",\n` +
+        `  "phases": [\n` +
+        `    {\n` +
+        `      "name": "Fase 1: Validación y Mercado",\n` +
+        `      "color": "#3b82f6",\n` +
+        `      "tasks": [\n` +
+        `        {\n` +
+        `          "title": "Entrevistas de validación con clientes",\n` +
+        `          "description": "Detalle de la tarea y objetivo.",\n` +
+        `          "priority": "HIGH",\n` +
+        `          "daysFromNow": 3,\n` +
+        `          "subtasks": [\n` +
+        `            "Paso 1: Redactar guión de preguntas",\n` +
+        `            "Paso 2: Agendar 15 llamadas"\n` +
+        `          ],\n` +
+        `          "comments": [\n` +
+        `            "Consejo clave de Doc sobre esta tarea"\n` +
+        `          ]\n` +
+        `        }\n` +
+        `      ]\n` +
+        `    }\n` +
+        `  ]\n` +
+        `}\n` +
+        `\`\`\`\n` +
+        `   c) Asegúrate de incluir subtareas (subtasks como checklist accionable), comentarios (tus recomendaciones y pautas clave como coach) y daysFromNow (días desde hoy para calcular la fecha de entrega en el calendario).\n\n` +
         `Usa estas APIs de forma autónoma cuando el usuario te pida crear tareas, enviar correos, leer emails de su bandeja, facturas, configurar cobros, dividirlas, consultar su cola, aliviar el peso de una tarea o dar seguimiento a su día. ¡Tú eres su coach de confianza!\n` +
         `[FIN DE INSTRUCCIONES OPERATIVAS]`;
     } else if (orgApiKey) {
@@ -273,6 +306,115 @@ export async function POST(req: NextRequest) {
       take: 20,
       select: { role: true, content: true },
     });
+
+    // Helper to extract plan from text
+    const extractPlanFromText = (text: string): PlanData | null => {
+      if (!text) return null;
+      const match = text.match(/```(?:json:task-plan|task-plan)\s*([\s\S]*?)```/);
+      if (match) {
+        try {
+          return JSON.parse(match[1].trim());
+        } catch {
+          return null;
+        }
+      }
+      return null;
+    };
+
+    // Intent detection for loading/importing the plan into tasks/pipeline
+    const isLoadPlanIntent =
+      /^\s*(ahora\s+)?(carga(r)?|ejecuta(r)?|pasa(r)?|crea(r)?|importa(r)?)\s+(el\s+|este\s+)?(plan|proyecto|tareas|pipeline)/i.test(message.trim()) ||
+      /^\s*c[aá]rgalo(\s+en\s+el\s+(proyecto|tablero|pipeline|cliente))?\s*$/i.test(message.trim()) ||
+      /^(cargar?\s+el\s+plan|ahora\s+c[aá]rgalo|pasa(r)?\s+a\s+tareas|crear?\s+pipeline)$/i.test(message.trim());
+
+    if (isLoadPlanIntent && agentId === "doc") {
+      let planToExecute: PlanData | null = null;
+
+      // 1. Search in client history (most recent assistant message)
+      if (history && Array.isArray(history)) {
+        for (let i = history.length - 1; i >= 0; i--) {
+          if (history[i]?.role === "assistant" && typeof history[i].content === "string") {
+            const found = extractPlanFromText(history[i].content);
+            if (found) {
+              planToExecute = found;
+              break;
+            }
+          }
+        }
+      }
+
+      // 2. Search in dbHistory
+      if (!planToExecute && dbHistory && dbHistory.length > 0) {
+        for (const item of dbHistory) {
+          if (item.role === "assistant" && typeof item.content === "string") {
+            const found = extractPlanFromText(item.content);
+            if (found) {
+              planToExecute = found;
+              break;
+            }
+          }
+        }
+      }
+
+      // 3. Fallback: check last assistant message in database
+      if (!planToExecute) {
+        const lastMsg = await prisma.chatMessage.findFirst({
+          where: { userId: authResult.userId, agentId, role: "assistant" },
+          orderBy: { createdAt: "desc" },
+        });
+        if (lastMsg) {
+          planToExecute = extractPlanFromText(lastMsg.content);
+        }
+      }
+
+      if (planToExecute) {
+        try {
+          const execution = await executePlanToPipeline({
+            planData: planToExecute,
+            userId: authResult.userId,
+            projectId: projectId || null,
+          });
+
+          const reply = `🚀 **¡Plan cargado con éxito en el sistema!**\n\n` +
+            `He creado el nuevo pipeline **"${execution.pipelineName}"** dentro de tu cliente **${execution.projectName}** con:\n` +
+            `- **${execution.totalStages} etapas/fases** del plan de negocio.\n` +
+            `- **${execution.totalTasks} tareas principales** con prioridades y fechas estimadas en el calendario.\n` +
+            `- **${execution.totalSubtasks} subtareas** organizadas como checklist paso a paso.\n` +
+            `- **${execution.totalComments} comentarios** con mis recomendaciones estratégicas.\n\n` +
+            `👉 [📂 Abrir Tablero del Proyecto](${execution.url})`;
+
+          // Save user message
+          await prisma.chatMessage.create({
+            data: {
+              id: cuid(),
+              userId: authResult.userId,
+              projectId: projectId || null,
+              role: "user",
+              content: message,
+              organizationId: organizationId || null,
+              agentId,
+            },
+          });
+
+          // Save assistant confirmation
+          await prisma.chatMessage.create({
+            data: {
+              id: cuid(),
+              userId: authResult.userId,
+              projectId: projectId || null,
+              role: "assistant",
+              content: reply,
+              organizationId: organizationId || null,
+              agentId,
+            },
+          });
+
+          return NextResponse.json({ response: reply, planExecution: execution });
+        } catch (planErr: any) {
+          console.error("Error executing plan from chat intent:", planErr);
+        }
+      }
+    }
 
     // Save user message
     await prisma.chatMessage.create({

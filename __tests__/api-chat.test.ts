@@ -49,6 +49,12 @@ const mockPrisma = {
     findFirst: jest.fn().mockResolvedValue({ id: "key-1", userId: "user-1", permissions: "full" }),
     update: jest.fn().mockResolvedValue({}),
   },
+  $executeRaw: jest.fn().mockResolvedValue(0),
+  rateLimit: {
+    findUnique: jest.fn().mockResolvedValue(null),
+    create: jest.fn().mockResolvedValue({}),
+    upsert: jest.fn().mockResolvedValue({ count: 1 }),
+  },
 };
 
 jest.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));

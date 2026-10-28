@@ -1,8 +1,8 @@
 "use client";
 
 import { use, useState, useEffect, useRef, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { Plus, Users, Trash2, MoreHorizontal, Pencil, Calendar, User, Loader2, Link2, Copy, Check, Mail, ChevronDown, X, Download, Clock, Tag, Upload, Paperclip, FileText, CheckSquare } from "lucide-react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { Plus, Users, Trash2, MoreHorizontal, Pencil, Calendar, User, Loader2, Link2, Copy, Check, Mail, ChevronDown, X, Download, Clock, Tag, Upload, Paperclip, FileText, CheckSquare, Rocket, LayoutGrid, Kanban as KanbanIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -60,6 +60,20 @@ interface Subtask {
   status: string;
 }
 
+interface TaskPipelineStage {
+  id: string;
+  name: string;
+  position: number;
+  color: string;
+}
+
+interface TaskPipeline {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  stages: TaskPipelineStage[];
+}
+
 interface Task {
   id: string;
   title: string;
@@ -69,6 +83,7 @@ interface Task {
   dueDate: string | null;
   assignee: { id: string; name: string | null; email: string } | null;
   assignees?: Assignee[];
+  pipelineId?: string | null;
   stageId?: string | null;
   stage?: { id: string; name: string } | null;
 }
@@ -210,12 +225,13 @@ function SortableTaskCard({ task, onEdit, onDelete, position, totalCount, column
   );
 }
 
-function KanbanBoard({ tasks, setTasks, onTaskClick, handleDeleteTask, projectId }: {
+function KanbanBoard({ tasks, setTasks, onTaskClick, handleDeleteTask, projectId, customStages }: {
   tasks: Task[];
   setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
   onTaskClick: (task: Task) => void;
   handleDeleteTask: (id: string) => void;
   projectId: string;
+  customStages?: TaskPipelineStage[] | null;
 }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [originalStatus, setOriginalStatus] = useState<string | null>(null);
@@ -223,6 +239,10 @@ function KanbanBoard({ tasks, setTasks, onTaskClick, handleDeleteTask, projectId
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor)
   );
+
+  const activeColumns = customStages && customStages.length > 0
+    ? customStages.map(s => ({ id: s.id, title: s.name, color: s.color || "#3b82f6" }))
+    : columns;
 
   const getTasksByStatus = (s: string) =>
     tasks.filter((t) => {
@@ -277,7 +297,7 @@ function KanbanBoard({ tasks, setTasks, onTaskClick, handleDeleteTask, projectId
         setTasks(prev => prev.map(t => t.id === taskId ? updated : t));
         toast.success(`Tarea movida a ${statusLabels[newStatus] || newStatus}`);
       } else {
-          // Revert optimistic update
+        // Revert optimistic update
         setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: rollbackStatus } : t));
         toast.error("Error al mover tarea");
       }
@@ -313,6 +333,31 @@ function KanbanBoard({ tasks, setTasks, onTaskClick, handleDeleteTask, projectId
       return;
     }
 
+    if (customStages && customStages.length > 0) {
+      let targetStageId: string | null = null;
+      if (typeof over.id === "string" && over.id.startsWith("column-")) {
+        targetStageId = over.id.replace("column-", "");
+      } else {
+        const overTask = tasks.find(t => t.id === over.id);
+        if (overTask) targetStageId = overTask.stageId || customStages[0].id;
+      }
+
+      if (targetStageId && activeTask.stageId !== targetStageId) {
+        const targetStageObj = customStages.find(s => s.id === targetStageId);
+        setTasks(prev => prev.map(t => t.id === activeTask.id ? { ...t, stageId: targetStageId, stage: targetStageObj } : t));
+        fetch("/api/tasks", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: activeTask.id, stageId: targetStageId }),
+        }).then(r => {
+          if (!r.ok) toast.error("Error al mover tarea");
+          else toast.success(`Tarea movida a ${targetStageObj?.name || "etapa"}`);
+        }).catch(() => toast.error("Error de conexión"));
+      }
+      setOriginalStatus(null);
+      return;
+    }
+
     let targetStatus: string | null = null;
     if (typeof over.id === "string" && over.id.startsWith("column-")) {
       targetStatus = over.id.replace("column-", "");
@@ -333,13 +378,21 @@ function KanbanBoard({ tasks, setTasks, onTaskClick, handleDeleteTask, projectId
   return (
     <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
       <div className="flex gap-4 overflow-x-auto pb-4">
-        {columns.map((col) => {
-          const colTasks = getTasksByStatus(col.id);
+        {activeColumns.map((col) => {
+          const colTasks = customStages && customStages.length > 0
+            ? tasks.filter(t => t.stageId === col.id || (!t.stageId && col.id === customStages[0].id))
+            : getTasksByStatus(col.id);
+
+          const isHex = col.color.startsWith("#");
+
           return (
             <div key={col.id} className="flex-1 min-w-[280px] max-w-[350px]">
               <div className="flex items-center gap-2 mb-3 px-1">
-                <div className={cn("w-3 h-3 rounded-full", col.color)} />
-                <h3 className="font-medium text-sm text-foreground">{col.title}</h3>
+                <div
+                  className={cn("w-3 h-3 rounded-full flex-shrink-0", !isHex && col.color)}
+                  style={isHex ? { backgroundColor: col.color } : undefined}
+                />
+                <h3 className="font-medium text-sm text-foreground truncate">{col.title}</h3>
                 <span className="text-xs text-muted-foreground ml-auto">{colTasks.length}</span>
               </div>
               <DroppableColumn id={`column-${col.id}`} label={col.title}>
@@ -381,12 +434,23 @@ function KanbanBoard({ tasks, setTasks, onTaskClick, handleDeleteTask, projectId
 export default function ProjectDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const projectId = params.id as string;
 
   const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [pipelines, setPipelines] = useState<TaskPipeline[]>([]);
+  const [selectedPipelineId, setSelectedPipelineId] = useState<string>("all");
+
+  useEffect(() => {
+    const pId = searchParams.get("pipelineId");
+    if (pId) {
+      setSelectedPipelineId(pId);
+    }
+  }, [searchParams]);
 
   const [taskOpen, setTaskOpen] = useState(false);
   const [memberOpen, setMemberOpen] = useState(false);
@@ -479,6 +543,7 @@ export default function ProjectDetailPage() {
     fetchProject();
     fetchTasks();
     fetchMembers();
+    fetchPipelines();
   }, [projectId]);
 
   // Close assignee dropdown on outside click
@@ -491,6 +556,16 @@ export default function ProjectDetailPage() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  const fetchPipelines = async () => {
+    try {
+      const res = await fetch(`/api/tasks/pipelines?projectId=${projectId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setPipelines(data);
+      }
+    } catch {}
+  };
 
   const fetchProject = async () => {
     try {
@@ -746,6 +821,21 @@ export default function ProjectDetailPage() {
     );
   }
 
+  const activePipeline = pipelines.find((p) => p.id === selectedPipelineId);
+  const customStages =
+    activePipeline && !activePipeline.isDefault && activePipeline.stages && activePipeline.stages.length > 0
+      ? activePipeline.stages
+      : null;
+
+  const filteredTasks =
+    selectedPipelineId === "all"
+      ? tasks
+      : tasks.filter(
+          (t) =>
+            t.pipelineId === selectedPipelineId ||
+            (pipelines.find((p) => p.id === selectedPipelineId)?.isDefault && !t.pipelineId)
+        );
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -814,13 +904,74 @@ export default function ProjectDetailPage() {
         </Card>
       )}
 
+      {/* Pipeline Selector / Tableros del Cliente */}
+      {pipelines.length > 0 && (
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+          <button
+            onClick={() => setSelectedPipelineId("all")}
+            className={cn(
+              "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shadow-sm border",
+              selectedPipelineId === "all"
+                ? "bg-foreground text-background border-foreground shadow"
+                : "bg-card text-muted-foreground hover:text-foreground border-border hover:bg-muted/50"
+            )}
+          >
+            <LayoutGrid className="w-3.5 h-3.5" />
+            <span>Todas las tareas</span>
+            <span
+              className={cn(
+                "ml-1 text-[10px] px-1.5 py-0.5 rounded-full font-bold",
+                selectedPipelineId === "all" ? "bg-background/20 text-background" : "bg-muted text-muted-foreground"
+              )}
+            >
+              {tasks.length}
+            </span>
+          </button>
+
+          {pipelines.map((p) => {
+            const isPlan = !p.isDefault;
+            const count = tasks.filter((t) => t.pipelineId === p.id || (p.isDefault && !t.pipelineId)).length;
+            const isSelected = selectedPipelineId === p.id;
+
+            return (
+              <button
+                key={p.id}
+                onClick={() => setSelectedPipelineId(p.id)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shadow-sm border whitespace-nowrap",
+                  isSelected
+                    ? "bg-primary text-primary-foreground border-primary shadow"
+                    : "bg-card text-muted-foreground hover:text-foreground border-border hover:border-primary/40 hover:bg-primary/5"
+                )}
+              >
+                {isPlan ? (
+                  <Rocket className="w-3.5 h-3.5 text-orange-400" />
+                ) : (
+                  <KanbanIcon className="w-3.5 h-3.5" />
+                )}
+                <span>{p.name}</span>
+                <span
+                  className={cn(
+                    "ml-1 text-[10px] px-1.5 py-0.5 rounded-full font-bold",
+                    isSelected ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Kanban */}
       <KanbanBoard
-        tasks={tasks}
+        tasks={filteredTasks}
         setTasks={setTasks}
         onTaskClick={(task) => { setDetailTask(task); setDetailOpen(true); }}
         handleDeleteTask={handleDeleteTask}
         projectId={projectId}
+        customStages={customStages}
       />
 
       {/* Context Editor Dialog */}
