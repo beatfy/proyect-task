@@ -8,6 +8,8 @@ import crypto, { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+export const runtime = "nodejs";
 
 const INNIX_BASE = process.env.INNIX_BASE || "https://agents.beatfy.net/agent";
 
@@ -469,6 +471,52 @@ export async function POST(req: NextRequest) {
     }
 
     const finalUserMessage = `${message}${documentsContext}`.trim();
+
+    // Async Runs pattern for Doc (immune to Vercel Hobby 60s function timeouts)
+    if (agentId === "doc") {
+      const sessionId = projectId
+        ? `doc_${authResult.userId}_${projectId}`
+        : `doc_${authResult.userId}`;
+
+      let fullInput = finalUserMessage;
+      if (clientContext) {
+        fullInput = `${clientContext}\n\n---\n${fullInput}`;
+      }
+
+      const runsUrl = `${INNIX_BASE}/${agentConfig.path}/v1/runs`;
+      const idempotencyKey = cuid();
+
+      try {
+        const runRes = await fetch(runsUrl, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${agentConfig.apiKey}`,
+            "Content-Type": "application/json",
+            "Idempotency-Key": idempotencyKey,
+          },
+          body: JSON.stringify({
+            input: fullInput,
+            model: agentConfig.path,
+            session_id: sessionId,
+          }),
+        });
+
+        if (runRes.ok) {
+          const runData = await runRes.json();
+          return NextResponse.json({
+            async: true,
+            run_id: runData.run_id,
+            status: runData.status,
+            session_id: sessionId,
+          });
+        }
+
+        const runErrText = await runRes.text().catch(() => "");
+        console.error(`Runs initiation failed [${runRes.status}]:`, runErrText);
+      } catch (runErr) {
+        console.error("Error initiating run, falling back to sync completions:", runErr);
+      }
+    }
 
     messages.push({ role: "user", content: finalUserMessage });
 

@@ -83,6 +83,12 @@ export default function AgentChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [runStatus, setRunStatus] = useState<{
+    runId: string;
+    status: string;
+    lastEvent?: string | null;
+    elapsed: number;
+  } | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("chat");
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -432,6 +438,67 @@ export default function AgentChatPage() {
           ...prev,
           { role: "assistant", content: `⚠️ Error: ${data.error}` },
         ]);
+        return;
+      }
+
+      if (data.async && data.run_id) {
+        setRunStatus({
+          runId: data.run_id,
+          status: data.status || "started",
+          elapsed: 0,
+        });
+
+        const runId = data.run_id;
+        const startTime = Date.now();
+        let completed = false;
+        let attempts = 0;
+
+        while (!completed && attempts < 120) {
+          attempts++;
+          await new Promise((r) => setTimeout(r, 3000));
+
+          try {
+            const pollUrl = `/api/agents/runs/${runId}?agentId=${encodeURIComponent(agentId)}${selectedClient ? `&projectId=${encodeURIComponent(selectedClient.id)}` : ""}`;
+            const pollRes = await fetch(pollUrl);
+
+            if (pollRes.ok) {
+              const pollData = await pollRes.json();
+              const elapsedSec = Math.floor((Date.now() - startTime) / 1000);
+
+              setRunStatus({
+                runId,
+                status: pollData.status,
+                lastEvent: pollData.last_event,
+                elapsed: elapsedSec,
+              });
+
+              if (pollData.completed || pollData.status === "completed") {
+                completed = true;
+                setMessages((prev) => [
+                  ...prev,
+                  { role: "assistant", content: pollData.output || "Sin respuesta del agente" },
+                ]);
+                break;
+              } else if (pollData.status === "failed" || pollData.status === "cancelled") {
+                completed = true;
+                setMessages((prev) => [
+                  ...prev,
+                  { role: "assistant", content: `⚠️ ${pollData.error || "El turno del agente fue interrumpido"}` },
+                ]);
+                break;
+              }
+            }
+          } catch (pollErr) {
+            console.warn("Poll retry...", pollErr);
+          }
+        }
+
+        if (!completed) {
+          setMessages((prev) => [
+            ...prev,
+            { role: "assistant", content: "⚠️ El agente sigue procesando en segundo plano. Puedes refrescar el chat en unos segundos para ver su respuesta." },
+          ]);
+        }
       } else {
         setMessages((prev) => [
           ...prev,
@@ -445,6 +512,7 @@ export default function AgentChatPage() {
       ]);
     } finally {
       setIsLoading(false);
+      setRunStatus(null);
     }
   };
 
@@ -788,11 +856,26 @@ export default function AgentChatPage() {
                 <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/15 flex items-center justify-center flex-shrink-0 shadow-sm mt-1 animate-pulse">
                   <span className="text-sm">{agent.emoji}</span>
                 </div>
-                <div className="bg-muted/40 dark:bg-card border border-border/40 rounded-2xl rounded-tl-sm px-5 py-4 shadow-sm flex items-center justify-center">
+                <div className="bg-muted/40 dark:bg-card border border-border/40 rounded-2xl rounded-tl-sm px-5 py-3.5 shadow-sm flex flex-col gap-2 min-w-[220px]">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-primary flex-shrink-0" />
+                    <span className="text-xs font-semibold text-foreground">
+                      {runStatus?.lastEvent?.includes("tool")
+                        ? "Doc está ejecutando herramientas..."
+                        : runStatus?.status === "queued"
+                        ? "En cola esperando turno..."
+                        : "Doc está pensando y redactando..."}
+                    </span>
+                    {runStatus && runStatus.elapsed > 0 && (
+                      <span className="text-[11px] text-muted-foreground ml-auto font-mono">
+                        {runStatus.elapsed}s
+                      </span>
+                    )}
+                  </div>
                   <div className="flex gap-1.5 items-center">
-                    <span className="w-2 h-2 bg-primary/70 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                    <span className="w-2 h-2 bg-primary/70 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                    <span className="w-2 h-2 bg-primary/70 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                    <span className="w-1.5 h-1.5 bg-primary/70 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="w-1.5 h-1.5 bg-primary/70 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="w-1.5 h-1.5 bg-primary/70 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                   </div>
                 </div>
               </div>
