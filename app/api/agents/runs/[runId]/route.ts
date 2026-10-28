@@ -16,7 +16,7 @@ const AGENT_CONFIG: Record<string, { path: string; apiKey: string }> = {
 
 export async function GET(
   req: NextRequest,
-  context: { params: Promise<{ runId: string }> | { runId: string } }
+  context: { params: Promise<{ runId: string }> }
 ) {
   try {
     const authResult = await authenticateRequest(req);
@@ -24,8 +24,7 @@ export async function GET(
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const resolvedParams = await Promise.resolve(context.params);
-    const runId = resolvedParams.runId;
+    const { runId } = await context.params;
 
     if (!runId) {
       return NextResponse.json({ error: "runId requerido" }, { status: 400 });
