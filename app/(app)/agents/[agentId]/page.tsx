@@ -590,7 +590,7 @@ export default function AgentChatPage() {
                   value={projectSearch}
                   onChange={(e) => setProjectSearch(e.target.value)}
                   placeholder="Buscar proyecto..."
-                  className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border bg-card text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all shadow-sm"
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border bg-card text-neutral-900 dark:text-neutral-50 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all shadow-sm"
                 />
               </div>
             )}
@@ -838,7 +838,7 @@ export default function AgentChatPage() {
                   className={cn(
                     "max-w-[85%] sm:max-w-[75%] min-w-0 break-words rounded-2xl px-5 py-3.5 shadow-sm text-sm leading-relaxed",
                     msg.role === "user"
-                      ? "bg-gradient-to-br from-[var(--mediterranean-terracotta)] to-[#e27d5f] text-white rounded-tr-sm shadow-md"
+                      ? "bg-gradient-to-br from-[#d95d39] to-[#e27d5f] text-white font-medium rounded-tr-sm shadow-md"
                       : "bg-muted/45 dark:bg-card border border-border/40 text-foreground rounded-tl-sm"
                   )}
                 >
@@ -959,7 +959,7 @@ export default function AgentChatPage() {
                   : `Escribe un mensaje a ${agent.name}...`
                 }
                 rows={1}
-                className="flex-1 resize-none bg-transparent px-2 py-2.5 text-sm focus:outline-none max-h-32 min-h-[40px] text-foreground placeholder-muted-foreground"
+                className="flex-1 resize-none bg-transparent px-2 py-2.5 text-sm focus:outline-none max-h-32 min-h-[40px] text-neutral-900 dark:text-neutral-50 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 font-normal"
                 onInput={(e) => {
                   const target = e.target as HTMLTextAreaElement;
                   target.style.height = "auto";
@@ -969,7 +969,7 @@ export default function AgentChatPage() {
               <button
                 onClick={() => sendMessage()}
                 disabled={(!input.trim() && activeDocIds.length === 0) || isLoading}
-                className="p-3 rounded-xl bg-gradient-to-br from-[var(--mediterranean-terracotta)] to-[#e27d5f] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow flex-shrink-0"
+                className="p-3 rounded-xl bg-gradient-to-br from-[#d95d39] to-[#e27d5f] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow flex-shrink-0"
               >
                 {isLoading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -1018,7 +1018,7 @@ export default function AgentChatPage() {
                     </button>
                     <button
                       onClick={() => useTemplate(tmpl.prompt)}
-                      className="px-4 py-2 rounded-xl bg-gradient-to-br from-[var(--mediterranean-terracotta)] to-[#e27d5f] text-white text-xs font-semibold hover:opacity-90 shadow-sm transition-all"
+                      className="px-4 py-2 rounded-xl bg-gradient-to-br from-[#d95d39] to-[#e27d5f] text-white text-xs font-semibold hover:opacity-90 shadow-sm transition-all"
                     >
                       Usar plantilla
                     </button>

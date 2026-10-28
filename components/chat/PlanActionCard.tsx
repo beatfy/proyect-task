@@ -77,7 +77,7 @@ export default function PlanActionCard({ planData, projectId }: PlanActionCardPr
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--mediterranean-terracotta)] to-[#e27d5f] flex items-center justify-center text-white shadow-sm flex-shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#d95d39] to-[#e27d5f] flex items-center justify-center text-white shadow-sm flex-shrink-0">
             <Rocket className="w-5 h-5" />
           </div>
           <div>
@@ -195,7 +195,7 @@ export default function PlanActionCard({ planData, projectId }: PlanActionCardPr
             <Button
               onClick={handleExecute}
               disabled={loading}
-              className="w-full sm:w-auto bg-gradient-to-br from-[var(--mediterranean-terracotta)] to-[#e27d5f] hover:opacity-90 text-white rounded-xl text-xs font-semibold px-4 py-2 gap-2 shadow-sm transition-all"
+              className="w-full sm:w-auto bg-gradient-to-br from-[#d95d39] to-[#e27d5f] hover:opacity-90 text-white rounded-xl text-xs font-semibold px-4 py-2 gap-2 shadow-sm transition-all"
             >
               {loading ? (
                 <>

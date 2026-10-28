@@ -28,6 +28,7 @@
 
     --brand-primary: #0f172a;
     --brand-accent: #3b82f6;
+    --mediterranean-terracotta: #d95d39;
   }
 
   .dark {
@@ -54,6 +55,7 @@
 
     --brand-primary: #f8fafc;
     --brand-accent: #60a5fa;
+    --mediterranean-terracotta: #e27d5f;
   }
 }
 

@@ -411,7 +411,7 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
                   className={cn(
                     "max-w-[85%] min-w-0 break-words rounded-2xl px-4 py-2.5 text-sm shadow-sm leading-relaxed",
                     msg.role === "user"
-                      ? "bg-gradient-to-br from-[var(--mediterranean-terracotta)] to-[#e27d5f] text-white rounded-tr-xs shadow-md"
+                      ? "bg-gradient-to-br from-[#d95d39] to-[#e27d5f] text-white rounded-tr-xs shadow-md font-medium"
                       : "bg-muted/45 dark:bg-card border border-border/40 text-foreground rounded-tl-xs"
                   )}
                 >
@@ -461,7 +461,7 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
                 projectId ? "Escribe un mensaje..." : "Navega a un proyecto primero"
               }
               rows={1}
-              className="flex-1 resize-none bg-transparent px-2.5 py-2 text-sm focus:outline-none max-h-24 min-h-[36px] text-foreground placeholder-muted-foreground"
+              className="flex-1 resize-none bg-transparent px-2.5 py-2 text-sm focus:outline-none max-h-24 min-h-[36px] text-neutral-900 dark:text-neutral-50 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 font-normal"
               onInput={(e) => {
                 const target = e.target as HTMLTextAreaElement;
                 target.style.height = "auto";
@@ -471,7 +471,7 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
             <button
               onClick={() => sendMessage()}
               disabled={!input.trim() || isLoading}
-              className="p-2.5 rounded-xl bg-gradient-to-br from-[var(--mediterranean-terracotta)] to-[#e27d5f] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow flex-shrink-0"
+              className="p-2.5 rounded-xl bg-gradient-to-br from-[#d95d39] to-[#e27d5f] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow flex-shrink-0"
             >
               {isLoading ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
