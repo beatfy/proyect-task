@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
     });
     const userName = userDetails?.name || userDetails?.email || "Usuario";
 
-    const { agentId, message, history, projectId, documentIds } = await req.json();
+    const { agentId, message, history, projectId, documentIds, sessionId: clientSessionId } = await req.json();
 
     if (!agentId || typeof agentId !== "string") {
       return NextResponse.json({ error: "agentId es requerido" }, { status: 400 });
@@ -474,9 +474,12 @@ export async function POST(req: NextRequest) {
 
     // Async Runs pattern for Doc (immune to Vercel Hobby 60s function timeouts)
     if (agentId === "doc") {
-      const sessionId = projectId
+      const baseSessionId = projectId
         ? `doc_${authResult.userId}_${projectId}`
         : `doc_${authResult.userId}`;
+      const sessionId = clientSessionId && typeof clientSessionId === "string" && clientSessionId.trim()
+        ? `${baseSessionId}_${clientSessionId.trim()}`
+        : baseSessionId;
 
       let fullInput = finalUserMessage;
       if (clientContext) {

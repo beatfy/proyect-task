@@ -2,9 +2,9 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ArrowLeft, Send, Bot, Loader2, Copy, Check, MessageSquare, FileText, Building2, X, ChevronRight, Search, Paperclip, Trash2, Mic, MicOff } from "lucide-react";
+import { ArrowLeft, Send, Bot, Loader2, Copy, Check, MessageSquare, FileText, Building2, X, ChevronRight, Search, Paperclip, Trash2, Mic, MicOff, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, cuid } from "@/lib/utils";
 import { toast } from "sonner";
 import MarkdownRenderer from "@/components/chat/MarkdownRenderer";
 
@@ -81,8 +81,22 @@ export default function AgentChatPage() {
   const templates = AGENT_TEMPLATES[agentId] || [];
 
   const [messages, setMessages] = useState<Message[]>([]);
+  const [sessionId, setSessionId] = useState<string>(() => cuid());
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleNewChat = () => {
+    setSessionId(cuid());
+    setMessages([]);
+    setInput("");
+    setRunStatus(null);
+    setIsLoading(false);
+    setActiveTab("chat");
+    toast.success("Nuevo chat iniciado");
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
+  };
   const [runStatus, setRunStatus] = useState<{
     runId: string;
     status: string;
@@ -226,6 +240,7 @@ export default function AgentChatPage() {
   /* Iniciar siempre con pantalla limpia al cambiar de agente o cliente */
   useEffect(() => {
     setMessages([]);
+    setSessionId(cuid());
   }, [agentId, selectedClient?.id]);
 
   /* Cargar proyectos */
@@ -421,6 +436,7 @@ export default function AgentChatPage() {
         message: prefixedMessage,
         history: messages.slice(-20).map((m) => ({ role: m.role, content: m.content })),
         documentIds: activeDocIds,
+        sessionId,
       };
       if (!isPersonalAgent && selectedClient) {
         body.projectId = selectedClient.id;
@@ -729,53 +745,64 @@ export default function AgentChatPage() {
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex gap-1 p-1 rounded-xl bg-muted/60 dark:bg-neutral-800/40 mb-5 flex-shrink-0 w-max max-w-full shadow-inner mx-4 md:mx-6 animate-in fade-in duration-300">
+      {/* Tabs y Acciones */}
+      <div className="flex items-center justify-between gap-3 mb-5 mx-4 md:mx-6 flex-wrap animate-in fade-in duration-300">
+        <div className="flex gap-1 p-1 rounded-xl bg-muted/60 dark:bg-neutral-800/40 flex-shrink-0 shadow-inner">
+          <button
+            onClick={() => setActiveTab("chat")}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 text-xs md:text-sm font-semibold rounded-lg transition-all duration-200",
+              activeTab === "chat"
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-card/20"
+            )}
+          >
+            <MessageSquare className="w-4 h-4 text-primary" />
+            <span>Chat</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("templates")}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 text-xs md:text-sm font-semibold rounded-lg transition-all duration-200",
+              activeTab === "templates"
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-card/20"
+            )}
+          >
+            <FileText className="w-4 h-4 text-primary" />
+            <span>Plantillas</span>
+            {templates.length > 0 && (
+              <span className="ml-1 text-[10px] bg-primary/10 text-primary font-bold rounded-full px-1.5 py-0.5">
+                {templates.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab("documents")}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 text-xs md:text-sm font-semibold rounded-lg transition-all duration-200",
+              activeTab === "documents"
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-card/20"
+            )}
+          >
+            <Paperclip className="w-4 h-4 text-primary" />
+            <span>Documentos</span>
+            {allDocuments.length > 0 && (
+              <span className="ml-1 text-[10px] bg-primary/10 text-primary font-bold rounded-full px-1.5 py-0.5">
+                {allDocuments.length}
+              </span>
+            )}
+          </button>
+        </div>
+
         <button
-          onClick={() => setActiveTab("chat")}
-          className={cn(
-            "flex items-center gap-2 px-4 py-2 text-xs md:text-sm font-semibold rounded-lg transition-all duration-200",
-            activeTab === "chat"
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground hover:bg-card/20"
-          )}
+          onClick={handleNewChat}
+          className="flex items-center gap-2 px-3.5 py-2 text-xs md:text-sm font-semibold rounded-xl border border-border bg-card hover:bg-muted text-foreground hover:text-primary transition-all shadow-sm hover:shadow active:scale-95 group ml-auto"
+          title="Iniciar una conversación nueva con pantalla limpia"
         >
-          <MessageSquare className="w-4 h-4 text-primary" />
-          <span>Chat</span>
-        </button>
-        <button
-          onClick={() => setActiveTab("templates")}
-          className={cn(
-            "flex items-center gap-2 px-4 py-2 text-xs md:text-sm font-semibold rounded-lg transition-all duration-200",
-            activeTab === "templates"
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground hover:bg-card/20"
-          )}
-        >
-          <FileText className="w-4 h-4 text-primary" />
-          <span>Plantillas</span>
-          {templates.length > 0 && (
-            <span className="ml-1 text-[10px] bg-primary/10 text-primary font-bold rounded-full px-1.5 py-0.5">
-              {templates.length}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => setActiveTab("documents")}
-          className={cn(
-            "flex items-center gap-2 px-4 py-2 text-xs md:text-sm font-semibold rounded-lg transition-all duration-200",
-            activeTab === "documents"
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground hover:bg-card/20"
-          )}
-        >
-          <Paperclip className="w-4 h-4 text-primary" />
-          <span>Documentos</span>
-          {allDocuments.length > 0 && (
-            <span className="ml-1 text-[10px] bg-primary/10 text-primary font-bold rounded-full px-1.5 py-0.5">
-              {allDocuments.length}
-            </span>
-          )}
+          <Plus className="w-4 h-4 text-primary group-hover:rotate-90 transition-transform duration-200" />
+          <span>Nuevo chat</span>
         </button>
       </div>
 
