@@ -13,62 +13,7 @@ export async function GET(req: NextRequest) {
 
     const userId = authResult.userId;
 
-    // 1. Obtener estado de ayuno activo
-    const [activeFast, config] = await Promise.all([
-      prisma.fastingLog.findFirst({
-        where: { userId, endTime: null },
-        orderBy: { startTime: "desc" },
-      }),
-      prisma.fastingConfig.findUnique({
-        where: { userId },
-      }),
-    ]);
-
-    let fastingInfo = null;
-    if (activeFast) {
-      const now = new Date();
-      const elapsedMs = Math.max(0, now.getTime() - new Date(activeFast.startTime).getTime());
-      const elapsedHours = Number((elapsedMs / (1000 * 60 * 60)).toFixed(1));
-      const targetHours = activeFast.targetHours || 16;
-      const progressPercent = Math.min(100, Math.round((elapsedHours / targetHours) * 100));
-
-      let phase = "Digestión";
-      let phaseIcon = "🥗";
-      if (elapsedHours >= 16) {
-        phase = "Autofagia y Renovación";
-        phaseIcon = "🧬";
-      } else if (elapsedHours >= 12) {
-        phase = "Pico de Cetosis y Enfoque Mental";
-        phaseIcon = "⚡";
-      } else if (elapsedHours >= 8) {
-        phase = "Quema de Grasa Activa";
-        phaseIcon = "🔥";
-      } else if (elapsedHours >= 4) {
-        phase = "Estabilización de Insulina";
-        phaseIcon = "📉";
-      }
-
-      fastingInfo = {
-        active: true,
-        protocol: activeFast.protocol,
-        elapsedHours,
-        targetHours,
-        progressPercent,
-        phase,
-        phaseIcon,
-        isFocusPeak: elapsedHours >= 12 && elapsedHours <= 18,
-        waterDrankMl: config?.waterDrankMl || 0,
-        waterGoalMl: config?.waterGoalMl || 2500,
-      };
-    } else {
-      fastingInfo = {
-        active: false,
-        waterDrankMl: config?.waterDrankMl || 0,
-        waterGoalMl: config?.waterGoalMl || 2500,
-      };
-    }
-
-    // 2. Top 3 tareas prioritarias del día
+    // 1. Top 3 tareas prioritarias del día
     const today = new Date();
     today.setHours(23, 59, 59, 999);
 
@@ -103,23 +48,20 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // 3. Recomendación diaria de productividad & biohacking
+    // 2. Recomendación diaria de productividad
     let recommendation = "";
     const hour = new Date().getHours();
 
-    if (fastingInfo.active && fastingInfo.isFocusPeak) {
-      recommendation = "⚡ Estás en tu pico metabólico de cetosis (12h-16h). Aprovecha las próximas horas para avanzar en tus tareas de máxima complejidad antes de romper el ayuno.";
-    } else if (hour < 12) {
-      recommendation = "🌅 Mañana enfocada: Dedica tu primer bloque del día a tu tarea más urgente. Mantén una buena hidratación con agua o infusiones.";
+    if (hour < 12) {
+      recommendation = "🌅 Mañana enfocada: Dedica tu primer bloque del día a tu tarea más prioritaria.";
     } else if (hour < 18) {
       recommendation = "🎯 Tarde productiva: Revisa tus avances del día y define los próximos entregables clave.";
     } else {
-      recommendation = "🌙 Cierre de jornada: Planifica el inicio de tu ayuno nocturno para favorecer el descanso y la regeneración celular.";
+      recommendation = "🌙 Cierre de jornada: Repasa lo completado hoy y deja preparadas tus prioridades para mañana.";
     }
 
     return NextResponse.json({
       success: true,
-      fastingInfo,
       topTasks,
       recommendation,
     });

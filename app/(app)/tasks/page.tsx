@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { Plus, MoreHorizontal, User, Pencil, Trash2, FolderOpen, LayoutGrid, List, Table, Calendar, MessageSquare, Paperclip, ChevronDown, ChevronUp, X, Upload, File, Image, FileText, Timer, Play, Square, LayoutTemplate, Download, Share2, Maximize2, Clock, CheckCircle2, Circle, AlertCircle, Copy, ChevronRight } from "lucide-react";
+import { Plus, MoreHorizontal, User, Pencil, Trash2, FolderOpen, LayoutGrid, List, Table, Calendar, MessageSquare, Paperclip, ChevronDown, ChevronUp, X, Upload, File, Image, FileText, Timer, Play, Square, LayoutTemplate, Download, Share2, Maximize2, Clock, CheckCircle2, Circle, AlertCircle, Copy, ChevronRight, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -250,6 +250,21 @@ function TasksPageContent() {
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [subtaskTitle, setSubtaskTitle] = useState("");
   const [showSubtasks, setShowSubtasks] = useState(true);
+
+  // Subtareas en el popup de creación de tarea
+  const [createSubtasks, setCreateSubtasks] = useState<string[]>([]);
+  const [createSubtaskInput, setCreateSubtaskInput] = useState("");
+
+  const handleAddCreateSubtask = () => {
+    const trimmed = createSubtaskInput.trim();
+    if (!trimmed) return;
+    setCreateSubtasks((prev) => [...prev, trimmed]);
+    setCreateSubtaskInput("");
+  };
+
+  const handleRemoveCreateSubtask = (index: number) => {
+    setCreateSubtasks((prev) => prev.filter((_, i) => i !== index));
+  };
 
   // Detail panel states
   const [editingTitle, setEditingTitle] = useState(false);
@@ -583,6 +598,8 @@ function TasksPageContent() {
     setAssignedTo("");
     setProjectId("none");
     setAssigneeIds([]);
+    setCreateSubtasks([]);
+    setCreateSubtaskInput("");
   };
 
   const toggleAssignee = (userId: string) => {
@@ -603,6 +620,11 @@ function TasksPageContent() {
     }
 
     try {
+      const finalSubtasks = [...createSubtasks];
+      if (createSubtaskInput.trim()) {
+        finalSubtasks.push(createSubtaskInput.trim());
+      }
+
       const response = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -615,6 +637,7 @@ function TasksPageContent() {
           assigneeIds: assigneeIds.length > 0 ? assigneeIds : undefined,
           pipelineId: activePipeline?.id || null,
           stageId: stageId || stagesToRender[0]?.id || null,
+          subtasks: finalSubtasks.length > 0 ? finalSubtasks : undefined,
         }),
       });
 
@@ -1300,6 +1323,77 @@ function TasksPageContent() {
                   className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-foreground"
                 />
               )}
+            </div>
+
+            {/* Subtareas dentro de la tarea */}
+            <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-between">
+                <Label className="text-slate-700 dark:text-slate-300 font-medium text-xs flex items-center gap-1.5">
+                  <CheckSquare className="h-3.5 w-3.5 text-primary" />
+                  <span>Subtareas ({createSubtasks.length})</span>
+                </Label>
+                {createSubtasks.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setCreateSubtasks([])}
+                    className="text-[11px] text-muted-foreground hover:text-destructive transition-colors"
+                  >
+                    Borrar todas
+                  </button>
+                )}
+              </div>
+
+              {/* Lista de subtareas añadidas */}
+              {createSubtasks.length > 0 && (
+                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                  {createSubtasks.map((st, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                        <span className="text-foreground truncate">{st}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveCreateSubtask(idx)}
+                        className="text-muted-foreground hover:text-destructive p-0.5 rounded transition-colors"
+                        title="Eliminar subtarea"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Campo para añadir subtarea */}
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Añadir subtarea..."
+                  value={createSubtaskInput}
+                  onChange={(e) => setCreateSubtaskInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddCreateSubtask();
+                    }
+                  }}
+                  className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-foreground h-8 text-xs flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleAddCreateSubtask}
+                  disabled={!createSubtaskInput.trim()}
+                  className="h-8 px-2.5 text-xs shrink-0"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  Añadir
+                </Button>
+              </div>
             </div>
           </div>
           <div className="flex-shrink-0 pt-4">

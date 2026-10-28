@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckSquare, AlertCircle, Loader2, FolderOpen, TrendingUp, BarChart3, Building2, Bot, Wrench, Zap, Timer, Flame, Sparkles, ArrowRight, Droplets } from "lucide-react";
+import { CheckSquare, AlertCircle, Loader2, FolderOpen, TrendingUp, BarChart3, Building2, Bot, Wrench, Zap, Flame, Sparkles, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import {
   Select,
@@ -16,18 +16,6 @@ import {
 import { useOrganization } from "@/lib/organization-context";
 
 interface BriefingData {
-  fastingInfo: {
-    active: boolean;
-    protocol?: string;
-    elapsedHours?: number;
-    targetHours?: number;
-    progressPercent?: number;
-    phase?: string;
-    phaseIcon?: string;
-    isFocusPeak?: boolean;
-    waterDrankMl: number;
-    waterGoalMl: number;
-  };
   topTasks: Array<{
     id: string;
     title: string;
@@ -196,44 +184,19 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Morning Briefing Widget (Ayuno + Top Tareas + Recomendación) */}
+      {/* Daily Focus Briefing Widget (Top Tareas + Recomendación) */}
       {briefing && (
         <Card className="border-emerald-500/25 shadow-md bg-gradient-to-br from-card via-card to-emerald-500/5 relative overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500" />
           <CardContent className="p-5">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
-              {/* Resumen de Salud & Recomendación */}
+              {/* Recomendación de Enfoque */}
               <div className="lg:col-span-2 space-y-3">
                 <div className="flex items-center gap-2 flex-wrap">
                   <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
                     <Sparkles className="w-3.5 h-3.5" />
                     <span>Briefing de Enfoque Diario</span>
                   </div>
-
-                  {briefing.fastingInfo.active ? (
-                    <Link
-                      href="/fasting"
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 text-xs font-semibold transition-colors"
-                    >
-                      <Timer className="w-3.5 h-3.5" />
-                      <span>
-                        Ayuno en curso: {briefing.fastingInfo.elapsedHours}h ({briefing.fastingInfo.phase})
-                      </span>
-                    </Link>
-                  ) : (
-                    <Link
-                      href="/fasting"
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted text-muted-foreground hover:text-foreground text-xs font-medium transition-colors"
-                    >
-                      <Timer className="w-3.5 h-3.5" />
-                      <span>Sin ayuno activo · Iniciar hoy</span>
-                    </Link>
-                  )}
-
-                  <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-semibold">
-                    <Droplets className="w-3 h-3" />
-                    <span>{briefing.fastingInfo.waterDrankMl}ml agua</span>
-                  </span>
                 </div>
 
                 <p className="text-sm text-foreground font-medium leading-relaxed">

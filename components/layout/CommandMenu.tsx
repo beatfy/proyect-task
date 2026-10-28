@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   Search,
   CheckSquare,
-  Timer,
-  Droplets,
   Calendar,
   FolderOpen,
   Plus,
@@ -23,7 +21,7 @@ import { cn } from "@/lib/utils";
 
 interface CommandItem {
   id: string;
-  category: "Tareas" | "Ayuno & Salud" | "Mapas Mentales" | "CRM & Facturación" | "IA";
+  category: "Tareas" | "Mapas Mentales" | "CRM & Facturación" | "IA";
   title: string;
   subtitle?: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -52,23 +50,6 @@ export function CommandMenu() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const handleQuickWater = async (amountMl: number) => {
-    setOpen(false);
-    try {
-      const res = await fetch("/api/v1/fasting/water", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amountMl }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        toast.success(`💧 +${amountMl}ml registrados. Total hoy: ${data.waterDrankMl}ml`);
-      }
-    } catch {
-      toast.error("Error al registrar agua");
-    }
-  };
-
   const commands: CommandItem[] = [
     // Tareas
     {
@@ -94,41 +75,6 @@ export function CommandMenu() {
       subtitle: "Gestionar proyectos y miembros de equipo",
       icon: FolderOpen,
       action: () => { router.push("/projects"); setOpen(false); },
-    },
-
-    // Ayuno & Salud
-    {
-      id: "fasting-timer",
-      category: "Ayuno & Salud",
-      title: "Cronómetro de Ayuno Intermitente",
-      subtitle: "Ver estado metabólico, fases y objetivo",
-      icon: Timer,
-      badge: "Salud",
-      action: () => { router.push("/fasting"); setOpen(false); },
-    },
-    {
-      id: "water-250",
-      category: "Ayuno & Salud",
-      title: "Registrar +250ml de Agua (1 Vaso)",
-      subtitle: "Suma un vaso de agua al objetivo diario",
-      icon: Droplets,
-      action: () => handleQuickWater(250),
-    },
-    {
-      id: "water-500",
-      category: "Ayuno & Salud",
-      title: "Registrar +500ml de Agua (1 Botella)",
-      subtitle: "Suma una botella de agua al objetivo diario",
-      icon: Droplets,
-      action: () => handleQuickWater(500),
-    },
-    {
-      id: "doc-ai",
-      category: "Ayuno & Salud",
-      title: "Consultar a Doc IA",
-      subtitle: "Médico especialista en ayuno y nutrición",
-      icon: Bot,
-      action: () => { router.push("/fasting"); setOpen(false); },
     },
 
     // Mapas Mentales
@@ -218,7 +164,7 @@ export function CommandMenu() {
                 autoFocus
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Escribe un comando o busca una sección... (ej: agua, tareas, ayuno)"
+                placeholder="Escribe un comando o busca una sección... (ej: tareas, proyectos, crm, mapa)"
                 className="w-full bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground font-medium"
               />
               <button

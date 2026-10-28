@@ -10,11 +10,36 @@ jest.mock("@/lib/prisma", () => ({
     task: {
       findMany: jest.fn(),
       create: jest.fn(),
+      createMany: jest.fn(),
       update: jest.fn(),
       findUnique: jest.fn(),
     },
     user: {
       findUnique: jest.fn(),
+    },
+    organizationMember: {
+      findMany: jest.fn().mockResolvedValue([]),
+      findUnique: jest.fn().mockResolvedValue(null),
+    },
+    taskPipeline: {
+      findFirst: jest.fn().mockResolvedValue({
+        id: "pipe-1",
+        stages: [{ id: "stage-1", name: "Por hacer", position: 0 }],
+      }),
+      create: jest.fn().mockResolvedValue({
+        id: "pipe-1",
+        stages: [{ id: "stage-1", name: "Por hacer", position: 0 }],
+      }),
+    },
+    taskPipelineStage: {
+      findFirst: jest.fn().mockResolvedValue({ id: "stage-1", name: "Por hacer", position: 0 }),
+      findUnique: jest.fn().mockResolvedValue({ id: "stage-1", name: "Por hacer", position: 0 }),
+    },
+    project: {
+      findUnique: jest.fn().mockResolvedValue({ id: "proj-1", name: "Project 1", organizationId: null, members: [{ id: "m-1" }] }),
+    },
+    projectMember: {
+      findUnique: jest.fn().mockResolvedValue({ role: "MEMBER" }),
     },
     notification: {
       create: jest.fn(),
@@ -160,5 +185,34 @@ describe("POST /api/tasks", () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.assignedTo).toBe("john@test.com");
+  });
+
+  it("creates a task with subtasks successfully", async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: "user-1" });
+
+    const createdTask = {
+      id: "t-parent", title: "Parent Task", description: null, status: "TODO", priority: "NONE",
+      project: null, assignee: null, taskAssignees: [],
+    };
+    (prisma.task.create as jest.Mock).mockResolvedValue(createdTask);
+    (prisma.task.createMany as jest.Mock).mockResolvedValue({ count: 2 });
+
+    const res = await tasksPost(makePostRequest({
+      title: "Parent Task",
+      subtasks: ["Subtarea 1", "Subtarea 2"],
+    }));
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.title).toBe("Parent Task");
+    expect(prisma.task.createMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.arrayContaining([
+          expect.objectContaining({ title: "Subtarea 1", parentId: "t-parent" }),
+          expect.objectContaining({ title: "Subtarea 2", parentId: "t-parent" }),
+        ]),
+      })
+    );
+    expect(data.subtasks).toHaveLength(2);
   });
 });

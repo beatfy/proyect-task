@@ -34,8 +34,6 @@ model User {
   metaConnection MetaConnection?
   gaConnection GoogleAnalyticsConnection?
   agentDocuments AgentDocument[]
-  fastingConfig  FastingConfig?
-  fastingLogs    FastingLog[]
   mindMaps       MindMap[]
 }
 
@@ -597,48 +595,6 @@ model TaskPipelineStage {
   updatedAt  DateTime     @updatedAt
 
   @@unique([pipelineId, position])
-}
-
-// ========== AYUNO INTERMITENTE ==========
-
-model FastingConfig {
-  id                   String   @id @default(cuid())
-  userId               String   @unique
-  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  protocol             String   @default("16:8")
-  targetFastHours      Int      @default(16)
-  targetEatingHours    Int      @default(8)
-  waterGoalMl          Int      @default(2500)
-  waterDrankMl         Int      @default(0)
-  waterResetDate       DateTime @default(now())
-  notifyFastStart      Boolean  @default(true)
-  notifyFastEnd        Boolean  @default(true)
-  notifyWaterReminders Boolean  @default(true)
-  startTimePreference  String?  @default("20:00")
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-}
-
-model FastingLog {
-  id          String    @id @default(cuid())
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  protocol    String    @default("16:8")
-  targetHours Int       @default(16)
-  startTime   DateTime
-  endTime     DateTime?
-  completed   Boolean   @default(false)
-  feeling     String?
-  notes       String?
-  firstMeal   String?
-  firstMealEvaluation String?
-  energyLevel Int?      // 1-5
-  clarityLevel Int?     // 1-5
-  hungerLevel Int?      // 1-5
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@index([userId, startTime])
 }
 
 // ========== MAPAS MENTALES ==========

@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Plus, Users, Trash2, MoreHorizontal, Pencil, Calendar, User, Loader2, Link2, Copy, Check, Mail, ChevronDown, X, Download, Clock, Tag, Upload, Paperclip, FileText } from "lucide-react";
+import { Plus, Users, Trash2, MoreHorizontal, Pencil, Calendar, User, Loader2, Link2, Copy, Check, Mail, ChevronDown, X, Download, Clock, Tag, Upload, Paperclip, FileText, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -421,6 +421,21 @@ export default function ProjectDetailPage() {
   const [assigneeDropdownOpen, setAssigneeDropdownOpen] = useState(false);
   const assigneeDropdownRef = useRef<HTMLDivElement>(null);
 
+  // Subtasks for new task creation
+  const [createSubtasks, setCreateSubtasks] = useState<string[]>([]);
+  const [createSubtaskInput, setCreateSubtaskInput] = useState("");
+
+  const handleAddCreateSubtask = () => {
+    const trimmed = createSubtaskInput.trim();
+    if (!trimmed) return;
+    setCreateSubtasks((prev) => [...prev, trimmed]);
+    setCreateSubtaskInput("");
+  };
+
+  const handleRemoveCreateSubtask = (index: number) => {
+    setCreateSubtasks((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const [newMemberEmail, setNewMemberEmail] = useState("");
   const [newMemberRole, setNewMemberRole] = useState("MEMBER");
 
@@ -506,6 +521,8 @@ export default function ProjectDetailPage() {
     setPriority("NONE");
     setDueDate("");
     setAssigneeIds([]);
+    setCreateSubtasks([]);
+    setCreateSubtaskInput("");
     setEditTask(null);
   };
 
@@ -524,6 +541,11 @@ export default function ProjectDetailPage() {
     }
 
     try {
+      const finalSubtasks = [...createSubtasks];
+      if (createSubtaskInput.trim()) {
+        finalSubtasks.push(createSubtaskInput.trim());
+      }
+
       const res = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -535,6 +557,7 @@ export default function ProjectDetailPage() {
           dueDate: dueDate || null,
           projectId,
           assigneeIds: assigneeIds.length > 0 ? assigneeIds : undefined,
+          subtasks: finalSubtasks.length > 0 ? finalSubtasks : undefined,
         }),
       });
 
@@ -1320,6 +1343,78 @@ export default function ProjectDetailPage() {
                 </div>
               )}
             </div>
+
+            {/* Subtareas (al crear tarea) */}
+            {!editTask && (
+              <div className="space-y-2 pt-2 border-t border-border">
+                <div className="flex items-center justify-between">
+                  <Label className="text-foreground font-medium text-xs flex items-center gap-1.5">
+                    <CheckSquare className="h-3.5 w-3.5 text-primary" />
+                    <span>Subtareas ({createSubtasks.length})</span>
+                  </Label>
+                  {createSubtasks.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setCreateSubtasks([])}
+                      className="text-[11px] text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      Borrar todas
+                    </button>
+                  )}
+                </div>
+
+                {createSubtasks.length > 0 && (
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                    {createSubtasks.map((st, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-accent/40 border border-border text-xs"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                          <span className="text-foreground truncate">{st}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCreateSubtask(idx)}
+                          className="text-muted-foreground hover:text-destructive p-0.5 rounded transition-colors"
+                          title="Eliminar subtarea"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Añadir subtarea..."
+                    value={createSubtaskInput}
+                    onChange={(e) => setCreateSubtaskInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddCreateSubtask();
+                      }
+                    }}
+                    className="bg-card border-border text-foreground h-8 text-xs flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleAddCreateSubtask}
+                    disabled={!createSubtaskInput.trim()}
+                    className="h-8 px-2.5 text-xs shrink-0"
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" />
+                    Añadir
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <Button onClick={editTask ? handleEditTask : handleCreateTask} className="w-full">
               {editTask ? "Guardar" : "Crear Tarea"}
             </Button>

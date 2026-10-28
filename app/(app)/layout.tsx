@@ -6,7 +6,7 @@ import {
   Home, FolderOpen, CheckSquare, Calendar, Settings, LogOut,
   ChevronLeft, ChevronRight, Mail, Sun, Moon, Building2,
   Menu, Receipt, ChevronDown, BarChart3, Users, Kanban,
-  Brain, Clock, Sparkles, Network, Layers
+  Brain, Sparkles, Network, Layers
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -50,12 +50,6 @@ const sections = [
       { name: "Mapas Mentales", href: "/mindmaps", icon: Network },
       { name: "Calendario", href: "/calendar", icon: Calendar },
       { name: "Mail", href: "/mail", icon: Mail },
-    ],
-  },
-  {
-    label: "Salud",
-    items: [
-      { name: "Ayuno Intermitente", href: "/fasting", icon: Clock },
     ],
   },
   {

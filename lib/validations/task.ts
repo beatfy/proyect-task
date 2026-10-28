@@ -31,6 +31,10 @@ export const taskCreateSchema = z.object({
   pipelineId: z.string().optional().nullable(),
   stageId: z.string().optional().nullable(),
   tdahMetrics: z.any().optional().nullable(),
+  subtasks: z.array(z.union([
+    z.string(),
+    z.object({ title: z.string() })
+  ])).optional().nullable(),
 });
 
 export const taskUpdateSchema = z.object({
@@ -48,4 +52,8 @@ export const taskUpdateSchema = z.object({
   pipelineId: z.string().optional().nullable(),
   stageId: z.string().optional().nullable(),
   tdahMetrics: z.any().optional().nullable(),
+  subtasks: z.array(z.union([
+    z.string(),
+    z.object({ title: z.string() })
+  ])).optional().nullable(),
 });

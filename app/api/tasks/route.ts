@@ -306,7 +306,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: errors }, { status: 400 });
     }
 
-    const { title, description, status, priority, dueDate, projectId, assignedTo, assigneeId, assigneeIds, parentId, organizationId, pipelineId, stageId, tdahMetrics } = parsed.data;
+    const { title, description, status, priority, dueDate, projectId, assignedTo, assigneeId, assigneeIds, parentId, organizationId, pipelineId, stageId, tdahMetrics, subtasks } = parsed.data;
 
     const { pipelineId: finalPipelineId, stageId: finalStageId } = await syncPipelineAndStage(prisma, {
       projectId: projectId || null,
@@ -432,6 +432,38 @@ export async function POST(request: NextRequest) {
       task.description = shortDesc;
     }
 
+    // Create subtasks if provided
+    let createdSubtasks: Array<{ id: string; title: string; status: string }> = [];
+    if (subtasks && Array.isArray(subtasks) && subtasks.length > 0) {
+      const validSubtaskTitles = subtasks
+        .map(st => typeof st === "string" ? st.trim() : (st as { title?: string })?.title?.trim())
+        .filter((t): t is string => Boolean(t && t.length > 0));
+
+      if (validSubtaskTitles.length > 0) {
+        const subtasksData = validSubtaskTitles.map((stTitle, idx) => ({
+          id: cuid(),
+          title: stTitle,
+          status: "TODO",
+          priority: priority || "NONE",
+          projectId: projectId || null,
+          creatorId: authResult.userId,
+          organizationId: organizationId || null,
+          parentId: task.id,
+          order: idx,
+        }));
+
+        await prisma.task.createMany({
+          data: subtasksData,
+        });
+
+        createdSubtasks = subtasksData.map(st => ({
+          id: st.id,
+          title: st.title,
+          status: st.status,
+        }));
+      }
+    }
+
     await notifyTaskWebhook({
       id: task.id, title, description: task.description, priority,
       dueDate: dueDate ? new Date(dueDate).toISOString() : null,
@@ -444,6 +476,7 @@ export async function POST(request: NextRequest) {
       ...task,
       assignedTo: task.assignee?.email || null,
       assignees: task.taskAssignees.map((ta: { user: unknown }) => ta.user),
+      subtasks: createdSubtasks,
     });
   } catch (error) {
     console.error("Create task error:", error);
