@@ -373,7 +373,7 @@ export default function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
                 <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
                   {projectName
                     ? `Estoy conectada al proyecto "${projectName}". ¿Qué puedo hacer por ti?`
-                    : "Navega a un proyecto en Leadfy para comenzar."}
+                    : "Navega a un proyecto en TaskProject para comenzar."}
                 </p>
               </div>
               {projectName && (

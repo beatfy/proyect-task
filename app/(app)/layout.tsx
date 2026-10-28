@@ -97,7 +97,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   if (!session) return null;
 
-  const brandName = process.env.NEXT_PUBLIC_BRAND_NAME || "taskProject";
+  const brandName = process.env.NEXT_PUBLIC_BRAND_NAME || "TaskProject";
 
   return (
     <TooltipProvider delayDuration={0}>

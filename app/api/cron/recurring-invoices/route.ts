@@ -136,7 +136,7 @@ export async function GET(request: NextRequest) {
               </div>
               <p style="font-size: 12px; color: #94a3b8; text-align: center; margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
                 Esta es una notificación automática de facturación de ${
-                  process.env.NEXT_PUBLIC_BRAND_NAME || "Leadfy"
+                  process.env.NEXT_PUBLIC_BRAND_NAME || "TaskProject"
                 }. Por favor no responda a este correo.
               </p>
             </div>
@@ -149,7 +149,7 @@ export async function GET(request: NextRequest) {
               Authorization: `Bearer ${RESEND_API_KEY}`,
             },
             body: JSON.stringify({
-              from: `${process.env.NEXT_PUBLIC_BRAND_NAME || "Leadfy"} Facturación <onboarding@resend.dev>`,
+              from: `${process.env.NEXT_PUBLIC_BRAND_NAME || "TaskProject"} Facturación <onboarding@resend.dev>`,
               to: project.clientEmail,
               subject: `Factura mensual - ${project.name} (${monthNames[month - 1]} ${year})`,
               html: emailHtml,
