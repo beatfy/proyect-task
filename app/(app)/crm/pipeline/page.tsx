@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +12,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Loader2, Plus, X, Trash2, DollarSign, Calendar, User, GripVertical,
+  Loader2, Plus, Trash2, Calendar, User, GripVertical,
 } from "lucide-react";
 import {
   DragDropContext,
@@ -294,12 +293,12 @@ export default function PipelinePage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Oportunidads</h1>
-          <p className="text-muted-foreground mt-1">{pipeline.name} — {pipeline._count.deals} oportunidads totales</p>
+          <h1 className="text-3xl font-bold text-foreground">Oportunidades</h1>
+          <p className="text-muted-foreground mt-1">{pipeline.name} — {pipeline._count.deals} oportunidades totales</p>
         </div>
         <Button onClick={() => openNewDeal()}>
           <Plus className="h-4 w-4 mr-2" />
-          Nuevo Oportunidad
+          Nueva Oportunidad
         </Button>
       </div>
 
@@ -389,7 +388,7 @@ export default function PipelinePage() {
                     {provided.placeholder}
                     {stage.deals?.length === 0 && !snapshot.isDraggingOver && (
                       <div className="text-center py-8 text-muted-foreground text-xs">
-                        Arrastra oportunidads aquí
+                        Arrastra oportunidades aquí
                       </div>
                     )}
                   </div>
@@ -422,7 +421,7 @@ export default function PipelinePage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>{editingDeal ? "Editar Oportunidad" : "Nuevo Oportunidad"}</DialogTitle>
+            <DialogTitle>{editingDeal ? "Editar Oportunidad" : "Nueva Oportunidad"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -431,7 +430,7 @@ export default function PipelinePage() {
                 id="deal-title"
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
-                placeholder="Nombre del oportunidad / evento"
+                placeholder="Nombre de la oportunidad / evento"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -512,7 +511,7 @@ export default function PipelinePage() {
                 id="deal-notes"
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                placeholder="Notas del oportunidad..."
+                placeholder="Notas de la oportunidad..."
                 rows={3}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               />

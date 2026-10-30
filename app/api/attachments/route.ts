@@ -1,22 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateRequest } from "@/lib/api-auth";
+import { canAccessTask } from "@/lib/authz";
 import { cuid } from "@/lib/utils";
 import { writeFile, mkdir, unlink } from "fs/promises";
 import { join } from "path";
 
 const UPLOAD_DIR = join(process.cwd(), "uploads", "task-attachments");
 
-const ALLOWED_MIME_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-  "application/pdf",
-  "text/plain",
-];
+const MIME_TO_EXT: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/gif": "gif",
+  "image/webp": "webp",
+  "application/pdf": "pdf",
+  "text/plain": "txt",
+};
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB (las imágenes se comprimen en cliente antes de subir)
+const ALLOWED_MIME_TYPES = Object.keys(MIME_TO_EXT);
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 function sanitizeFilename(filename: string): string {
   return filename
@@ -78,6 +81,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "taskId requerido o usa all=true" }, { status: 400 });
     }
 
+    const hasAccess = await canAccessTask(authResult.userId, taskId);
+    if (!hasAccess) {
+      return NextResponse.json({ error: "Sin acceso a esta tarea" }, { status: 403 });
+    }
+
     const attachments = await prisma.attachment.findMany({
       where: { taskId },
       orderBy: { createdAt: "desc" },
@@ -92,7 +100,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST upload attachment → Vercel Blob
+// POST upload attachment
 export async function POST(request: NextRequest) {
   const authResult = await authenticateRequest(request);
   if (!authResult) {
@@ -114,18 +122,23 @@ export async function POST(request: NextRequest) {
     // Validate MIME type — infer from extension if browser doesn't send it
     let mimeType = file.type;
     if (!mimeType) {
-      const fileExt = file.name.split('.').pop()?.toLowerCase();
+      const fileExt = file.name.split(".").pop()?.toLowerCase();
       const mimeMap: Record<string, string> = {
-        jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
-        gif: 'image/gif', webp: 'image/webp', pdf: 'application/pdf',
+        jpg: "image/jpeg",
+        jpeg: "image/jpeg",
+        png: "image/png",
+        gif: "image/gif",
+        webp: "image/webp",
+        pdf: "application/pdf",
+        txt: "text/plain",
       };
-      mimeType = (fileExt && mimeMap[fileExt]) || '';
+      mimeType = (fileExt && mimeMap[fileExt]) || "";
     }
 
     if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
       return NextResponse.json(
         {
-          error: `Tipo de archivo no permitido: ${mimeType || 'desconocido'}. Solo se permiten imágenes (JPEG, PNG, GIF, WebP) y PDF.`,
+          error: `Tipo de archivo no permitido: ${mimeType || "desconocido"}. Solo se permiten imágenes (JPEG, PNG, GIF, WebP), TXT y PDF.`,
         },
         { status: 400 }
       );
@@ -141,14 +154,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Sanitize filename
+    // Verify task existence and access BEFORE touching filesystem (prevents IDOR & path traversal)
+    const hasAccess = await canAccessTask(authResult.userId, taskId);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "No tienes acceso a esta tarea" },
+        { status: 403 }
+      );
+    }
+
+    // Sanitize filename and enforce safe extension derived from validated MIME type
     const safeName = sanitizeFilename(file.name);
     const timestamp = Date.now();
-    const ext = safeName.split(".").pop() || "bin";
+    const ext = MIME_TO_EXT[mimeType] || "bin";
     const uniqueName = `${timestamp}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-    // Save to local filesystem
-    const dirPath = join(UPLOAD_DIR, taskId);
+    // Save to local filesystem using validated taskId
+    const safeTaskId = taskId.replace(/[^a-zA-Z0-9_-]/g, "");
+    const dirPath = join(UPLOAD_DIR, safeTaskId);
     await mkdir(dirPath, { recursive: true });
     const filePath = join(dirPath, uniqueName);
     const bytes = new Uint8Array(await file.arrayBuffer());
@@ -164,7 +187,7 @@ export async function POST(request: NextRequest) {
       data: {
         id: cuid(),
         name: safeName,
-        url: `/api/attachments/${taskId}/${uniqueName}`,
+        url: `/api/attachments/${safeTaskId}/${uniqueName}`,
         type,
         size: file.size,
         taskId,
@@ -181,7 +204,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE attachment → remove from Vercel Blob + DB
+// DELETE attachment
 export async function DELETE(request: NextRequest) {
   const authResult = await authenticateRequest(request);
   if (!authResult) {
@@ -198,7 +221,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const attachment = await prisma.attachment.findUnique({
       where: { id },
-      include: { task: { select: { creatorId: true, assigneeId: true } } },
+      include: { task: { select: { id: true, creatorId: true, assigneeId: true } } },
     });
 
     if (!attachment) {
@@ -208,10 +231,9 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Verify ownership
-    const isCreator = attachment.task.creatorId === authResult.userId;
-    const isAssignee = attachment.task.assigneeId === authResult.userId;
-    if (!isCreator && !isAssignee) {
+    // Verify task access
+    const hasAccess = await canAccessTask(authResult.userId, attachment.taskId);
+    if (!hasAccess) {
       return NextResponse.json(
         { error: "No tienes permisos para eliminar este archivo" },
         { status: 403 }
@@ -220,9 +242,8 @@ export async function DELETE(request: NextRequest) {
 
     // Delete from local filesystem
     try {
-      // Extract relative path from URL like /api/attachments/{taskId}/{filename}
       const urlParts = attachment.url.split("/api/attachments/");
-      if (urlParts[1]) {
+      if (urlParts[1] && !urlParts[1].includes("..")) {
         const localPath = join(UPLOAD_DIR, urlParts[1]);
         await unlink(localPath).catch(() => {});
       }

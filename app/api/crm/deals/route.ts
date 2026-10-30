@@ -145,7 +145,7 @@ export async function PATCH(request: NextRequest) {
 
     const existingDeal = await prisma.deal.findUnique({
       where: { id },
-      select: { organizationId: true },
+      select: { organizationId: true, ownerId: true },
     });
     if (!existingDeal) {
       return NextResponse.json({ error: "Deal no encontrado" }, { status: 404 });
@@ -155,6 +155,8 @@ export async function PATCH(request: NextRequest) {
       if (!valid) {
         return NextResponse.json({ error: "No tienes acceso a este deal" }, { status: 403 });
       }
+    } else if (existingDeal.ownerId !== authResult.userId) {
+      return NextResponse.json({ error: "No tienes acceso a este deal" }, { status: 403 });
     }
 
     const updateData: Record<string, unknown> = {};
@@ -204,7 +206,7 @@ export async function DELETE(request: NextRequest) {
 
     const deal = await prisma.deal.findUnique({
       where: { id },
-      select: { organizationId: true },
+      select: { organizationId: true, ownerId: true },
     });
     if (!deal) {
       return NextResponse.json({ error: "Deal no encontrado" }, { status: 404 });
@@ -214,6 +216,8 @@ export async function DELETE(request: NextRequest) {
       if (!valid) {
         return NextResponse.json({ error: "No tienes acceso a este deal" }, { status: 403 });
       }
+    } else if (deal.ownerId !== authResult.userId) {
+      return NextResponse.json({ error: "No tienes acceso a este deal" }, { status: 403 });
     }
 
     await prisma.deal.delete({ where: { id } });

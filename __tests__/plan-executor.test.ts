@@ -8,6 +8,9 @@ jest.mock("@/lib/prisma", () => ({
       findFirst: jest.fn(),
       create: jest.fn(),
     },
+    organizationMember: {
+      findUnique: jest.fn(),
+    },
     $transaction: jest.fn(),
   },
 }));
@@ -55,7 +58,12 @@ describe("executePlanToPipeline", () => {
   });
 
   it("creates a pipeline with stages, tasks, subtasks and comments in a transaction", async () => {
-    const mockProject = { id: "proj-123", name: "Cliente VIP", organizationId: "org-1" };
+    const mockProject = {
+      id: "proj-123",
+      name: "Cliente VIP",
+      organizationId: "org-1",
+      members: [{ userId: "user-123", role: "OWNER" }],
+    };
     (prisma.project.findUnique as jest.Mock).mockResolvedValue(mockProject);
 
     const mockCreatedPipeline = {

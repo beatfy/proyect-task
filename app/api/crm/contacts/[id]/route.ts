@@ -17,7 +17,7 @@ export async function GET(
 
     const contact = await prisma.contact.findUnique({
       where: { id },
-      select: { id: true, organizationId: true },
+      select: { id: true, organizationId: true, ownerId: true },
     });
 
     if (!contact) {
@@ -29,6 +29,8 @@ export async function GET(
       if (!valid) {
         return NextResponse.json({ error: "No tienes acceso a este contacto" }, { status: 403 });
       }
+    } else if (contact.ownerId !== authResult.userId) {
+      return NextResponse.json({ error: "No tienes acceso a este contacto" }, { status: 403 });
     }
 
     const fullContact = await prisma.contact.findUnique({

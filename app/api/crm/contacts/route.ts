@@ -175,7 +175,7 @@ export async function PATCH(request: NextRequest) {
 
     const existingContact = await prisma.contact.findUnique({
       where: { id },
-      select: { organizationId: true },
+      select: { organizationId: true, ownerId: true },
     });
     if (!existingContact) {
       return NextResponse.json({ error: "Contacto no encontrado" }, { status: 404 });
@@ -185,6 +185,8 @@ export async function PATCH(request: NextRequest) {
       if (!valid) {
         return NextResponse.json({ error: "No tienes acceso a este contacto" }, { status: 403 });
       }
+    } else if (existingContact.ownerId !== authResult.userId) {
+      return NextResponse.json({ error: "No tienes acceso a este contacto" }, { status: 403 });
     }
 
     if (data.name !== undefined) updateData.name = data.name;
@@ -228,7 +230,7 @@ export async function DELETE(request: NextRequest) {
 
     const contact = await prisma.contact.findUnique({
       where: { id },
-      select: { organizationId: true },
+      select: { organizationId: true, ownerId: true },
     });
     if (!contact) {
       return NextResponse.json({ error: "Contacto no encontrado" }, { status: 404 });
@@ -238,6 +240,8 @@ export async function DELETE(request: NextRequest) {
       if (!valid) {
         return NextResponse.json({ error: "No tienes acceso a este contacto" }, { status: 403 });
       }
+    } else if (contact.ownerId !== authResult.userId) {
+      return NextResponse.json({ error: "No tienes acceso a este contacto" }, { status: 403 });
     }
 
     await prisma.contact.delete({ where: { id } });

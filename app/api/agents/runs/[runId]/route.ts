@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/api-auth";
+import { canAccessProject } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
 
@@ -10,7 +11,7 @@ const INNIX_BASE = process.env.INNIX_BASE || "https://agents.beatfy.net/agent";
 const AGENT_CONFIG: Record<string, { path: string; apiKey: string }> = {
   "doc": {
     path: "doc",
-    apiKey: process.env.INNIX_DOC_KEY || "cecb3f99b46e7e16adfa60a5d4a839b5f27d1f3e1659",
+    apiKey: process.env.INNIX_DOC_KEY || "",
   },
 };
 
@@ -34,12 +35,19 @@ export async function GET(
     const agentId = searchParams.get("agentId") || "doc";
     const projectId = searchParams.get("projectId") || null;
 
-    const agentConfig = AGENT_CONFIG[agentId];
-    if (!agentConfig) {
-      return NextResponse.json({ error: "Agente no reconocido" }, { status: 400 });
+    if (projectId) {
+      const hasAccess = await canAccessProject(authResult.userId, projectId);
+      if (!hasAccess) {
+        return NextResponse.json({ error: "No tienes acceso a este proyecto" }, { status: 403 });
+      }
     }
 
-    const runUrl = `${INNIX_BASE}/${agentConfig.path}/v1/runs/${runId}`;
+    const agentConfig = AGENT_CONFIG[agentId];
+    if (!agentConfig || !agentConfig.apiKey) {
+      return NextResponse.json({ error: "Agente no reconocido o no configurado" }, { status: 400 });
+    }
+
+    const runUrl = `${INNIX_BASE}/${agentConfig.path}/v1/runs/${encodeURIComponent(runId)}`;
 
     const res = await fetch(runUrl, {
       method: "GET",
@@ -109,7 +117,7 @@ export async function GET(
   } catch (err: any) {
     console.error("GET run proxy error:", err);
     return NextResponse.json(
-      { error: err?.message || "Error interno al verificar run" },
+      { error: "Error interno al verificar run" },
       { status: 500 }
     );
   }

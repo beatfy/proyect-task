@@ -28,12 +28,14 @@ export async function authenticateOrgApiKey(request: NextRequest): Promise<{ org
 
   if (key.startsWith("tx2_doc_")) {
     const parts = key.split("_");
-    if (parts.length === 4) {
+    const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
+    if (parts.length === 4 && secret) {
       const uId = parts[2];
       const signature = parts[3];
-      const secret = process.env.NEXTAUTH_SECRET || "default_secret";
       const expectedSignature = crypto.createHmac("sha256", secret).update(uId).digest("hex");
-      if (signature === expectedSignature) {
+      const sigBuf = Buffer.from(signature, "utf8");
+      const expBuf = Buffer.from(expectedSignature, "utf8");
+      if (sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf)) {
         userId = uId;
         // Find organization of this user
         const member = await prisma.organizationMember.findFirst({
@@ -70,28 +72,30 @@ export async function authenticateOrgApiKey(request: NextRequest): Promise<{ org
     } else {
       // 2. If not, check if it's a User API key (e.g. Ele Agent Key)
       if (key.startsWith("tx2_")) {
-
-      const keyPrefix = key.substring(0, 8);
-      const apiKey = await prisma.apiKey.findFirst({
-        where: { keyPrefix, active: true },
-        select: { id: true, userId: true, permissions: true, key: true },
-      });
-
-      if (apiKey && await bcrypt.compare(key, apiKey.key)) {
-        userId = apiKey.userId;
-        // Find organization of this user
-        const member = await prisma.organizationMember.findFirst({
-          where: { userId: apiKey.userId },
-          select: { organizationId: true, organization: { select: { name: true } } },
-          orderBy: { joinedAt: "asc" },
+        const keyPrefix = key.substring(0, 8);
+        const apiKeys = await prisma.apiKey.findMany({
+          where: { keyPrefix, active: true },
+          select: { id: true, userId: true, permissions: true, key: true },
         });
-        if (member) {
-          organizationId = member.organizationId;
-          orgName = member.organization.name;
+
+        for (const apiKey of apiKeys) {
+          if (await bcrypt.compare(key, apiKey.key)) {
+            userId = apiKey.userId;
+            // Find organization of this user
+            const member = await prisma.organizationMember.findFirst({
+              where: { userId: apiKey.userId },
+              select: { organizationId: true, organization: { select: { name: true } } },
+              orderBy: { joinedAt: "asc" },
+            });
+            if (member) {
+              organizationId = member.organizationId;
+              orgName = member.organization.name;
+            }
+            break;
+          }
         }
       }
     }
-  }
   }
 
   if (!organizationId || !userId) {

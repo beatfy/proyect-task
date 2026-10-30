@@ -1,21 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
-import { cuid } from "@/lib/utils";
+import { generateInvoicesForProjects, getPreviousBillingPeriod } from "@/lib/billing";
 
 // Cron endpoint to auto-generate invoices on the 1st of each month
 // Call with: GET /api/billing/cron (secured via CRON_SECRET header)
 export async function GET(request: NextRequest) {
   try {
-    // Verify cron secret to prevent unauthorized calls
+    // Verify cron secret to prevent unauthorized calls (fail-closed)
+    const secret = process.env.CRON_SECRET;
     const cronSecret = request.headers.get("x-cron-secret");
-    if (cronSecret !== process.env.CRON_SECRET) {
+    const authHeader = request.headers.get("authorization");
+    if (!secret || (cronSecret !== secret && authHeader !== `Bearer ${secret}`)) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
     const now = new Date();
-    const month = now.getMonth() + 1; // 1-indexed
-    const year = now.getFullYear();
+    const { month, year } = getPreviousBillingPeriod(now);
 
     // Only run on the 1st of the month (or allow forced run with ?force=true)
     const { searchParams } = new URL(request.url);
@@ -26,34 +26,16 @@ export async function GET(request: NextRequest) {
     // Get all projects with monthlyFee > 0
     const projects = await prisma.project.findMany({
       where: { monthlyFee: { gt: 0 }, status: "ACTIVE" },
+      select: { id: true, monthlyFee: true },
     });
 
-    const dueDate = new Date(year, month, 1); // 1st of current month
-    let created = 0;
-
-    for (const project of projects) {
-      const existing = await prisma.invoice.findUnique({
-        where: { projectId_month_year: { projectId: project.id, month, year } },
-      });
-      if (existing) continue;
-
-      await prisma.invoice.create({
-        data: {
-          id: cuid(),
-          projectId: project.id,
-          month,
-          year,
-          amount: project.monthlyFee,
-          dueDate,
-        },
-      });
-      created++;
-    }
+    const dueDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const { created, total } = await generateInvoicesForProjects(projects, month, year, dueDate);
 
     return NextResponse.json({
       message: `Cron ejecutado: ${created} facturas generadas para ${month}/${year}`,
       created,
-      total: projects.length,
+      total,
       month,
       year,
     });

@@ -10,29 +10,34 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log to console (client-side only, no server access)
-    console.error("[GlobalError]", error.message, error.stack, error.digest);
+    console.error("[GlobalError]", error.message, error.digest);
   }, [error]);
+
+  const isDev = process.env.NODE_ENV === "development";
 
   return (
     <html lang="es">
       <body>
-        <div style={{
-          minHeight: "100vh",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          fontFamily: "system-ui, sans-serif",
-          gap: "16px",
-          padding: "24px",
-          textAlign: "center",
-        }}>
+        <div
+          style={{
+            minHeight: "100vh",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            fontFamily: "system-ui, sans-serif",
+            gap: "16px",
+            padding: "24px",
+            textAlign: "center",
+          }}
+        >
           <h1 style={{ fontSize: "24px", fontWeight: "bold", color: "#dc2626" }}>
             Error inesperado
           </h1>
           <p style={{ color: "#666", maxWidth: "400px" }}>
-            {error.message || "Ha ocurrido un error inesperado. Los detalles se han registrado."}
+            {isDev && error.message
+              ? error.message
+              : "Ha ocurrido un error inesperado. Por favor, inténtalo de nuevo."}
           </p>
           {error.digest && (
             <p style={{ fontSize: "12px", color: "#999" }}>

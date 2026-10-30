@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-const LOG_DIR = '/home/ele/taskx2';
+const LOG_DIR = process.env.LOG_DIR || path.join(process.cwd(), 'logs');
 const LOG_FILE = path.join(LOG_DIR, 'server.log');
 const ERROR_LOG_FILE = path.join(LOG_DIR, 'error.log');
 

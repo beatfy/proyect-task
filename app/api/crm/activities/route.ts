@@ -137,7 +137,7 @@ export async function PATCH(request: NextRequest) {
 
     const existingActivity = await prisma.activity.findUnique({
       where: { id },
-      select: { organizationId: true },
+      select: { organizationId: true, ownerId: true },
     });
     if (!existingActivity) {
       return NextResponse.json({ error: "Actividad no encontrada" }, { status: 404 });
@@ -147,6 +147,8 @@ export async function PATCH(request: NextRequest) {
       if (!valid) {
         return NextResponse.json({ error: "No tienes acceso a esta actividad" }, { status: 403 });
       }
+    } else if (existingActivity.ownerId !== authResult.userId) {
+      return NextResponse.json({ error: "No tienes acceso a esta actividad" }, { status: 403 });
     }
 
     const updateData: Record<string, unknown> = {};
@@ -191,7 +193,7 @@ export async function DELETE(request: NextRequest) {
 
     const activity = await prisma.activity.findUnique({
       where: { id },
-      select: { organizationId: true },
+      select: { organizationId: true, ownerId: true },
     });
     if (!activity) {
       return NextResponse.json({ error: "Actividad no encontrada" }, { status: 404 });
@@ -201,6 +203,8 @@ export async function DELETE(request: NextRequest) {
       if (!valid) {
         return NextResponse.json({ error: "No tienes acceso a esta actividad" }, { status: 403 });
       }
+    } else if (activity.ownerId !== authResult.userId) {
+      return NextResponse.json({ error: "No tienes acceso a esta actividad" }, { status: 403 });
     }
 
     await prisma.activity.delete({ where: { id } });

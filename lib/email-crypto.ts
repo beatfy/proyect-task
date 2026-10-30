@@ -3,16 +3,20 @@ import crypto from "crypto";
 const ALGORITHM = "aes-256-cbc";
 
 // In-memory fallback key for when EMAIL_ENCRYPTION_KEY is not set.
-// This is generated once per process lifetime and works for single-instance deployments.
-// For production multi-instance setups, always set EMAIL_ENCRYPTION_KEY.
+// Derives deterministically from NEXTAUTH_SECRET if available, otherwise generates once per process.
 let _fallbackKey: string | null = null;
 
 function getFallbackKey(): string {
   if (!_fallbackKey) {
-    _fallbackKey = crypto.randomBytes(32).toString("hex").slice(0, 32);
+    const authSecret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
+    if (authSecret) {
+      _fallbackKey = crypto.createHash("sha256").update(authSecret).digest("hex").slice(0, 32);
+    } else {
+      _fallbackKey = crypto.randomBytes(32).toString("hex").slice(0, 32);
+    }
     console.warn(
-      "[email-crypto] EMAIL_ENCRYPTION_KEY not set. Using generated fallback key. " +
-      "Set EMAIL_ENCRYPTION_KEY in your environment for persistent encryption across restarts."
+      "[email-crypto] EMAIL_ENCRYPTION_KEY not set. Using fallback key. " +
+      "Set EMAIL_ENCRYPTION_KEY in your environment for dedicated encryption key management."
     );
   }
   return _fallbackKey;
@@ -21,7 +25,13 @@ function getFallbackKey(): string {
 function getKey(): Buffer {
   const key = process.env.EMAIL_ENCRYPTION_KEY || getFallbackKey();
   // Ensure the key is exactly 32 bytes for AES-256
-  return Buffer.from(key.padEnd(32).slice(0, 32), "utf-8");
+  const buf = Buffer.from(key.padEnd(32, " "), "utf-8");
+  if (buf.length === 32) {
+    return buf;
+  }
+  const fixed = Buffer.alloc(32);
+  buf.copy(fixed, 0, 0, 32);
+  return fixed;
 }
 
 export function encrypt(text: string): string {

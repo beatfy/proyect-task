@@ -17,7 +17,7 @@ export async function GET(
 
     const deal = await prisma.deal.findUnique({
       where: { id },
-      select: { id: true, organizationId: true },
+      select: { id: true, organizationId: true, ownerId: true },
     });
 
     if (!deal) {
@@ -29,6 +29,8 @@ export async function GET(
       if (!valid) {
         return NextResponse.json({ error: "No tienes acceso a este deal" }, { status: 403 });
       }
+    } else if (deal.ownerId !== authResult.userId) {
+      return NextResponse.json({ error: "No tienes acceso a este deal" }, { status: 403 });
     }
 
     const fullDeal = await prisma.deal.findUnique({

@@ -52,55 +52,29 @@ export async function PATCH(
 
       // 2. Sync stages if provided
       if (Array.isArray(stages)) {
-        // Fetch current stages
         const currentStages = await tx.taskPipelineStage.findMany({
           where: { pipelineId },
         });
         const currentStageIds = currentStages.map((s) => s.id);
-
-        // Map inputs
         const inputStageIds = stages.map((s) => s.id).filter(Boolean) as string[];
-
-        // Identify stages to delete
         const toDeleteIds = currentStageIds.filter((id) => !inputStageIds.includes(id));
 
-        // Find fallback stage (lowest position among the kept/new stages)
-        const keptInputStages = stages.filter((s) => !s.id || !toDeleteIds.includes(s.id));
-        keptInputStages.sort((a, b) => a.position - b.position);
-        
-        let fallbackStageId: string | null = null;
-        if (keptInputStages.length > 0) {
-          const firstKept = keptInputStages[0];
-          if (firstKept.id) {
-            fallbackStageId = firstKept.id;
-          } else {
-            // It's a new stage, let's pre-assign a cuid to it
-            firstKept.id = cuid();
-            fallbackStageId = firstKept.id;
-          }
-        }
-
-        // Before deleting stages, move their tasks to the fallback stage
-        if (toDeleteIds.length > 0 && fallbackStageId) {
-          await tx.task.updateMany({
-            where: { stageId: { in: toDeleteIds } },
-            data: { stageId: fallbackStageId },
+        // Step A: Temporarily shift all existing stages to negative positions
+        // to avoid @@unique([pipelineId, position]) collisions while reordering/creating
+        for (let idx = 0; idx < currentStages.length; idx++) {
+          await tx.taskPipelineStage.update({
+            where: { id: currentStages[idx].id },
+            data: { position: -(idx + 1000) },
           });
         }
 
-        // Now delete the stages
-        if (toDeleteIds.length > 0) {
-          await tx.taskPipelineStage.deleteMany({
-            where: { id: { in: toDeleteIds } },
-          });
-        }
+        // Step B: Create new stages and update kept existing stages to their target positions
+        const keptOrCreatedStages: { id: string; position: number }[] = [];
 
-        // Create or Update stages
         for (const stage of stages) {
-          if (toDeleteIds.includes(stage.id)) continue;
+          if (stage.id && toDeleteIds.includes(stage.id)) continue;
 
-          if (stage.id) {
-            // Update
+          if (stage.id && currentStageIds.includes(stage.id)) {
             await tx.taskPipelineStage.update({
               where: { id: stage.id },
               data: {
@@ -109,9 +83,9 @@ export async function PATCH(
                 color: stage.color || "#6366f1",
               },
             });
+            keptOrCreatedStages.push({ id: stage.id, position: stage.position });
           } else {
-            // Create
-            const newStageId = stage.id || cuid(); // Use pre-assigned id if fallback, otherwise new cuid
+            const newStageId = stage.id || cuid();
             await tx.taskPipelineStage.create({
               data: {
                 id: newStageId,
@@ -121,7 +95,23 @@ export async function PATCH(
                 pipelineId,
               },
             });
+            keptOrCreatedStages.push({ id: newStageId, position: stage.position });
           }
+        }
+
+        // Step C: Move tasks from stages being deleted to the lowest-position kept/created stage
+        if (toDeleteIds.length > 0) {
+          keptOrCreatedStages.sort((a, b) => a.position - b.position);
+          const fallbackStageId = keptOrCreatedStages[0]?.id || null;
+
+          await tx.task.updateMany({
+            where: { stageId: { in: toDeleteIds } },
+            data: { stageId: fallbackStageId },
+          });
+
+          await tx.taskPipelineStage.deleteMany({
+            where: { id: { in: toDeleteIds } },
+          });
         }
       }
 

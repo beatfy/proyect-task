@@ -29,9 +29,24 @@ export async function GET(request: NextRequest) {
     } else {
       where.OR = [
         { organizationId: { in: userOrgIds } },
-        { organizationId: null },
+        {
+          organizationId: null,
+          OR: [
+            { deals: { some: { ownerId: authResult.userId } } },
+            { contacts: { some: { ownerId: authResult.userId } } },
+          ],
+        },
       ];
     }
+
+    const dealsFilter = organizationId
+      ? { organizationId }
+      : {
+          OR: [
+            { organizationId: { in: userOrgIds } },
+            { ownerId: authResult.userId, organizationId: null },
+          ],
+        };
 
     const pipelines = await prisma.pipeline.findMany({
       where,
@@ -41,6 +56,7 @@ export async function GET(request: NextRequest) {
           include: {
             _count: { select: { deals: true } },
             deals: {
+              where: dealsFilter,
               orderBy: { movedAt: "desc" },
               include: {
                 contact: { select: { id: true, name: true, email: true, company: true } },

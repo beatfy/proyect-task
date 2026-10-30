@@ -3,6 +3,15 @@ import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // GET - Listar mis invitaciones pendientes
 export async function GET(request: NextRequest) {
   try {
@@ -36,7 +45,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(invitations);
   } catch (error) {
     console.error("Get invitations error:", error);
-    // Devolver array vacío en caso de error para evitar crash en cliente
     return NextResponse.json([]);
   }
 }
@@ -49,13 +57,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const { email, projectId, role } = await request.json();
+    const { email, projectId, role = "MEMBER" } = await request.json();
 
     if (!email || !projectId) {
       return NextResponse.json(
         { error: "Email y projectId requeridos" },
         { status: 400 }
       );
+    }
+
+    if (!["MEMBER", "ADMIN", "OWNER"].includes(role)) {
+      return NextResponse.json({ error: "Rol inválido" }, { status: 400 });
     }
 
     // Verificar que el usuario es owner/admin del proyecto
@@ -70,6 +82,13 @@ export async function POST(request: NextRequest) {
     if (!membership) {
       return NextResponse.json(
         { error: "No tienes permisos para invitar a este proyecto" },
+        { status: 403 }
+      );
+    }
+
+    if (role === "OWNER" && membership.role !== "OWNER") {
+      return NextResponse.json(
+        { error: "Solo un OWNER puede asignar el rol OWNER" },
         { status: 403 }
       );
     }
@@ -113,7 +132,7 @@ export async function POST(request: NextRequest) {
         email,
         projectId,
         invitedBy: authResult.userId,
-        role: role || "MEMBER",
+        role,
         expiresAt,
       },
       include: {
@@ -141,7 +160,7 @@ export async function POST(request: NextRequest) {
 
     // Enviar email de invitación via Resend
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://taskProject.app";
-    const inviteUrl = `${appUrl}/join/${invitation.id}`;
+    const inviteUrl = `${appUrl}/join/${encodeURIComponent(invitation.id)}`;
     const inviter = await prisma.user.findUnique({
       where: { id: authResult.userId },
       select: { name: true },
@@ -149,14 +168,16 @@ export async function POST(request: NextRequest) {
     const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
     if (RESEND_API_KEY) {
+      const safeProjectName = escapeHtml(invitation.project?.name || "taskProject");
+      const safeInviterName = escapeHtml(inviter?.name || "Un usuario");
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 32px; border-radius: 12px 12px 0 0; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 24px;">Has sido invitado a ${invitation.project?.name || "taskProject"}</h1>
+            <h1 style="color: white; margin: 0; font-size: 24px;">Has sido invitado a ${safeProjectName}</h1>
           </div>
           <div style="padding: 32px; background: white; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
             <p style="color: #374151; font-size: 16px; line-height: 1.6;">
-              <strong>${inviter?.name || "Un usuario"}</strong> te ha invitado a unirte al proyecto <strong>${invitation.project?.name || ""}</strong> en taskProject.
+              <strong>${safeInviterName}</strong> te ha invitado a unirte al proyecto <strong>${safeProjectName}</strong> en taskProject.
             </p>
             <div style="text-align: center; margin: 32px 0;">
               <a href="${inviteUrl}" style="background: #6366f1; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; display: inline-block;">
@@ -192,7 +213,6 @@ export async function POST(request: NextRequest) {
       if (!resendRes.ok) {
         const err = await resendRes.text();
         console.error("Resend email error:", err);
-        // No fallamos la creación, solo logueamos el error
       }
     }
 

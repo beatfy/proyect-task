@@ -71,6 +71,7 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
   const [tempTitle, setTempTitle] = useState(title);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [generatingAI, setGeneratingAI] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleTitleSubmit = () => {
@@ -203,7 +204,7 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
   };
 
   // AI Ideas / Smart Brainstorm Generator
-  const handleAIBrainstorm = () => {
+  const handleAIBrainstorm = async () => {
     const targetNode = selectedNodeId
       ? data.nodes.find((n) => n.id === selectedNodeId)
       : data.nodes.find((n) => n.isRoot) || data.nodes[0];
@@ -213,70 +214,104 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
       return;
     }
 
-    const ideas = [
-      {
-        label: "Plan de Ejecución",
-        desc: "Definición de etapas clave y responsables",
-        color: "indigo" as const,
-        checklist: [
-          { id: `c-${Date.now()}-1`, text: "Fijar plazos de entrega", completed: false },
-          { id: `c-${Date.now()}-2`, text: "Asignar roles principales", completed: false },
-        ],
-      },
-      {
-        label: "Análisis de Riesgos",
-        desc: "Posibles cuellos de botella y contingencias",
-        color: "amber" as const,
-      },
-      {
-        label: "Estrategia de Crecimiento",
-        desc: "Escalabilidad y métricas de retención",
-        color: "emerald" as const,
-      },
-      {
-        label: "Automatización & Procesos",
-        desc: "Herramientas e integraciones clave",
-        color: "blue" as const,
-      },
-    ];
+    setGeneratingAI(true);
+    try {
+      let ideas: Array<{
+        label: string;
+        desc: string;
+        color: NodeData["color"];
+        checklist?: { id: string; text: string; completed: boolean }[];
+      }> = [];
 
-    const newNodes: NodeData[] = [];
-    const newEdges: MindMapEdge[] = [];
-
-    ideas.forEach((idea, i) => {
-      const id = `ai-node-${Date.now()}-${i}`;
-      const angle = (i * Math.PI) / 2;
-      const radius = 260;
-      const x = Math.round(targetNode.x + Math.cos(angle) * radius);
-      const y = Math.round(targetNode.y + Math.sin(angle) * radius);
-
-      newNodes.push({
-        id,
-        label: idea.label,
-        description: idea.desc,
-        x,
-        y,
-        parentId: targetNode.id,
-        color: idea.color,
-        shape: "card",
-        checklist: idea.checklist,
+      const res = await fetch("/api/mindmaps/ai-expand", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mapTitle: title,
+          nodeLabel: targetNode.label,
+          nodeDescription: targetNode.description || "",
+          projectName: projectName || "",
+        }),
       });
 
-      newEdges.push({
-        id: `ai-edge-${Date.now()}-${i}`,
-        source: targetNode.id,
-        target: id,
-        style: "curved",
+      if (res.ok) {
+        const payload = await res.json();
+        if (Array.isArray(payload.branches) && payload.branches.length > 0) {
+          ideas = payload.branches;
+        }
+      }
+
+      if (ideas.length === 0) {
+        ideas = [
+          {
+            label: `Plan de Ejecución: ${targetNode.label}`,
+            desc: "Definición de etapas clave y responsables",
+            color: "indigo",
+            checklist: [
+              { id: `c-${Date.now()}-1`, text: "Fijar plazos de entrega", completed: false },
+              { id: `c-${Date.now()}-2`, text: "Asignar roles principales", completed: false },
+            ],
+          },
+          {
+            label: "Análisis de Riesgos",
+            desc: "Posibles cuellos de botella y contingencias",
+            color: "amber",
+          },
+          {
+            label: "Estrategia de Crecimiento",
+            desc: "Escalabilidad y métricas de retención",
+            color: "emerald",
+          },
+          {
+            label: "Automatización & Procesos",
+            desc: "Herramientas e integraciones clave",
+            color: "blue",
+          },
+        ];
+      }
+
+      const newNodes: NodeData[] = [];
+      const newEdges: MindMapEdge[] = [];
+
+      ideas.forEach((idea, i) => {
+        const id = `ai-node-${Date.now()}-${i}`;
+        const angle = (i * Math.PI) / 2;
+        const radius = 260;
+        const x = Math.round(targetNode.x + Math.cos(angle) * radius);
+        const y = Math.round(targetNode.y + Math.sin(angle) * radius);
+
+        newNodes.push({
+          id,
+          label: idea.label,
+          description: idea.desc,
+          x,
+          y,
+          parentId: targetNode.id,
+          color: idea.color,
+          shape: "card",
+          checklist: idea.checklist,
+        });
+
+        newEdges.push({
+          id: `ai-edge-${Date.now()}-${i}`,
+          source: targetNode.id,
+          target: id,
+          style: "curved",
+        });
       });
-    });
 
-    onChange({
-      ...data,
-      nodes: [...data.nodes, ...newNodes],
-      edges: [...data.edges, ...newEdges],
-    });
+      onChange({
+        ...data,
+        nodes: [...data.nodes, ...newNodes],
+        edges: [...data.edges, ...newEdges],
+      });
 
-    toast.success("Ramas generadas para: " + targetNode.label);
+      toast.success("Ramas generadas para: " + targetNode.label);
+    } catch {
+      toast.error("Error al generar ramas con el asistente");
+    } finally {
+      setGeneratingAI(false);
+    }
   };
 
   // Export JSON
@@ -424,11 +459,12 @@ export const MindMapToolbar: React.FC<MindMapToolbarProps> = ({
             variant="ghost"
             size="sm"
             onClick={handleAIBrainstorm}
+            disabled={generatingAI}
             className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1.5"
-            title="Generar ideas asociadas"
+            title="Generar ideas asociadas con IA"
           >
-            <Sparkles className="w-3.5 h-3.5 text-primary" />
-            <span className="hidden md:inline font-medium">Asistente</span>
+            <Sparkles className={`w-3.5 h-3.5 text-primary ${generatingAI ? "animate-spin" : ""}`} />
+            <span className="hidden md:inline font-medium">{generatingAI ? "Generando..." : "Asistente"}</span>
           </Button>
 
           {/* Auto Arrange Layout */}

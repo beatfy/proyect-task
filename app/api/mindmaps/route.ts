@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/api-auth";
+import { canAccessProject } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
 import { MINDMAP_TEMPLATES } from "@/components/mindmap/MindMapTemplates";
@@ -21,6 +22,10 @@ export async function GET(request: NextRequest) {
     };
 
     if (projectId) {
+      const hasAccess = await canAccessProject(authResult.userId, projectId);
+      if (!hasAccess) {
+        return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
+      }
       whereClause.projectId = projectId;
     }
 
@@ -61,6 +66,13 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { title, description, templateId, projectId, data } = body;
+
+    if (projectId) {
+      const hasAccess = await canAccessProject(authResult.userId, projectId);
+      if (!hasAccess) {
+        return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
+      }
+    }
 
     let initialData = data;
     if (!initialData) {

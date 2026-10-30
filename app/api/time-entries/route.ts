@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/api-auth";
+import { canAccessTask } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
 
@@ -17,12 +18,16 @@ export async function GET(request: NextRequest) {
     const whereClause: Record<string, unknown> = {};
 
     if (taskId) {
+      const hasAccess = await canAccessTask(authResult.userId, taskId);
+      if (!hasAccess) {
+        return NextResponse.json({ error: "Sin acceso a esta tarea" }, { status: 403 });
+      }
       whereClause.taskId = taskId;
-    }
-    // "me" or omitting userId → use current session user
-    if (userIdParam && userIdParam !== "me") {
-      whereClause.userId = userIdParam;
+      if (userIdParam && userIdParam !== "me") {
+        whereClause.userId = userIdParam;
+      }
     } else {
+      // Without a specific accessible taskId, only return the current user's own time entries
       whereClause.userId = authResult.userId;
     }
 
@@ -60,6 +65,11 @@ export async function POST(request: NextRequest) {
     if (action === "start") {
       if (!taskId) {
         return NextResponse.json({ error: "taskId es requerido" }, { status: 400 });
+      }
+
+      const hasAccess = await canAccessTask(authResult.userId, taskId);
+      if (!hasAccess) {
+        return NextResponse.json({ error: "Sin acceso a esta tarea" }, { status: 403 });
       }
 
       // Check if there's already a running timer for this user
@@ -139,6 +149,11 @@ export async function POST(request: NextRequest) {
         { error: "taskId y startTime son requeridos" },
         { status: 400 }
       );
+    }
+
+    const hasAccess = await canAccessTask(authResult.userId, taskId);
+    if (!hasAccess) {
+      return NextResponse.json({ error: "Sin acceso a esta tarea" }, { status: 403 });
     }
 
     const durationValue = endTime

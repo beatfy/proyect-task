@@ -3,7 +3,7 @@ import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
 
-// POST - Aceptar invitación
+// POST - Aceptar o rechazar invitación
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -24,6 +24,19 @@ export async function POST(
 
     if (!invitation) {
       return NextResponse.json({ error: "Invitación no encontrada" }, { status: 404 });
+    }
+
+    // Verify caller's email matches the invitation email
+    const currentUser = await prisma.user.findUnique({
+      where: { id: authResult.userId },
+      select: { email: true },
+    });
+
+    if (!currentUser || currentUser.email.toLowerCase() !== invitation.email.toLowerCase()) {
+      return NextResponse.json(
+        { error: "Esta invitación pertenece a otro correo electrónico" },
+        { status: 403 }
+      );
     }
 
     if (invitation.expiresAt < new Date()) {

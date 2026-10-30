@@ -7,6 +7,9 @@ jest.mock("@/lib/api-auth", () => ({
 
 jest.mock("@/lib/prisma", () => ({
   prisma: {
+    user: {
+      findUnique: jest.fn(),
+    },
     projectInviteToken: {
       findUnique: jest.fn(),
       update: jest.fn(),
@@ -48,6 +51,7 @@ describe("POST /api/join", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockAuth.mockResolvedValue({ userId: "user-1", permissions: "full" });
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({ email: "user@test.com" });
   });
 
   it("returns 401 when not authenticated", async () => {
@@ -128,6 +132,7 @@ describe("POST /api/join", () => {
     (prisma.projectInviteToken.findUnique as jest.Mock).mockResolvedValue(null);
     (prisma.invitation.findUnique as jest.Mock).mockResolvedValue({
       id: "inv-org-1",
+      email: "user@test.com",
       organizationId: "org-1",
       projectId: null,
       role: "MEMBER",
@@ -164,6 +169,7 @@ describe("POST /api/join", () => {
     (prisma.projectInviteToken.findUnique as jest.Mock).mockResolvedValue(null);
     (prisma.invitation.findUnique as jest.Mock).mockResolvedValue({
       id: "inv-done",
+      email: "user@test.com",
       organizationId: "org-1",
       projectId: null,
       role: "MEMBER",

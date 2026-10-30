@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/api-auth";
+import { canAccessProject, verifyOrgMembership } from "@/lib/tenant";
+import { canAccessTask } from "@/lib/authz";
 import { aiRateLimit } from "@/lib/ai-rate-limit";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
@@ -309,10 +311,8 @@ async function executeTool(
 ): Promise<unknown> {
   const canModify = async (taskId?: string): Promise<string | null> => {
     if (!projectId) return "No hay proyecto activo";
-    const membership = await prisma.projectMember.findFirst({
-      where: { projectId, userId },
-    });
-    if (!membership) return "No eres miembro de este proyecto";
+    const hasAccess = await canAccessProject(userId, projectId);
+    if (!hasAccess) return "No eres miembro de este proyecto";
     if (taskId) {
       const task = await prisma.task.findUnique({ where: { id: taskId }, select: { projectId: true } });
       if (!task || task.projectId !== projectId) return "Tarea no encontrada en este proyecto";
@@ -320,14 +320,20 @@ async function executeTool(
     return null;
   };
 
-  const requireOrg = (): string | null => {
+  const requireOrg = async (): Promise<string | null> => {
     if (!organizationId) return "No hay organización activa. Se necesita una organización para usar el CRM.";
+    const { valid } = await verifyOrgMembership(userId, organizationId);
+    if (!valid) return "No tienes acceso a esta organización.";
     return null;
   };
 
   switch (name) {
     case "task_create": {
       try {
+        if (projectId) {
+          const permErr = await canModify();
+          if (permErr) return { error: permErr };
+        }
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const data: any = {
           id: crypto.randomUUID(),
@@ -397,8 +403,12 @@ async function executeTool(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const where: any = {};
       if (projectId) {
+        const permErr = await canModify();
+        if (permErr) return { error: permErr };
         where.projectId = projectId;
       } else if (organizationId) {
+        const orgErr = await requireOrg();
+        if (orgErr) return { error: orgErr };
         where.project = { organizationId };
       } else {
         where.OR = [
@@ -447,9 +457,10 @@ async function executeTool(
     }
 
     case "client_context": {
-      if (!projectId) return { error: "No hay proyecto activo" };
+      const permErr = await canModify();
+      if (permErr) return { error: permErr };
       const project = await prisma.project.findUnique({
-        where: { id: projectId },
+        where: { id: projectId! },
         select: { name: true, clientContext: true },
       });
       if (!project) return { error: "Proyecto no encontrado" };
@@ -458,12 +469,13 @@ async function executeTool(
     }
 
     case "client_context_update": {
-      if (!projectId) return { error: "No hay proyecto activo" };
+      const permErr = await canModify();
+      if (permErr) return { error: permErr };
       const contextText = args.context as string;
       if (!contextText) return { error: "El parámetro 'context' es requerido" };
       try {
         const updated = await prisma.project.update({
-          where: { id: projectId },
+          where: { id: projectId! },
           data: { clientContext: contextText },
           select: { name: true, clientContext: true },
         });
@@ -492,7 +504,8 @@ async function executeTool(
     }
 
     case "project_summary": {
-      if (!projectId) return { error: "No hay proyecto activo" };
+      const permErr = await canModify();
+      if (permErr) return { error: permErr };
       try {
         const [todo, inProgress, inReview, done, upcoming] = await Promise.all([
           prisma.task.count({ where: { projectId, status: "TODO" } }),
@@ -514,7 +527,8 @@ async function executeTool(
     }
 
     case "member_list": {
-      if (!projectId) return { error: "No hay proyecto activo" };
+      const permErr = await canModify();
+      if (permErr) return { error: permErr };
       try {
         const members = await prisma.projectMember.findMany({
           where: { projectId },
@@ -551,11 +565,16 @@ async function executeTool(
 
     case "time_log": {
       try {
+        const taskId = args.taskId as string;
+        const hasAccess = await canAccessTask(userId, taskId);
+        if (!hasAccess) {
+          return { error: "No tienes acceso a esta tarea" };
+        }
         const hours = args.hours as number;
         const entry = await prisma.timeEntry.create({
           data: {
             id: crypto.randomUUID(),
-            taskId: args.taskId as string,
+            taskId,
             userId,
             startTime: new Date(Date.now() - hours * 3600000),
             endTime: new Date(),
@@ -574,13 +593,20 @@ async function executeTool(
 
     case "project_create": {
       try {
+        const targetOrgId = (args.organizationId as string) || organizationId;
+        if (targetOrgId) {
+          const { valid } = await verifyOrgMembership(userId, targetOrgId);
+          if (!valid) {
+            return { error: "No tienes acceso a esta organización" };
+          }
+        }
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const data: any = {
+          id: cuid(),
           name: args.name as string,
         };
         if (args.description) data.description = args.description;
-        if (args.organizationId || organizationId)
-          data.organizationId = (args.organizationId as string) || organizationId;
+        if (targetOrgId) data.organizationId = targetOrgId;
 
         const project = await prisma.project.create({ data });
         await prisma.projectMember.create({
@@ -599,6 +625,11 @@ async function executeTool(
         const content = args.content as string;
         const mimeType = (args.mimeType as string) || "text/plain";
         const filename = (args.filename as string) || `nota-${taskId.slice(0, 8)}.txt`;
+
+        const hasAccess = await canAccessTask(userId, taskId);
+        if (!hasAccess) {
+          return { error: "No tienes acceso a esta tarea" };
+        }
 
         const task = await prisma.task.findUnique({ where: { id: taskId } });
         if (!task) {
@@ -632,7 +663,7 @@ async function executeTool(
 
     // ---- CRM Tool Execution ----
     case "contact_create": {
-      const orgErr = requireOrg();
+      const orgErr = await requireOrg();
       if (orgErr) return { error: orgErr };
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -660,7 +691,7 @@ async function executeTool(
     }
 
     case "contact_list": {
-      const orgErr = requireOrg();
+      const orgErr = await requireOrg();
       if (orgErr) return { error: orgErr };
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -688,7 +719,7 @@ async function executeTool(
     }
 
     case "pipeline_list": {
-      const orgErr = requireOrg();
+      const orgErr = await requireOrg();
       if (orgErr) return { error: orgErr };
       try {
         const pipelines = await prisma.pipeline.findMany({
@@ -710,7 +741,7 @@ async function executeTool(
     }
 
     case "deal_create": {
-      const orgErr = requireOrg();
+      const orgErr = await requireOrg();
       if (orgErr) return { error: orgErr };
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -742,7 +773,7 @@ async function executeTool(
     }
 
     case "deal_list": {
-      const orgErr = requireOrg();
+      const orgErr = await requireOrg();
       if (orgErr) return { error: orgErr };
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -770,9 +801,16 @@ async function executeTool(
     }
 
     case "deal_move": {
-      const orgErr = requireOrg();
+      const orgErr = await requireOrg();
       if (orgErr) return { error: orgErr };
       try {
+        const existingDeal = await prisma.deal.findFirst({
+          where: { id: args.dealId as string, organizationId },
+          select: { id: true },
+        });
+        if (!existingDeal) {
+          return { error: "Deal no encontrado en la organización activa" };
+        }
         const deal = await prisma.deal.update({
           where: { id: args.dealId as string },
           data: { stageId: args.stageId as string },
@@ -886,9 +924,12 @@ async function streamCompletion(
     usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
   };
 
-  if (!body.stream) {
+  if (!body.stream || !response.body) {
     const data = await response.json();
     result.content = data.choices?.[0]?.message?.content || "";
+    if (result.content) {
+      onToken(result.content);
+    }
     result.usage = data.usage || result.usage;
     if (data.choices?.[0]?.message?.tool_calls) {
       result.toolCalls = data.choices[0].message.tool_calls;
@@ -896,7 +937,7 @@ async function streamCompletion(
     return result;
   }
 
-  const reader = response.body!.getReader();
+  const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
 
@@ -961,6 +1002,13 @@ export async function GET(request: NextRequest) {
     const agentId = searchParams.get("agentId");
     const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
 
+    if (projectId) {
+      const hasAccess = await canAccessProject(authResult.userId, projectId);
+      if (!hasAccess) {
+        return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
+      }
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = { userId: authResult.userId };
     if (projectId) where.projectId = projectId;
@@ -1007,6 +1055,20 @@ export async function POST(request: NextRequest) {
 
   if (!message || typeof message !== "string") {
     return NextResponse.json({ error: "Mensaje requerido" }, { status: 400 });
+  }
+
+  if (projectId) {
+    const hasAccess = await canAccessProject(authResult.userId, projectId);
+    if (!hasAccess) {
+      return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
+    }
+  }
+
+  if (organizationId) {
+    const { valid } = await verifyOrgMembership(authResult.userId, organizationId);
+    if (!valid) {
+      return NextResponse.json({ error: "Sin acceso a esta organización" }, { status: 403 });
+    }
   }
 
   let projectName: string | undefined;
@@ -1222,12 +1284,21 @@ export async function POST(request: NextRequest) {
           ...toolResults,
         ];
 
-        const secondResult = await streamCompletion(
-          `${baseUrl}/chat/completions`,
-          apiKey,
-          { model, messages: secondMessages, max_tokens: 2000, temperature: 0.7, stream: true },
-          (token) => send({ type: "token", content: token })
-        );
+        let secondResult = {
+          content: "",
+          usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+        };
+        try {
+          secondResult = await streamCompletion(
+            `${baseUrl}/chat/completions`,
+            apiKey,
+            { model, messages: secondMessages, max_tokens: 2000, temperature: 0.7, stream: true },
+            (token) => send({ type: "token", content: token })
+          );
+        } catch {
+          send({ type: "token", content: "Acción completada." });
+          secondResult.content = "Acción completada.";
+        }
 
         const finalReply = secondResult.content || "Acción completada.";
         await prisma.chatMessage.create({

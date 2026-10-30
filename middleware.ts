@@ -1,7 +1,25 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const protectedRoutes = ["/projects", "/tasks", "/calendar", "/settings", "/billing", "/mail", "/files", "/notifications", "/organizations", "/templates"];
+const protectedRoutes = [
+  "/dashboard",
+  "/projects",
+  "/tasks",
+  "/focus",
+  "/mindmaps",
+  "/calendar",
+  "/mail",
+  "/agents",
+  "/crm",
+  "/billing",
+  "/reports",
+  "/organizations",
+  "/templates",
+  "/settings",
+  "/notifications",
+  "/invitations",
+  "/files",
+];
 
 const securityHeaders = {
   "X-Frame-Options": "DENY",
@@ -23,10 +41,15 @@ export function middleware(request: NextRequest) {
   });
 
   // Protected routes redirect
-  const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
+  const isProtectedRoute = protectedRoutes.some(
+    route => pathname === route || pathname.startsWith(route + "/")
+  );
   if (isProtectedRoute) {
-    const hasSession = request.cookies.has('__Secure-next-auth.session-token') ||
-                       request.cookies.has('next-auth.session-token');
+    const hasSession =
+      request.cookies.has("__Secure-next-auth.session-token") ||
+      request.cookies.has("next-auth.session-token") ||
+      request.cookies.has("__Secure-authjs.session-token") ||
+      request.cookies.has("authjs.session-token");
     if (!hasSession) {
       return NextResponse.redirect(new URL("/login", request.url));
     }

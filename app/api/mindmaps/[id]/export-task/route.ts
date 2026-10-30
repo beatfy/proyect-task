@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/api-auth";
+import { canAccessProject } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
 import { MindMapData } from "@/lib/types/mindmap";
@@ -53,6 +54,13 @@ export async function POST(
 
     // Create the task in taskProject
     const targetProjectId = projectId || mindMap.projectId || null;
+    if (targetProjectId) {
+      const hasAccess = await canAccessProject(authResult.userId, targetProjectId);
+      if (!hasAccess) {
+        return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
+      }
+    }
+
     const task = await prisma.task.create({
       data: {
         id: cuid(),

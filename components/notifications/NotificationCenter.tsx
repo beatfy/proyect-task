@@ -54,10 +54,10 @@ export default function NotificationCenter({ compact = false }: Props) {
 
   const fetchNotifications = async () => {
     try {
-      const res = await fetch("/api/notifications");
+      const res = await fetch("/api/notifications"); if (!res.ok) return;
       const data = await res.json();
-      setNotifications(data.notifications);
-      setUnreadCount(data.unreadCount);
+      setNotifications(Array.isArray(data?.notifications) ? data.notifications : []);
+      setUnreadCount(typeof data?.unreadCount === "number" ? data.unreadCount : 0);
     } catch (err) {
       console.error("Error fetching notifications:", err);
     }

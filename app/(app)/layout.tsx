@@ -14,6 +14,7 @@ import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import Link from "next/link";
 import NotificationCenter from "@/components/notifications/NotificationCenter";
+import { GlobalTimer } from "@/components/timetracking/GlobalTimer";
 import {
   Tooltip,
   TooltipContent,
@@ -303,6 +304,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         >
           <div className="p-4 md:p-8 pb-12 max-w-7xl mx-auto space-y-6">{children}</div>
         </main>
+        <GlobalTimer />
       </div>
     </TooltipProvider>
   );

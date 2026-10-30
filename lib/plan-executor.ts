@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { canAccessProject } from "@/lib/authz";
 import { cuid } from "@/lib/utils";
 
 export interface PlanTask {
@@ -67,6 +68,10 @@ export async function executePlanToPipeline({
   let targetProject = null;
 
   if (targetProjectId) {
+    const hasAccess = await canAccessProject(userId, targetProjectId);
+    if (!hasAccess) {
+      throw new Error("No tienes acceso al proyecto especificado.");
+    }
     targetProject = await prisma.project.findUnique({
       where: { id: targetProjectId },
       select: { id: true, name: true, organizationId: true },

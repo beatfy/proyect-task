@@ -4,9 +4,18 @@ import { cuid } from "@/lib/utils";
 import { Resend } from "resend";
 import { brand } from "@/lib/branding";
 
-const CRON_SECRET = process.env.CRON_SECRET;
+function getResend() {
+  return new Resend(process.env.RESEND_API_KEY);
+}
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 function getPriorityLabel(priority: string) {
   switch (priority) {
@@ -53,7 +62,7 @@ async function sendEmailSafely({
       process.env.EMAIL_FROM ||
       `${brand.name} <onboarding@resend.dev>`;
 
-    const res = await resend.emails.send({
+    const res = await getResend().emails.send({
       from: fromAddress,
       to,
       subject,
@@ -71,12 +80,11 @@ async function sendEmailSafely({
 }
 
 export async function GET(request: NextRequest) {
-  // Verify cron secret if configured
-  if (CRON_SECRET) {
-    const authHeader = request.headers.get("authorization");
-    if (authHeader !== `Bearer ${CRON_SECRET}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  // Require cron secret (fail-closed)
+  const secret = process.env.CRON_SECRET;
+  const authHeader = request.headers.get("authorization");
+  if (!secret || authHeader !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -144,6 +152,9 @@ export async function GET(request: NextRequest) {
       const priority = getPriorityLabel(task.priority);
       const projectColor = task.project?.color || "#6366f1";
       const formattedDueDate = task.dueDate ? `${formatDate(task.dueDate)} a las ${formatTime(task.dueDate)}` : "Sin fecha";
+      const safeTitle = escapeHtml(task.title);
+      const safeDesc = task.description ? escapeHtml(task.description) : "";
+      const safeProjectName = task.project ? escapeHtml(task.project.name) : "";
 
       for (const [userId, userInfo] of recipients.entries()) {
         // Check if already notified for near expiry of this task
@@ -156,6 +167,8 @@ export async function GET(request: NextRequest) {
         });
 
         if (alreadyNotified && !forceNearExpiry) continue;
+
+        const safeUserName = escapeHtml(userInfo.name || "Usuario");
 
         // Build HTML template
         const emailHtml = `
@@ -170,7 +183,7 @@ export async function GET(request: NextRequest) {
               <!-- Content -->
               <div style="padding: 40px 30px;">
                 <p style="font-size: 16px; line-height: 1.5; color: #4b5563; margin-top: 0;">
-                  Hola <strong>${userInfo.name || "Usuario"}</strong>,
+                  Hola <strong>${safeUserName}</strong>,
                 </p>
                 <p style="font-size: 16px; line-height: 1.5; color: #4b5563;">
                   Te recordamos que la siguiente tarea está cerca de expirar:
@@ -178,9 +191,9 @@ export async function GET(request: NextRequest) {
                 
                 <!-- Task Details Card -->
                 <div style="background-color: #f3f4f6; border-radius: 8px; padding: 20px; margin: 25px 0; border-left: 4px solid ${projectColor};">
-                  <h3 style="margin: 0 0 10px 0; font-size: 18px; color: #111827; font-weight: 600;">${task.title}</h3>
+                  <h3 style="margin: 0 0 10px 0; font-size: 18px; color: #111827; font-weight: 600;">${safeTitle}</h3>
                   
-                  ${task.description ? `<p style="margin: 0 0 15px 0; font-size: 14px; color: #6b7280; line-height: 1.4;">${task.description}</p>` : ""}
+                  ${safeDesc ? `<p style="margin: 0 0 15px 0; font-size: 14px; color: #6b7280; line-height: 1.4;">${safeDesc}</p>` : ""}
                   
                   <table style="width: 100%; font-size: 14px; color: #4b5563; border-collapse: collapse;">
                     <tr>
@@ -192,7 +205,7 @@ export async function GET(request: NextRequest) {
                       <td style="padding: 4px 0; font-weight: 600;">Proyecto:</td>
                       <td style="padding: 4px 0;">
                         <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: ${projectColor}; margin-right: 6px;"></span>
-                        ${task.project.name}
+                        ${safeProjectName}
                       </td>
                     </tr>
                     ` : ""}
@@ -252,17 +265,14 @@ export async function GET(request: NextRequest) {
     // ==========================================
     // 2) DAILY SUMMARY
     // ==========================================
-    // Run daily summary unless explicitly skipped (each user only gets 1 email per day due to notification check)
     if (!skipDailySummary || forceDailySummary) {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
       const todayEnd = new Date();
       todayEnd.setHours(23, 59, 59, 999);
 
-      // Fetch all active users
       const users = await prisma.user.findMany();
 
-      // Fetch all tasks due today or overdue, not done
       const allPendingTasks = await prisma.task.findMany({
         where: {
           status: { not: "DONE" },
@@ -285,7 +295,6 @@ export async function GET(request: NextRequest) {
       });
 
       for (const user of users) {
-        // Check if daily summary has already been sent to this user today
         const alreadySent = await prisma.notification.findFirst({
           where: {
             userId: user.id,
@@ -298,11 +307,6 @@ export async function GET(request: NextRequest) {
 
         if (alreadySent && !forceDailySummary) continue;
 
-        // Find user's tasks from the pending list
-        // Include tasks where:
-        // - user.id is the main assignee (assigneeId)
-        // - user.id is in taskAssignees
-        // - user.id is the creator (creatorId)
         const userTasks = allPendingTasks.filter((task) => {
           const isMainAssignee = task.assigneeId === user.id;
           const isCoAssignee = task.taskAssignees?.some((ta) => ta.userId === user.id) || false;
@@ -310,13 +314,11 @@ export async function GET(request: NextRequest) {
           return isMainAssignee || isCoAssignee || isCreator;
         });
 
-        // Filter into due today vs overdue
         const dueToday = userTasks.filter(
           (t) => t.dueDate && t.dueDate >= todayStart && t.dueDate <= todayEnd
         );
         const overdue = userTasks.filter((t) => t.dueDate && t.dueDate < todayStart);
 
-        // Build HTML template
         let tasksHtml = "";
 
         if (userTasks.length === 0) {
@@ -336,12 +338,14 @@ export async function GET(request: NextRequest) {
             for (const t of dueToday) {
               const priority = getPriorityLabel(t.priority);
               const projColor = t.project?.color || "#6366f1";
+              const safeTaskTitle = escapeHtml(t.title);
+              const safeProjName = t.project ? escapeHtml(t.project.name) : "";
               tasksHtml += `
                 <div style="background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin-bottom: 10px; display: table; width: 100%; box-sizing: border-box;">
                   <div style="display: table-cell; vertical-align: middle;">
-                    <div style="font-weight: 600; color: #111827; font-size: 15px;">${t.title}</div>
+                    <div style="font-weight: 600; color: #111827; font-size: 15px;">${safeTaskTitle}</div>
                     <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">
-                      ${t.project ? `<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: ${projColor}; margin-right: 4px;"></span> ${t.project.name} &bull; ` : ""}
+                      ${t.project ? `<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: ${projColor}; margin-right: 4px;"></span> ${safeProjName} &bull; ` : ""}
                       Vence hoy a las ${formatTime(t.dueDate!)}
                     </div>
                   </div>
@@ -364,12 +368,14 @@ export async function GET(request: NextRequest) {
             for (const t of overdue) {
               const priority = getPriorityLabel(t.priority);
               const projColor = t.project?.color || "#6366f1";
+              const safeTaskTitle = escapeHtml(t.title);
+              const safeProjName = t.project ? escapeHtml(t.project.name) : "";
               tasksHtml += `
                 <div style="background-color: #ffffff; border: 1px solid #fee2e2; border-radius: 8px; padding: 15px; margin-bottom: 10px; display: table; width: 100%; box-sizing: border-box;">
                   <div style="display: table-cell; vertical-align: middle;">
-                    <div style="font-weight: 600; color: #991b1b; font-size: 15px;">${t.title}</div>
+                    <div style="font-weight: 600; color: #991b1b; font-size: 15px;">${safeTaskTitle}</div>
                     <div style="font-size: 12px; color: #ef4444; margin-top: 4px; font-weight: 500;">
-                      ${t.project ? `<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: ${projColor}; margin-right: 4px;"></span> ${t.project.name} &bull; ` : ""}
+                      ${t.project ? `<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: ${projColor}; margin-right: 4px;"></span> ${safeProjName} &bull; ` : ""}
                       Venció el ${formatDate(t.dueDate!)}
                     </div>
                   </div>
@@ -385,6 +391,8 @@ export async function GET(request: NextRequest) {
           }
         }
 
+        const safeUserName = escapeHtml(user.name || "Usuario");
+
         const emailHtml = `
           <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f9fafb; padding: 40px 20px; color: #1f2937;">
             <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid #e5e7eb;">
@@ -397,7 +405,7 @@ export async function GET(request: NextRequest) {
               <!-- Content -->
               <div style="padding: 40px 30px; background-color: #fafbfa;">
                 <p style="font-size: 16px; line-height: 1.5; color: #374151; margin-top: 0;">
-                  Hola <strong>${user.name || "Usuario"}</strong>,
+                  Hola <strong>${safeUserName}</strong>,
                 </p>
                 <p style="font-size: 16px; line-height: 1.5; color: #4b5563; margin-bottom: 25px;">
                   Este es tu resumen diario de tareas pendientes y atrasadas para hoy en <strong>${brand.name}</strong>.
@@ -454,10 +462,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("[cron/email-reminders] Error:", error);
     return NextResponse.json(
-      {
-        error: "Internal server error",
-        details: String(error),
-      },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

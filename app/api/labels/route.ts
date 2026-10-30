@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/api-auth";
+import { getUserOrgIds, verifyOrgMembership } from "@/lib/tenant";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
@@ -19,10 +20,24 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const organizationId = searchParams.get("organizationId");
 
+    if (organizationId) {
+      const { valid: isMember } = await verifyOrgMembership(authResult.userId, organizationId);
+      if (!isMember) {
+        return NextResponse.json({ error: "No tienes acceso a esta organización" }, { status: 403 });
+      }
+    }
+
+    const userOrgIds = organizationId ? [] : await getUserOrgIds(authResult.userId);
+
     const labels = await prisma.label.findMany({
-      where: {
-        ...(organizationId ? { organizationId } : { organizationId: null }),
-      },
+      where: organizationId
+        ? { organizationId }
+        : {
+            OR: [
+              { organizationId: null },
+              ...(userOrgIds.length > 0 ? [{ organizationId: { in: userOrgIds } }] : []),
+            ],
+          },
       include: { _count: { select: { projects: true } } },
       orderBy: { name: "asc" },
     });
@@ -45,6 +60,13 @@ export async function POST(request: NextRequest) {
     const parsed = labelCreateSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
+    }
+
+    if (parsed.data.organizationId) {
+      const { valid: isMember } = await verifyOrgMembership(authResult.userId, parsed.data.organizationId);
+      if (!isMember) {
+        return NextResponse.json({ error: "No tienes acceso a esta organización" }, { status: 403 });
+      }
     }
 
     const label = await prisma.label.create({

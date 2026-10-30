@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateRequest } from "@/lib/api-auth";
+import { canAccessTask } from "@/lib/authz";
 import { readFile } from "fs/promises";
 import { join } from "path";
 import { existsSync } from "fs";
 
 const UPLOAD_DIR = join(process.cwd(), "uploads", "task-attachments");
 
-// GET /api/attachments/[id] — stream a local attachment (verifies auth)
+// GET /api/attachments/[id] — stream a local attachment (verifies auth & task access)
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -31,20 +32,32 @@ export async function GET(
       );
     }
 
+    const hasAccess = await canAccessTask(authResult.userId, attachment.taskId);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "No tienes acceso a este archivo" },
+        { status: 403 }
+      );
+    }
+
     // Try local file first
     // URL format: /api/attachments/{taskId}/{uniqueName}
     const urlMatch = attachment.url.match(/\/api\/attachments\/(.+)/);
-    if (urlMatch) {
+    if (urlMatch && !urlMatch[1].includes("..")) {
       const localPath = join(UPLOAD_DIR, urlMatch[1]);
       if (existsSync(localPath)) {
         const fileBuffer = await readFile(localPath);
-        const ext = attachment.name.split('.').pop()?.toLowerCase();
+        const ext = attachment.name.split(".").pop()?.toLowerCase();
         const mimeMap: Record<string, string> = {
-          jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
-          gif: 'image/gif', webp: 'image/webp', pdf: 'application/pdf',
-          txt: 'text/plain',
+          jpg: "image/jpeg",
+          jpeg: "image/jpeg",
+          png: "image/png",
+          gif: "image/gif",
+          webp: "image/webp",
+          pdf: "application/pdf",
+          txt: "text/plain",
         };
-        const contentType = mimeMap[ext || ''] || 'application/octet-stream';
+        const contentType = mimeMap[ext || ""] || "application/octet-stream";
 
         const headers = new Headers();
         headers.set("Content-Type", contentType);
@@ -56,8 +69,8 @@ export async function GET(
       }
     }
 
-    // Fallback: if URL looks like a remote/blob URL, return it as redirect
-    if (attachment.url.startsWith('http')) {
+    // Fallback: if URL looks like a remote/blob URL, return it
+    if (attachment.url.startsWith("http")) {
       return NextResponse.json({ url: attachment.url, name: attachment.name }, { status: 200 });
     }
 

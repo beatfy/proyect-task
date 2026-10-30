@@ -10,7 +10,7 @@ import {
 import { MindMapNode } from "./MindMapNode";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { Link2, X, Trash2 } from "lucide-react";
+import { Link2, X } from "lucide-react";
 
 interface MindMapCanvasProps {
   data: MindMapData;
@@ -216,7 +216,6 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
         y: e.clientY - panStart.y,
       };
       setViewport(newVp);
-      onChange({ ...data, viewport: newVp });
     } else if (draggingNodeId) {
       const newNodes = data.nodes.map((node) => {
         if (node.id === draggingNodeId) {
@@ -228,7 +227,7 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
         }
         return node;
       });
-      onChange({ ...data, nodes: newNodes });
+      onChange({ ...data, nodes: newNodes, viewport });
     }
   };
 
@@ -238,7 +237,7 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
     }
     if (draggingNodeId) {
       setDraggingNodeId(null);
-      pushHistory(data);
+      pushHistory({ ...data, viewport });
     }
   };
 
@@ -260,13 +259,12 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
 
     const newVp = { x: newX, y: newY, zoom: clampedZoom };
     setViewport(newVp);
-    onChange({ ...data, viewport: newVp });
   };
 
   // Node Update
   const handleUpdateNode = (nodeId: string, updates: Partial<NodeData>) => {
     const newNodes = data.nodes.map((n) => (n.id === nodeId ? { ...n, ...updates } : n));
-    const newData = { ...data, nodes: newNodes };
+    const newData = { ...data, nodes: newNodes, viewport };
     pushHistory(newData);
   };
 
@@ -316,6 +314,7 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
       ...data,
       nodes: [...data.nodes, newNode],
       edges: [...data.edges, newEdge],
+      viewport,
     };
 
     pushHistory(newData);
@@ -356,18 +355,22 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
       ...data,
       nodes: [...data.nodes, newNode],
       edges: newEdges,
+      viewport,
     };
 
     pushHistory(newData);
     onSelectNode(newId);
   };
 
-  // Delete Node & connected edges
+  // Delete Node & connected edges (with cycle protection)
   const handleDeleteNode = (nodeId: string) => {
     const nodeToDelete = data.nodes.find((n) => n.id === nodeId);
     if (nodeToDelete?.isRoot && data.nodes.length === 1) return;
 
+    const visited = new Set<string>();
     const getDescendants = (id: string): string[] => {
+      if (visited.has(id)) return [];
+      visited.add(id);
       const children = data.edges.filter((e) => e.source === id).map((e) => e.target);
       return [id, ...children.flatMap(getDescendants)];
     };
@@ -379,7 +382,7 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
       (e) => !allToDelete.has(e.source) && !allToDelete.has(e.target)
     );
 
-    const newData = { ...data, nodes: newNodes, edges: newEdges };
+    const newData = { ...data, nodes: newNodes, edges: newEdges, viewport };
     pushHistory(newData);
     onSelectNode(null);
   };
@@ -416,7 +419,7 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
     if (existingEdge) {
       // Toggle to DISCONNECT
       const newEdges = data.edges.filter((e) => e.id !== existingEdge.id);
-      const newData = { ...data, edges: newEdges };
+      const newData = { ...data, edges: newEdges, viewport };
       pushHistory(newData);
       toast.success(
         `Nodos desconectados: "${sourceNode?.label || 'Nodo'}" ⇏ "${targetNode?.label || 'Nodo'}"`
@@ -432,6 +435,7 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
       const newData = {
         ...data,
         edges: [...data.edges, newEdge],
+        viewport,
       };
       pushHistory(newData);
       toast.success(
@@ -447,11 +451,11 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
       const newEdges = data.edges.filter(
         (e) => e.source !== nodeId && e.target !== nodeId
       );
-      const newData = { ...data, edges: newEdges };
+      const newData = { ...data, edges: newEdges, viewport };
       pushHistory(newData);
       toast.success("Todos los enlaces del nodo han sido desconectados");
     },
-    [data, pushHistory]
+    [data, viewport, pushHistory]
   );
 
   // Node Drag Start
@@ -475,10 +479,12 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
     handleUpdateNode(nodeId, { collapsed: !node.collapsed });
   };
 
-  // Check hidden nodes
+  // Check hidden nodes (with cycle protection)
   const isNodeHidden = (node: NodeData): boolean => {
+    const visited = new Set<string>();
     let currParentId = node.parentId;
-    while (currParentId) {
+    while (currParentId && !visited.has(currParentId)) {
+      visited.add(currParentId);
       const parent = data.nodes.find((n) => n.id === currParentId);
       if (parent?.collapsed) return true;
       currParentId = parent?.parentId;

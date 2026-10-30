@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { Resend } from "resend";
 import { brand } from "@/lib/branding";
+import { rateLimit } from "@/lib/rate-limit";
 
 function getResend() {
   return new Resend(process.env.RESEND_API_KEY);
@@ -10,13 +11,25 @@ function getResend() {
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const { allowed: ipAllowed } = await rateLimit(`forgot-pw-ip:${ip}`);
+    if (!ipAllowed) {
+      return NextResponse.json({ error: "Demasiados intentos. Espera un minuto." }, { status: 429 });
+    }
+
     const { email } = await req.json();
 
     if (!email || typeof email !== "string") {
       return NextResponse.json({ success: true });
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const normalizedEmail = email.trim().toLowerCase();
+    const { allowed: emailAllowed } = await rateLimit(`forgot-pw-email:${normalizedEmail}`);
+    if (!emailAllowed) {
+      return NextResponse.json({ success: true });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
 
     if (user) {
       const token = crypto.randomBytes(32).toString("hex");
@@ -35,7 +48,7 @@ export async function POST(req: NextRequest) {
 
       await getResend().emails.send({
         from: `${brand.name} <noreply@${domainName}.app>`,
-        to: email,
+        to: user.email,
         subject: `Reset your ${brand.name} password`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

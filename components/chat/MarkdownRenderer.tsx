@@ -80,6 +80,17 @@ function CodeBlock({ code, lang }: { code: string; lang?: string }) {
   );
 }
 
+function isSafeLinkHref(href?: string): boolean {
+  if (!href) return false;
+  const trimmed = href.trim().toLowerCase();
+  return (
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("https://") ||
+    trimmed.startsWith("mailto:") ||
+    (trimmed.startsWith("/") && !trimmed.startsWith("//"))
+  );
+}
+
 // Tokenizar y renderizar estilos en línea
 function renderInline(text: string): React.ReactNode[] {
   if (!text) return [];
@@ -182,6 +193,9 @@ function renderInline(text: string): React.ReactNode[] {
           </code>
         );
       case "link":
+        if (!isSafeLinkHref(token.href)) {
+          return <span key={idx}>{token.text}</span>;
+        }
         return (
           <a
             key={idx}

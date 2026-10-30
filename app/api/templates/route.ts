@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/api-auth";
+import { getUserOrgIds, verifyOrgMembership } from "@/lib/tenant";
 import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
 
@@ -90,7 +91,30 @@ export async function GET(request: NextRequest) {
     // Ensure defaults exist
     await seedDefaults();
 
+    const { searchParams } = new URL(request.url);
+    const organizationId = searchParams.get("organizationId");
+
+    if (organizationId) {
+      const { valid: isMember } = await verifyOrgMembership(authResult.userId, organizationId);
+      if (!isMember) {
+        return NextResponse.json({ error: "No tienes acceso a esta organización" }, { status: 403 });
+      }
+    }
+
+    const userOrgIds = await getUserOrgIds(authResult.userId);
+
     const templates = await prisma.taskTemplate.findMany({
+      where: organizationId
+        ? {
+            OR: [{ isDefault: true }, { organizationId }],
+          }
+        : {
+            OR: [
+              { isDefault: true },
+              { organizationId: null },
+              ...(userOrgIds.length > 0 ? [{ organizationId: { in: userOrgIds } }] : []),
+            ],
+          },
       orderBy: [{ isDefault: "desc" }, { name: "asc" }],
     });
 
@@ -116,6 +140,13 @@ export async function POST(request: NextRequest) {
         { error: "nombre y título son requeridos" },
         { status: 400 }
       );
+    }
+
+    if (organizationId) {
+      const { valid: isMember } = await verifyOrgMembership(authResult.userId, organizationId);
+      if (!isMember) {
+        return NextResponse.json({ error: "No tienes acceso a esta organización" }, { status: 403 });
+      }
     }
 
     const template = await prisma.taskTemplate.create({
@@ -164,6 +195,13 @@ export async function DELETE(request: NextRequest) {
         { error: "No se pueden eliminar plantillas predeterminadas" },
         { status: 400 }
       );
+    }
+
+    if (template.organizationId) {
+      const { valid: isMember } = await verifyOrgMembership(authResult.userId, template.organizationId);
+      if (!isMember) {
+        return NextResponse.json({ error: "Sin acceso a esta plantilla" }, { status: 403 });
+      }
     }
 
     await prisma.taskTemplate.delete({ where: { id } });

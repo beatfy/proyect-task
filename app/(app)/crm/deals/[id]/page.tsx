@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import {
   Loader2, ArrowLeft, Plus, Trash2, Check, Calendar, Clock, User,
-  DollarSign, Edit2, MessageSquare, Phone, Mail, FileText, Download,
+  DollarSign, Edit2, MessageSquare, Phone, Mail, FileText, Download, FolderKanban,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -114,6 +114,87 @@ export default function DealDetailPage() {
   const [deleteActivityId, setDeleteActivityId] = useState<string | null>(null);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [generatingContract, setGeneratingContract] = useState(false);
+  const [convertingProject, setConvertingProject] = useState(false);
+  const [convertDialogOpen, setConvertDialogOpen] = useState(false);
+  const [convertForm, setConvertForm] = useState({
+    name: "",
+    description: "",
+    monthlyFee: "0",
+    clientEmail: "",
+    color: "#6366f1",
+    initialTasks: [] as { title: string; priority: "LOW" | "MEDIUM" | "HIGH" }[],
+  });
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskPriority, setNewTaskPriority] = useState<"LOW" | "MEDIUM" | "HIGH">("MEDIUM");
+
+  const openConvertModal = () => {
+    if (!deal) return;
+    setConvertForm({
+      name: deal.title || "",
+      description: deal.notes || "",
+      monthlyFee: String(deal.value || 0),
+      clientEmail: deal.contact?.email || "",
+      color: deal.stage?.color || "#6366f1",
+      initialTasks: [],
+    });
+    setNewTaskTitle("");
+    setNewTaskPriority("MEDIUM");
+    setConvertDialogOpen(true);
+  };
+
+  const handleAddManualTask = () => {
+    if (!newTaskTitle.trim()) return;
+    setConvertForm((prev) => ({
+      ...prev,
+      initialTasks: [
+        ...prev.initialTasks,
+        { title: newTaskTitle.trim(), priority: newTaskPriority },
+      ],
+    }));
+    setNewTaskTitle("");
+  };
+
+  const handleRemoveManualTask = (index: number) => {
+    setConvertForm((prev) => ({
+      ...prev,
+      initialTasks: prev.initialTasks.filter((_, idx) => idx !== index),
+    }));
+  };
+
+  const handleConvertToProject = async () => {
+    if (!convertForm.name.trim()) {
+      toast.error("El nombre del proyecto es obligatorio");
+      return;
+    }
+    setConvertingProject(true);
+    try {
+      const res = await fetch(`/api/crm/deals/${dealId}/convert-project`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: convertForm.name.trim(),
+          description: convertForm.description.trim(),
+          monthlyFee: Number(convertForm.monthlyFee) || 0,
+          clientEmail: convertForm.clientEmail.trim(),
+          color: convertForm.color,
+          initialTasks: convertForm.initialTasks,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setConvertDialogOpen(false);
+        toast.success("Proyecto creado manualmente con éxito");
+        router.push(`/projects/${data.project.id}`);
+      } else {
+        const err = await res.json();
+        toast.error(err.error || "Error al convertir en proyecto");
+      }
+    } catch {
+      toast.error("Error de conexión al convertir en proyecto");
+    } finally {
+      setConvertingProject(false);
+    }
+  };
   const [contracts, setContracts] = useState<{ id: string; fileName: string; status: string; createdAt: string; pdfUrl: string }[]>([]);
 
   const fetchDeal = useCallback(async () => {
@@ -297,6 +378,10 @@ export default function DealDetailPage() {
           <Button variant="outline" size="sm" onClick={handleGenerateContract} disabled={generatingContract}>
             {generatingContract ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <FileText className="h-4 w-4 mr-1.5" />}
             Generar Contrato
+          </Button>
+          <Button size="sm" onClick={openConvertModal} disabled={convertingProject}>
+            {convertingProject ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <FolderKanban className="h-4 w-4 mr-1.5" />}
+            Convertir en Proyecto
           </Button>
         </div>
       </div>
@@ -661,6 +746,159 @@ export default function DealDetailPage() {
             <Button onClick={handleSaveActivity} disabled={saving || !activityForm.title.trim()}>
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {editingActivity ? "Guardar" : "Crear"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manual Convert Deal to Project Dialog */}
+      <Dialog open={convertDialogOpen} onOpenChange={setConvertDialogOpen}>
+        <DialogContent className="sm:max-w-[540px] max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FolderKanban className="h-5 w-5 text-primary" />
+              Configurar y Crear Proyecto Manualmente
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label htmlFor="convert-name">Nombre del Proyecto *</Label>
+              <Input
+                id="convert-name"
+                value={convertForm.name}
+                onChange={(e) => setConvertForm({ ...convertForm, name: e.target.value })}
+                placeholder="Ej. Desarrollo Web Cliente X"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="convert-fee">Cuota / Presupuesto (€)</Label>
+                <Input
+                  id="convert-fee"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={convertForm.monthlyFee}
+                  onChange={(e) => setConvertForm({ ...convertForm, monthlyFee: e.target.value })}
+                  placeholder="0.00"
+                />
+              </div>
+              <div>
+                <Label htmlFor="convert-color">Color del Proyecto</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Input
+                    id="convert-color"
+                    type="color"
+                    value={convertForm.color}
+                    onChange={(e) => setConvertForm({ ...convertForm, color: e.target.value })}
+                    className="w-12 h-9 p-1 cursor-pointer"
+                  />
+                  <Input
+                    value={convertForm.color}
+                    onChange={(e) => setConvertForm({ ...convertForm, color: e.target.value })}
+                    className="flex-1 font-mono text-xs"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="convert-email">Email del Cliente (opcional)</Label>
+              <Input
+                id="convert-email"
+                type="email"
+                value={convertForm.clientEmail}
+                onChange={(e) => setConvertForm({ ...convertForm, clientEmail: e.target.value })}
+                placeholder="cliente@empresa.com"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="convert-description">Descripción / Contexto del Proyecto</Label>
+              <textarea
+                id="convert-description"
+                value={convertForm.description}
+                onChange={(e) => setConvertForm({ ...convertForm, description: e.target.value })}
+                placeholder="Alcance, notas del acuerdo o contexto para el equipo..."
+                rows={3}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              />
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Tareas Iniciales Manuales ({convertForm.initialTasks.length})
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                No se creará ninguna tarea automática. Si lo deseas, añade manualmente las tareas iniciales del proyecto:
+              </p>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={newTaskTitle}
+                  onChange={(e) => setNewTaskTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddManualTask();
+                    }
+                  }}
+                  placeholder="Título de la tarea..."
+                  className="flex-1"
+                />
+                <Select
+                  value={newTaskPriority}
+                  onValueChange={(v) => setNewTaskPriority(v as "LOW" | "MEDIUM" | "HIGH")}
+                >
+                  <SelectTrigger className="w-28">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="LOW">Baja</SelectItem>
+                    <SelectItem value="MEDIUM">Media</SelectItem>
+                    <SelectItem value="HIGH">Alta</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button type="button" variant="secondary" size="sm" onClick={handleAddManualTask}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {convertForm.initialTasks.length > 0 && (
+                <div className="space-y-1.5 pt-2 max-h-40 overflow-y-auto">
+                  {convertForm.initialTasks.map((task, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-md bg-muted/60 text-xs"
+                    >
+                      <span className="truncate font-medium text-foreground">{task.title}</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Badge variant="outline" className="text-[10px]">
+                          {task.priority}
+                        </Badge>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveManualTask(idx)}
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConvertDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConvertToProject} disabled={convertingProject || !convertForm.name.trim()}>
+              {convertingProject && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Crear Proyecto
             </Button>
           </DialogFooter>
         </DialogContent>

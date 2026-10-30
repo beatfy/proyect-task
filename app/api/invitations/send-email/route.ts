@@ -1,9 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateRequest } from "@/lib/api-auth";
+import { canModifyProject, isOrgAdmin } from "@/lib/tenant";
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await authenticateRequest(request);
+    if (!authResult) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
     const { invitationId, orgName, inviterName } = await request.json();
 
     if (!invitationId) {
@@ -18,18 +33,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invitación no encontrada" }, { status: 404 });
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://taskProject.app";
-    const inviteUrl = `${appUrl}/join/${invitationId}`;
+    // Verify caller is the inviter or an admin of the target project/organization
+    let isAuthorized = invitation.invitedBy === authResult.userId;
+    if (!isAuthorized && invitation.organizationId) {
+      isAuthorized = await isOrgAdmin(authResult.userId, invitation.organizationId);
+    }
+    if (!isAuthorized && invitation.projectId) {
+      isAuthorized = await canModifyProject(authResult.userId, invitation.projectId);
+    }
+    if (!isAuthorized) {
+      return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
+    }
 
-    const targetName = orgName || "taskProject";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://taskProject.app";
+    const inviteUrl = `${appUrl}/join/${encodeURIComponent(invitationId)}`;
+
+    const safeTargetName = escapeHtml(String(orgName || "taskProject"));
+    const safeInviterName = escapeHtml(String(inviterName || "Un miembro del equipo"));
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 32px; border-radius: 12px 12px 0 0; text-align: center;">
-          <h1 style="color: white; margin: 0; font-size: 24px;">Has sido invitado a ${targetName}</h1>
+          <h1 style="color: white; margin: 0; font-size: 24px;">Has sido invitado a ${safeTargetName}</h1>
         </div>
         <div style="padding: 32px; background: white; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
           <p style="color: #374151; font-size: 16px; line-height: 1.6;">
-            <strong>${inviterName}</strong> te ha invitado a unirte a la organización <strong>${targetName}</strong> en taskProject.
+            <strong>${safeInviterName}</strong> te ha invitado a unirte a la organización <strong>${safeTargetName}</strong> en taskProject.
           </p>
           <div style="text-align: center; margin: 32px 0;">
             <a href="${inviteUrl}" style="background: #6366f1; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; display: inline-block;">
@@ -61,7 +89,7 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({
           from: "taskProject <noreply@taskProject.app>",
           to: [invitation.email],
-          subject: `${inviterName} te ha invitado a ${targetName}`,
+          subject: `${String(inviterName || "Un miembro")} te ha invitado a ${String(orgName || "taskProject")}`,
           html,
         }),
       });
@@ -69,7 +97,7 @@ export async function POST(request: NextRequest) {
       if (!resendRes.ok) {
         const err = await resendRes.text();
         console.error("Resend error:", err);
-        return NextResponse.json({ error: "Error enviando email", details: err }, { status: 500 });
+        return NextResponse.json({ error: "Error enviando email" }, { status: 500 });
       }
 
       return NextResponse.json({ success: true, sent: true });

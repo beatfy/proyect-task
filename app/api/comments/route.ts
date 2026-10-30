@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateRequest } from "@/lib/api-auth";
+import { canAccessTask } from "@/lib/authz";
 import { cuid } from "@/lib/utils";
 import { commentCreateSchema } from "@/lib/validations/comment";
 
 // GET comments for a task
 export async function GET(request: NextRequest) {
   const authResult = await authenticateRequest(request);
-    if (!authResult) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!authResult) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -19,6 +20,11 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const hasAccess = await canAccessTask(authResult.userId, taskId);
+    if (!hasAccess) {
+      return NextResponse.json({ error: "Sin acceso a esta tarea" }, { status: 403 });
+    }
+
     const comments = await prisma.comment.findMany({
       where: { taskId },
       include: {
@@ -36,8 +42,8 @@ export async function GET(request: NextRequest) {
 // POST create comment
 export async function POST(request: NextRequest) {
   const authResult = await authenticateRequest(request);
-    if (!authResult) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!authResult) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
   try {
@@ -51,6 +57,11 @@ export async function POST(request: NextRequest) {
     }
 
     const { taskId, content } = parsed.data;
+
+    const hasAccess = await canAccessTask(authResult.userId, taskId);
+    if (!hasAccess) {
+      return NextResponse.json({ error: "Sin acceso a esta tarea" }, { status: 403 });
+    }
 
     // Get task info for notification
     const task = await prisma.task.findUnique({
@@ -82,7 +93,7 @@ export async function POST(request: NextRequest) {
           userId,
           type: "COMMENT_ADDED",
           title: `Nuevo comentario en: ${task?.title || "Tarea"}`,
-          content: `${"Scytale"}: ${content.trim().substring(0, 100)}`,
+          content: `${comment.author.name || "Usuario"}: ${content.trim().substring(0, 100)}`,
           data: { taskId, commentId: comment.id },
         },
       });
@@ -97,8 +108,8 @@ export async function POST(request: NextRequest) {
 // DELETE comment - only the author can delete their own comments
 export async function DELETE(request: NextRequest) {
   const authResult = await authenticateRequest(request);
-    if (!authResult) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!authResult) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);

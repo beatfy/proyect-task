@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/api-auth";
+import { verifyOrgMembership } from "@/lib/tenant";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
@@ -17,6 +18,18 @@ export async function PATCH(
     const authResult = await authenticateRequest(request);
     if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const existing = await prisma.label.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: "Etiqueta no encontrada" }, { status: 404 });
+    }
+
+    if (existing.organizationId) {
+      const { valid: isMember } = await verifyOrgMembership(authResult.userId, existing.organizationId);
+      if (!isMember) {
+        return NextResponse.json({ error: "Sin acceso a esta etiqueta" }, { status: 403 });
+      }
     }
 
     const body = await request.json();
@@ -49,6 +62,18 @@ export async function DELETE(
     const authResult = await authenticateRequest(request);
     if (!authResult) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const existing = await prisma.label.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: "Etiqueta no encontrada" }, { status: 404 });
+    }
+
+    if (existing.organizationId) {
+      const { valid: isMember } = await verifyOrgMembership(authResult.userId, existing.organizationId);
+      if (!isMember) {
+        return NextResponse.json({ error: "Sin acceso a esta etiqueta" }, { status: 403 });
+      }
     }
 
     await prisma.label.delete({ where: { id } });

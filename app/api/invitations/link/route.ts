@@ -12,13 +12,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const { projectId, role, maxUses, expiresDays } = await request.json();
+    const { projectId, role = "MEMBER", maxUses, expiresDays } = await request.json();
 
     if (!projectId) {
       return NextResponse.json(
         { error: "projectId requerido" },
         { status: 400 }
       );
+    }
+
+    if (!["MEMBER", "ADMIN", "OWNER"].includes(role)) {
+      return NextResponse.json({ error: "Rol inválido" }, { status: 400 });
     }
 
     // Verificar que el usuario es owner/admin del proyecto
@@ -33,6 +37,13 @@ export async function POST(request: NextRequest) {
     if (!membership) {
       return NextResponse.json(
         { error: "No tienes permisos para crear links de invitación" },
+        { status: 403 }
+      );
+    }
+
+    if (role === "OWNER" && membership.role !== "OWNER") {
+      return NextResponse.json(
+        { error: "Solo un OWNER puede asignar el rol OWNER" },
         { status: 403 }
       );
     }
@@ -53,7 +64,7 @@ export async function POST(request: NextRequest) {
         token,
         projectId,
         createdBy: authResult.userId,
-        role: role || "MEMBER",
+        role,
         maxUses: maxUses || null,
         expiresAt,
       },

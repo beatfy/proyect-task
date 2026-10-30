@@ -15,27 +15,43 @@ const mockPrisma = {
     findUnique: jest.fn().mockResolvedValue({ id: "user-1", name: "Test User" }),
   },
   project: {
-    findUnique: jest.fn().mockResolvedValue({ id: "proj-1", name: "Test Project", organizationId: "org-1" }),
+    findUnique: jest.fn().mockResolvedValue({
+      id: "proj-1",
+      name: "Test Project",
+      organizationId: "org-1",
+      members: [{ userId: "user-1", role: "ADMIN" }],
+    }),
     update: jest.fn(),
     create: jest.fn().mockResolvedValue({ id: "proj-new", name: "New Project" }),
   },
   organization: {
     findUnique: jest.fn().mockResolvedValue({ id: "org-1", name: "Test Org" }),
   },
+  organizationMember: {
+    findUnique: jest.fn().mockResolvedValue({ role: "MEMBER" }),
+    findMany: jest.fn().mockResolvedValue([{ organizationId: "org-1" }]),
+  },
+  knowledgeBase: {
+    findUnique: jest.fn().mockResolvedValue(null),
+  },
   task: {
     create: jest.fn().mockResolvedValue({ id: "task-1", title: "Test", status: "TODO" }),
     update: jest.fn().mockResolvedValue({ id: "task-1", title: "Updated", status: "IN_PROGRESS" }),
     delete: jest.fn().mockResolvedValue({}),
     findMany: jest.fn().mockResolvedValue([]),
-    findUnique: jest.fn().mockResolvedValue({ id: "task-1" }),
+    findUnique: jest.fn().mockResolvedValue({ id: "task-1", projectId: "proj-1", creatorId: "user-1" }),
     count: jest.fn().mockResolvedValue(0),
   },
   chatMessage: {
     create: jest.fn().mockResolvedValue({}),
     findMany: jest.fn().mockResolvedValue([]),
   },
+  taskyUsage: {
+    create: jest.fn().mockResolvedValue({}),
+  },
   projectMember: {
     findMany: jest.fn().mockResolvedValue([]),
+    findFirst: jest.fn().mockResolvedValue({ id: "pm-1", userId: "user-1", role: "ADMIN" }),
     findUnique: jest.fn().mockResolvedValue(null),
     create: jest.fn().mockResolvedValue({}),
   },
@@ -104,6 +120,37 @@ function mockLLMResponse(message: { content?: string; tool_calls?: Array<{ id: s
   });
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function readChatResponse(res: Response): Promise<{ reply: string; actions: any[]; error?: string }> {
+  const contentType = res.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    return res.json();
+  }
+  const text = await res.text();
+  let reply = "";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let actions: any[] = [];
+  let error: string | undefined;
+
+  for (const line of text.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("data: ")) continue;
+    try {
+      const evt = JSON.parse(trimmed.slice(6));
+      if (evt.type === "token" && evt.content) {
+        reply += evt.content;
+      } else if (evt.type === "done" && Array.isArray(evt.actions)) {
+        actions = evt.actions;
+      } else if (evt.type === "error") {
+        error = evt.error;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return { reply, actions, error };
+}
+
 // ============================================================
 // TOOL DEFINITIONS TESTS
 // ============================================================
@@ -114,16 +161,22 @@ describe("Ledy tool definitions", () => {
     const { authenticateRequest } = require("@/lib/api-auth");
     authenticateRequest.mockResolvedValue({ userId: "user-1", permissions: "full" });
     mockPrisma.user.findUnique.mockResolvedValue({ id: "user-1", name: "Test User" });
-    mockPrisma.project.findUnique.mockResolvedValue({ id: "proj-1", name: "Test Project", organizationId: "org-1" });
+    mockPrisma.project.findUnique.mockResolvedValue({
+      id: "proj-1",
+      name: "Test Project",
+      organizationId: "org-1",
+      members: [{ userId: "user-1", role: "ADMIN" }],
+    });
     mockPrisma.organization.findUnique.mockResolvedValue({ id: "org-1", name: "Test Org" });
+    mockPrisma.organizationMember.findUnique.mockResolvedValue({ role: "MEMBER" });
     mockPrisma.task.findMany.mockResolvedValue([]);
+    mockPrisma.task.findUnique.mockResolvedValue({ id: "task-1", projectId: "proj-1", creatorId: "user-1" });
     mockPrisma.projectMember.findMany.mockResolvedValue([]);
     process.env.GLM_API_KEY = "test-key";
   });
   afterAll(() => { delete process.env.GLM_API_KEY; });
 
   it("sends tools array to the LLM API", async () => {
-    // LLM responds with plain text (no tool calls)
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -131,7 +184,8 @@ describe("Ledy tool definitions", () => {
       }),
     });
 
-    await POST(makeRequest({ message: "hola" }));
+    const res = await POST(makeRequest({ message: "hola" }));
+    await readChatResponse(res);
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const [, options] = mockFetch.mock.calls[0];
@@ -139,7 +193,7 @@ describe("Ledy tool definitions", () => {
 
     expect(body.tools).toBeDefined();
     expect(Array.isArray(body.tools)).toBe(true);
-    expect(body.tools.length).toBe(13); // 13 tools total (11 + client_context_update + task_attachment)
+    expect(body.tools.length).toBe(19); // 13 project/task tools + 6 CRM tools
   });
 
   it("includes all expected tool names", async () => {
@@ -150,7 +204,8 @@ describe("Ledy tool definitions", () => {
       }),
     });
 
-    await POST(makeRequest({ message: "test" }));
+    const res = await POST(makeRequest({ message: "test" }));
+    await readChatResponse(res);
 
     const [, options] = mockFetch.mock.calls[0];
     const body = JSON.parse(options.body);
@@ -170,6 +225,12 @@ describe("Ledy tool definitions", () => {
       "client_context_update",
       "project_create",
       "task_attachment",
+      "contact_create",
+      "contact_list",
+      "pipeline_list",
+      "deal_create",
+      "deal_list",
+      "deal_move",
     ];
 
     expectedTools.forEach((name) => {
@@ -185,7 +246,8 @@ describe("Ledy tool definitions", () => {
       }),
     });
 
-    await POST(makeRequest({ message: "test" }));
+    const res = await POST(makeRequest({ message: "test" }));
+    await readChatResponse(res);
 
     const [, options] = mockFetch.mock.calls[0];
     const body = JSON.parse(options.body);
@@ -209,7 +271,8 @@ describe("Ledy tool definitions", () => {
       }),
     });
 
-    await POST(makeRequest({ message: "test" }));
+    const res = await POST(makeRequest({ message: "test" }));
+    await readChatResponse(res);
 
     const [, options] = mockFetch.mock.calls[0];
     const body = JSON.parse(options.body);
@@ -229,7 +292,8 @@ describe("Ledy tool definitions", () => {
       }),
     });
 
-    await POST(makeRequest({ message: "test" }));
+    const res = await POST(makeRequest({ message: "test" }));
+    await readChatResponse(res);
 
     const [, options] = mockFetch.mock.calls[0];
     const body = JSON.parse(options.body);
@@ -246,7 +310,8 @@ describe("Ledy tool definitions", () => {
       }),
     });
 
-    await POST(makeRequest({ message: "test" }));
+    const res = await POST(makeRequest({ message: "test" }));
+    await readChatResponse(res);
 
     const [, options] = mockFetch.mock.calls[0];
     const body = JSON.parse(options.body);
@@ -263,7 +328,8 @@ describe("Ledy tool definitions", () => {
       }),
     });
 
-    await POST(makeRequest({ message: "test" }));
+    const res = await POST(makeRequest({ message: "test" }));
+    await readChatResponse(res);
 
     const [, options] = mockFetch.mock.calls[0];
     const body = JSON.parse(options.body);
@@ -280,7 +346,8 @@ describe("Ledy tool definitions", () => {
       }),
     });
 
-    await POST(makeRequest({ message: "test" }));
+    const res = await POST(makeRequest({ message: "test" }));
+    await readChatResponse(res);
 
     const [, options] = mockFetch.mock.calls[0];
     const body = JSON.parse(options.body);
@@ -297,15 +364,19 @@ describe("Ledy tool definitions", () => {
 describe("POST /api/chat", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Default: auth passes
     const { authenticateRequest } = require("@/lib/api-auth");
     authenticateRequest.mockResolvedValue({ userId: "user-1", permissions: "full" });
-    // Default: user found
     mockPrisma.user.findUnique.mockResolvedValue({ id: "user-1", name: "Test User" });
-    // Default: project found
-    mockPrisma.project.findUnique.mockResolvedValue({ id: "proj-1", name: "Test Project", organizationId: "org-1" });
+    mockPrisma.project.findUnique.mockResolvedValue({
+      id: "proj-1",
+      name: "Test Project",
+      organizationId: "org-1",
+      members: [{ userId: "user-1", role: "ADMIN" }],
+    });
     mockPrisma.organization.findUnique.mockResolvedValue({ id: "org-1", name: "Test Org" });
+    mockPrisma.organizationMember.findUnique.mockResolvedValue({ role: "MEMBER" });
     mockPrisma.task.findMany.mockResolvedValue([]);
+    mockPrisma.task.findUnique.mockResolvedValue({ id: "task-1", projectId: "proj-1", creatorId: "user-1" });
     mockPrisma.projectMember.findMany.mockResolvedValue([]);
     process.env.GLM_API_KEY = "test-key";
   });
@@ -315,7 +386,7 @@ describe("POST /api/chat", () => {
     mockLLMResponse({ content: "¡Hola! ¿En qué puedo ayudarte?" });
 
     const res = await POST(makeRequest({ message: "hola", projectId: "proj-1" }));
-    const data = await res.json();
+    const data = await readChatResponse(res);
 
     expect(res.status).toBe(200);
     expect(data.reply).toBe("¡Hola! ¿En qué puedo ayudarte?");
@@ -341,7 +412,6 @@ describe("POST /api/chat", () => {
   });
 
   it("returns 500 when no API key is configured", async () => {
-    // Temporarily remove API key
     const originalKey = process.env.GLM_API_KEY;
     const originalOpenAI = process.env.OPENAI_API_KEY;
     delete process.env.GLM_API_KEY;
@@ -352,12 +422,11 @@ describe("POST /api/chat", () => {
     const data = await res.json();
     expect(data.error).toContain("API key no configurada");
 
-    // Restore
     if (originalKey) process.env.GLM_API_KEY = originalKey;
     if (originalOpenAI) process.env.OPENAI_API_KEY = originalOpenAI;
   });
 
-  it("returns 502 when LLM API fails", async () => {
+  it("emits SSE error event when LLM API fails", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 500,
@@ -365,11 +434,11 @@ describe("POST /api/chat", () => {
     });
 
     const res = await POST(makeRequest({ message: "hola", projectId: "proj-1" }));
-    expect(res.status).toBe(502);
+    const data = await readChatResponse(res);
+    expect(data.error).toContain("LLM API error 500");
   });
 
   it("executes tool calls and returns actions", async () => {
-    // First call: LLM returns a tool call
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -387,7 +456,6 @@ describe("POST /api/chat", () => {
       }),
     });
 
-    // Second call: LLM summarizes result
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -396,7 +464,7 @@ describe("POST /api/chat", () => {
     });
 
     const res = await POST(makeRequest({ message: "crea una tarea urgente llamada Nueva tarea", projectId: "proj-1" }));
-    const data = await res.json();
+    const data = await readChatResponse(res);
 
     expect(res.status).toBe(200);
     expect(data.actions).toHaveLength(1);
@@ -434,7 +502,7 @@ describe("POST /api/chat", () => {
     });
 
     const res = await POST(makeRequest({ message: "marca la tarea task-1 como hecha", projectId: "proj-1" }));
-    const data = await res.json();
+    const data = await readChatResponse(res);
 
     expect(data.actions[0].tool).toBe("task_update");
     expect(data.actions[0].result.success).toBe(true);
@@ -465,7 +533,7 @@ describe("POST /api/chat", () => {
     });
 
     const res = await POST(makeRequest({ message: "elimina la tarea task-1", projectId: "proj-1" }));
-    const data = await res.json();
+    const data = await readChatResponse(res);
 
     expect(data.actions[0].tool).toBe("task_delete");
     expect(data.actions[0].result.success).toBe(true);
@@ -496,7 +564,7 @@ describe("POST /api/chat", () => {
     });
 
     const res = await POST(makeRequest({ message: "mueve task-1 a en progreso", projectId: "proj-1" }));
-    const data = await res.json();
+    const data = await readChatResponse(res);
 
     expect(data.actions[0].tool).toBe("task_move");
     expect(data.actions[0].result.success).toBe(true);
@@ -529,7 +597,7 @@ describe("POST /api/chat", () => {
     });
 
     const res = await POST(makeRequest({ message: "dame un resumen del proyecto", projectId: "proj-1" }));
-    const data = await res.json();
+    const data = await readChatResponse(res);
 
     expect(data.actions[0].tool).toBe("project_summary");
     expect(data.actions[0].result.total).toBe(11);
@@ -567,7 +635,7 @@ describe("POST /api/chat", () => {
     ]);
 
     const res = await POST(makeRequest({ message: "lista los miembros", projectId: "proj-1" }));
-    const data = await res.json();
+    const data = await readChatResponse(res);
 
     expect(data.actions[0].tool).toBe("member_list");
     expect(data.actions[0].result.members).toHaveLength(1);
@@ -597,7 +665,7 @@ describe("POST /api/chat", () => {
     });
 
     const res = await POST(makeRequest({ message: "registra 2 horas en task-1 por diseño UI", projectId: "proj-1" }));
-    const data = await res.json();
+    const data = await readChatResponse(res);
 
     expect(data.actions[0].tool).toBe("time_log");
     expect(data.actions[0].result.success).toBe(true);
@@ -607,17 +675,12 @@ describe("POST /api/chat", () => {
   });
 
   it("handles client_context tool call", async () => {
-    // First call: POST handler context loading (uses organizationId)
-    mockPrisma.project.findUnique.mockResolvedValueOnce({
+    mockPrisma.project.findUnique.mockResolvedValue({
       id: "proj-1",
       name: "Test Project",
       organizationId: "org-1",
-    });
-    // Second call: inside client_context tool (needs clientContext)
-    mockPrisma.project.findUnique.mockResolvedValueOnce({
-      id: "proj-1",
-      name: "Test Project",
       clientContext: "Restaurante italiano en Madrid. Tono cercano.",
+      members: [{ userId: "user-1", role: "ADMIN" }],
     });
 
     mockFetch.mockResolvedValueOnce({
@@ -643,7 +706,7 @@ describe("POST /api/chat", () => {
     });
 
     const res = await POST(makeRequest({ message: "qué sabes del cliente?", projectId: "proj-1" }));
-    const data = await res.json();
+    const data = await readChatResponse(res);
 
     expect(data.actions[0].tool).toBe("client_context");
     expect(data.actions[0].result.context).toContain("Restaurante italiano");
@@ -675,7 +738,7 @@ describe("POST /api/chat", () => {
     });
 
     const res = await POST(makeRequest({ message: "crea un proyecto llamado Nuevo Proyecto", projectId: "proj-1", organizationId: "org-1" }));
-    const data = await res.json();
+    const data = await readChatResponse(res);
 
     expect(data.actions[0].tool).toBe("project_create");
     expect(data.actions[0].result.success).toBe(true);
@@ -726,7 +789,6 @@ describe("POST /api/chat", () => {
         }],
       }),
     });
-    // Second call fails
     mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 500,
@@ -734,7 +796,7 @@ describe("POST /api/chat", () => {
     });
 
     const res = await POST(makeRequest({ message: "lista tareas", projectId: "proj-1" }));
-    const data = await res.json();
+    const data = await readChatResponse(res);
 
     expect(res.status).toBe(200);
     expect(data.reply).toBe("Acción completada.");
@@ -744,7 +806,8 @@ describe("POST /api/chat", () => {
   it("saves chat messages to database", async () => {
     mockLLMResponse({ content: "Respuesta de prueba" });
 
-    await POST(makeRequest({ message: "hola", projectId: "proj-1" }));
+    const res = await POST(makeRequest({ message: "hola", projectId: "proj-1" }));
+    await readChatResponse(res);
 
     expect(mockPrisma.chatMessage.create).toHaveBeenCalledTimes(2); // user + assistant
   });
@@ -752,7 +815,8 @@ describe("POST /api/chat", () => {
   it("passes system prompt with project context", async () => {
     mockLLMResponse({ content: "ok" });
 
-    await POST(makeRequest({ message: "test", projectId: "proj-1" }));
+    const res = await POST(makeRequest({ message: "test", projectId: "proj-1" }));
+    await readChatResponse(res);
 
     const [, options] = mockFetch.mock.calls[0];
     const body = JSON.parse(options.body);
@@ -765,8 +829,6 @@ describe("POST /api/chat", () => {
   });
 
   it("handles unknown tool gracefully", async () => {
-    // unknown_tool returns { error: ... } which gets stringified and sent back.
-    // The route should still return 200 since it processes tool results.
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -790,14 +852,13 @@ describe("POST /api/chat", () => {
     });
 
     const res = await POST(makeRequest({ message: "test", projectId: "proj-1" }));
-    const data = await res.json();
+    const data = await readChatResponse(res);
 
     expect(res.status).toBe(200);
     expect(data.actions[0].result.error).toContain("no reconocida");
   });
 
   it("includes history messages when provided", async () => {
-    // Need 2 mock responses since tool calls trigger second LLM call
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -805,7 +866,7 @@ describe("POST /api/chat", () => {
       }),
     });
 
-    await POST(makeRequest({
+    const res = await POST(makeRequest({
       message: "siguiente",
       projectId: "proj-1",
       history: [
@@ -813,6 +874,7 @@ describe("POST /api/chat", () => {
         { role: "assistant", content: "¡Hola!" },
       ],
     }));
+    await readChatResponse(res);
 
     const [, options] = mockFetch.mock.calls[0];
     const body = JSON.parse(options.body);

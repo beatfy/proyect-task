@@ -20,6 +20,8 @@ import {
   Calendar,
   User,
   Info,
+  CheckSquare,
+  UserPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -95,6 +97,68 @@ export default function MailPage() {
   const [composeSubject, setComposeSubject] = useState("");
   const [composeBody, setComposeBody] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [creatingTaskFromEmail, setCreatingTaskFromEmail] = useState(false);
+  const [creatingContactFromEmail, setCreatingContactFromEmail] = useState(false);
+
+  const handleCreateTaskFromEmail = async () => {
+    if (!selectedEmail) return;
+    setCreatingTaskFromEmail(true);
+    try {
+      const snippetText = (selectedEmail.body || selectedEmail.snippet || "").slice(0, 800);
+      const res = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: `[Email] ${selectedEmail.subject || "(Sin asunto)"}`.slice(0, 180),
+          description: `Remitente: ${selectedEmail.from}\nFecha: ${new Date(selectedEmail.date).toLocaleString("es-ES")}\n\n${snippetText}`,
+          priority: "MEDIUM",
+          status: "TODO",
+        }),
+      });
+      if (res.ok) {
+        toast.success("Tarea creada en tu tablero a partir de este correo");
+      } else {
+        const err = await res.json();
+        toast.error(err.error || "No se pudo crear la tarea");
+      }
+    } catch {
+      toast.error("Error de conexión al crear la tarea");
+    } finally {
+      setCreatingTaskFromEmail(false);
+    }
+  };
+
+  const handleCreateContactFromEmail = async () => {
+    if (!selectedEmail) return;
+    setCreatingContactFromEmail(true);
+    try {
+      const rawFrom = selectedEmail.from || "";
+      const emailMatch = rawFrom.match(/<([^>]+)>/) || rawFrom.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+      const parsedEmail = emailMatch ? emailMatch[1].trim() : "";
+      const parsedName = rawFrom.replace(/<[^>]+>/g, "").replace(/["']/g, "").trim() || parsedEmail.split("@")[0] || "Contacto Correo";
+
+      const res = await fetch("/api/crm/contacts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: parsedName,
+          email: parsedEmail || undefined,
+          status: "LEAD",
+          notes: `Importado desde correo: "${selectedEmail.subject}" (${new Date(selectedEmail.date).toLocaleDateString("es-ES")})`,
+        }),
+      });
+      if (res.ok) {
+        toast.success(`Contacto "${parsedName}" guardado en el CRM`);
+      } else {
+        const err = await res.json();
+        toast.error(err.error || "No se pudo guardar el contacto en CRM");
+      }
+    } catch {
+      toast.error("Error de conexión al guardar contacto");
+    } finally {
+      setCreatingContactFromEmail(false);
+    }
+  };
 
   // Auto-guess SMTP settings when host changes
   useEffect(() => {
@@ -628,19 +692,53 @@ export default function MailPage() {
             </div>
           ) : (
             <div className="flex-1 flex flex-col min-h-0">
-              {/* Back button (Mobile view) */}
-              <div className="p-3 bg-slate-50/50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2 shrink-0">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedEmail(null)}
-                  className="text-slate-600 dark:text-slate-400 h-8 text-xs font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 lg:hidden"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5 mr-1" />
-                  Volver
-                </Button>
-                <div className="hidden lg:block text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Lectura de Correo
+              {/* Back button (Mobile view) & Quick Actions */}
+              <div className="p-3 bg-slate-50/50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 shrink-0 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedEmail(null)}
+                    className="text-slate-600 dark:text-slate-400 h-8 text-xs font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 lg:hidden"
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5 mr-1" />
+                    Volver
+                  </Button>
+                  <div className="hidden lg:block text-xs font-bold uppercase tracking-wider text-slate-500">
+                    Lectura de Correo
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCreateTaskFromEmail}
+                    disabled={creatingTaskFromEmail}
+                    className="h-7 px-2.5 text-xs border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                    title="Crear una tarea en tu tablero a partir de este correo"
+                  >
+                    {creatingTaskFromEmail ? (
+                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    ) : (
+                      <CheckSquare className="h-3.5 w-3.5 mr-1.5 text-indigo-600 dark:text-indigo-400" />
+                    )}
+                    <span>Crear Tarea</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCreateContactFromEmail}
+                    disabled={creatingContactFromEmail}
+                    className="h-7 px-2.5 text-xs border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                    title="Guardar remitente como Lead en el CRM"
+                  >
+                    {creatingContactFromEmail ? (
+                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    ) : (
+                      <UserPlus className="h-3.5 w-3.5 mr-1.5 text-emerald-600 dark:text-emerald-400" />
+                    )}
+                    <span>Guardar en CRM</span>
+                  </Button>
                 </div>
               </div>
 
@@ -688,7 +786,7 @@ export default function MailPage() {
                   <div className="flex-1 min-h-[350px] flex flex-col">
                     {selectedEmail.html ? (
                       <iframe
-                        title="Email content"
+                        title="Email content" sandbox=""
                         srcDoc={`
                           <!DOCTYPE html>
                           <html>

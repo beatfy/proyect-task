@@ -21,8 +21,11 @@ export async function GET(
   const { id } = await params;
 
   try {
-    const doc = await prisma.agentDocument.findUnique({
-      where: { id },
+    const doc = await prisma.agentDocument.findFirst({
+      where: {
+        userId: authResult.userId,
+        OR: [{ id }, { url: `/api/agents/documents/${id}` }],
+      },
     });
 
     if (!doc) {
@@ -31,6 +34,9 @@ export async function GET(
 
     const urlMatch = doc.url.match(/\/api\/agents\/documents\/(.+)/);
     const filename = urlMatch ? urlMatch[1] : id;
+    if (filename.includes("..")) {
+      return NextResponse.json({ error: "Ruta inválida" }, { status: 400 });
+    }
     const localPath = join(UPLOAD_DIR, filename);
 
     if (!existsSync(localPath)) {
@@ -76,7 +82,10 @@ export async function DELETE(
 
   try {
     const doc = await prisma.agentDocument.findFirst({
-      where: { id, userId: authResult.userId },
+      where: {
+        userId: authResult.userId,
+        OR: [{ id }, { url: `/api/agents/documents/${id}` }],
+      },
     });
 
     if (!doc) {
@@ -84,13 +93,13 @@ export async function DELETE(
     }
 
     const urlMatch = doc.url.match(/\/api\/agents\/documents\/(.+)/);
-    if (urlMatch) {
+    if (urlMatch && !urlMatch[1].includes("..")) {
       const localPath = join(UPLOAD_DIR, urlMatch[1]);
       await unlink(localPath).catch(() => {});
     }
 
     await prisma.agentDocument.delete({
-      where: { id },
+      where: { id: doc.id },
     });
 
     return NextResponse.json({ success: true });

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/api-auth";
+import { isUnsafeMailHost } from "@/lib/imap";
 
 // POST /api/mail/test - Test IMAP connection
 export async function POST(request: NextRequest) {
   const authResult = await authenticateRequest(request);
-    if (!authResult) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!authResult) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
   try {
@@ -15,6 +16,13 @@ export async function POST(request: NextRequest) {
     if (!host || !email || !password) {
       return NextResponse.json(
         { error: "Servidor, email y contraseña son requeridos" },
+        { status: 400 }
+      );
+    }
+
+    if (isUnsafeMailHost(host)) {
+      return NextResponse.json(
+        { success: false, error: "Servidor de correo inválido o no permitido" },
         { status: 400 }
       );
     }

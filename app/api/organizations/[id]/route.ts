@@ -45,9 +45,13 @@ export async function GET(
       return NextResponse.json({ error: "Organización no encontrada" }, { status: 404 });
     }
 
+    const callerRole = organization.members[0]?.role || "MEMBER";
+    const { apiKey, ...orgWithoutKey } = organization;
+
     return NextResponse.json({
-      ...organization,
-      role: organization.members[0]?.role || "MEMBER",
+      ...orgWithoutKey,
+      ...(callerRole === "OWNER" || callerRole === "ADMIN" ? { apiKey } : {}),
+      role: callerRole,
     });
   } catch (error) {
     console.error("Get organization error:", error);

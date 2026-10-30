@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/api-auth";
+import { canAccessProject } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
@@ -59,6 +60,13 @@ export async function PATCH(
 
     if (!existingMap) {
       return NextResponse.json({ error: "Mapa mental no encontrado" }, { status: 404 });
+    }
+
+    if (body.projectId) {
+      const hasAccess = await canAccessProject(authResult.userId, body.projectId);
+      if (!hasAccess) {
+        return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
+      }
     }
 
     const updateData: Record<string, unknown> = {};

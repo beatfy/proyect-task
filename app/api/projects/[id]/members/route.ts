@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateRequest } from "@/lib/api-auth";
+import { canAccessProject, canModifyProject } from "@/lib/authz";
 import { cuid } from "@/lib/utils";
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 // GET members of a project
 export async function GET(
@@ -10,11 +20,16 @@ export async function GET(
 ) {
   const { id } = await params;
   const authResult = await authenticateRequest(request);
-    if (!authResult) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!authResult) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
   try {
+    const hasAccess = await canAccessProject(authResult.userId, id);
+    if (!hasAccess) {
+      return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
+    }
+
     const members = await prisma.projectMember.findMany({
       where: { projectId: id },
       include: {
@@ -38,16 +53,34 @@ export async function POST(
 ) {
   const { id } = await params;
   const authResult = await authenticateRequest(request);
-    if (!authResult) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!authResult) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
   try {
+    const canModify = await canModifyProject(authResult.userId, id);
+    if (!canModify) {
+      return NextResponse.json({ error: "No tienes permisos para gestionar miembros en este proyecto" }, { status: 403 });
+    }
+
     const body = await request.json();
     const { email, role = "MEMBER" } = body;
 
     if (!email) {
       return NextResponse.json({ error: "Email requerido" }, { status: 400 });
+    }
+
+    if (!["MEMBER", "ADMIN", "OWNER"].includes(role)) {
+      return NextResponse.json({ error: "Rol inválido" }, { status: 400 });
+    }
+
+    if (role === "OWNER") {
+      const callerMember = await prisma.projectMember.findUnique({
+        where: { userId_projectId: { userId: authResult.userId, projectId: id } },
+      });
+      if (callerMember?.role !== "OWNER") {
+        return NextResponse.json({ error: "Solo un propietario puede asignar el rol OWNER" }, { status: 403 });
+      }
     }
 
     // Find user by email
@@ -104,8 +137,7 @@ export async function POST(
       select: { name: true },
     });
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://taskproject.app";
-    const inviteUrl = `${appUrl}/join/${id}`;
-
+    const inviteUrl = `${appUrl}/join/${encodeURIComponent(id)}`;
 
     // Add member
     const member = await prisma.projectMember.create({
@@ -137,14 +169,16 @@ export async function POST(
     // Enviar email de invitación via Resend
     const RESEND_API_KEY = process.env.RESEND_API_KEY;
     if (RESEND_API_KEY) {
+      const safeProjectName = escapeHtml(project?.name || "taskProject");
+      const safeInviterName = escapeHtml(inviter?.name || "Un usuario");
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 32px; border-radius: 12px 12px 0 0; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 24px;">Has sido añadido a ${project?.name || "taskProject"}</h1>
+            <h1 style="color: white; margin: 0; font-size: 24px;">Has sido añadido a ${safeProjectName}</h1>
           </div>
           <div style="padding: 32px; background: white; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
             <p style="color: #374151; font-size: 16px; line-height: 1.6;">
-              <strong>${inviter?.name || "Un usuario"}</strong> te ha añadido al proyecto <strong>${project?.name || ""}</strong> en taskProject.
+              <strong>${safeInviterName}</strong> te ha añadido al proyecto <strong>${safeProjectName}</strong> en taskProject.
             </p>
             <div style="text-align: center; margin: 32px 0;">
               <a href="${inviteUrl}" style="background: #6366f1; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; display: inline-block;">
@@ -191,8 +225,8 @@ export async function DELETE(
 ) {
   const { id } = await params;
   const authResult = await authenticateRequest(request);
-    if (!authResult) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!authResult) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
   try {
@@ -201,6 +235,33 @@ export async function DELETE(
 
     if (!memberId) {
       return NextResponse.json({ error: "memberId requerido" }, { status: 400 });
+    }
+
+    const targetMember = await prisma.projectMember.findUnique({
+      where: { id: memberId }
+    });
+
+    if (!targetMember || targetMember.projectId !== id) {
+      return NextResponse.json({ error: "Miembro no encontrado en este proyecto" }, { status: 404 });
+    }
+
+    const isSelf = targetMember.userId === authResult.userId;
+    const canModify = await canModifyProject(authResult.userId, id);
+
+    if (!isSelf && !canModify) {
+      return NextResponse.json({ error: "No tienes permisos para eliminar miembros de este proyecto" }, { status: 403 });
+    }
+
+    if (targetMember.role === "OWNER") {
+      const ownerCount = await prisma.projectMember.count({
+        where: { projectId: id, role: "OWNER" },
+      });
+      if (ownerCount <= 1) {
+        return NextResponse.json(
+          { error: "No se puede eliminar al último propietario del proyecto" },
+          { status: 400 }
+        );
+      }
     }
 
     await prisma.projectMember.delete({

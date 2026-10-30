@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+export { canAccessProject, canModifyProject } from "@/lib/tenant";
 
 /**
  * Check if a user can access/modify a task.

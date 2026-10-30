@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Plus, Users, Trash2, MoreHorizontal, Pencil, Calendar, User, Loader2, Link2, Copy, Check, Mail, ChevronDown, X, Download, Clock, Tag, Upload, Paperclip, FileText, CheckSquare, Rocket, LayoutGrid, Kanban as KanbanIcon } from "lucide-react";
+import { Plus, Users, Trash2, MoreHorizontal, Pencil, Calendar, User, Loader2, Link2, Copy, Check, Mail, ChevronDown, X, Download, Clock, Tag, Upload, Paperclip, FileText, CheckSquare, Rocket, LayoutGrid, Kanban as KanbanIcon, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -797,6 +797,34 @@ export default function ProjectDetailPage() {
     }
   };
 
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  const handleOpenClientPortal = async () => {
+    setPortalLoading(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/portal-link`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        await navigator.clipboard.writeText(data.portalUrl);
+        toast.success("Enlace del portal de cliente copiado al portapapeles", {
+          action: {
+            label: "Abrir",
+            onClick: () => window.open(data.portalUrl, "_blank"),
+          },
+        });
+      } else {
+        const err = await res.json();
+        toast.error(err.error || "Error al generar enlace del portal");
+      }
+    } catch {
+      toast.error("Error de conexión");
+    } finally {
+      setPortalLoading(false);
+    }
+  };
+
   const copyToClipboard = async (text: string, idx?: number) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -853,6 +881,10 @@ export default function ProjectDetailPage() {
           </Button>
           <Button variant="outline" size="sm" onClick={openContextEditor}>
             <FileText className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Contexto</span>
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleOpenClientPortal} disabled={portalLoading}>
+            {portalLoading ? <Loader2 className="h-4 w-4 sm:mr-2 animate-spin" /> : <Share2 className="h-4 w-4 sm:mr-2 text-indigo-600 dark:text-indigo-400" />}
+            <span className="hidden sm:inline">Portal Cliente</span>
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -1224,7 +1256,7 @@ export default function ProjectDetailPage() {
 
               {/* Detalles */}
               <div className="space-y-4">
-                <h4 className="text-xs font-semibold uppercase proyectoing-wider text-[#6B778C]">Detalles</h4>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-[#6B778C]">Detalles</h4>
 
                 {/* Persona asignada */}
                 <div>

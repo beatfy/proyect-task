@@ -13,6 +13,12 @@ jest.mock("@/lib/prisma", () => ({
       findUnique: jest.fn(),
       delete: jest.fn(),
     },
+    task: {
+      findUnique: jest.fn(),
+    },
+    projectMember: {
+      findFirst: jest.fn(),
+    },
   },
 }));
 
@@ -41,6 +47,11 @@ describe("GET /api/attachments", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockAuth.mockResolvedValue({ userId: "user-1", permissions: "full" });
+    (prisma.task.findUnique as jest.Mock).mockResolvedValue({
+      creatorId: "user-1",
+      assigneeId: null,
+      projectId: "proj-1",
+    });
   });
 
   it("returns 401 when not authenticated", async () => {
@@ -54,6 +65,16 @@ describe("GET /api/attachments", () => {
     expect(res.status).toBe(400);
     const data = await res.json();
     expect(data.error).toMatch(/taskId/i);
+  });
+
+  it("returns 403 when user does not have access to task", async () => {
+    (prisma.task.findUnique as jest.Mock).mockResolvedValue({
+      creatorId: "other-user",
+      assigneeId: null,
+      projectId: null,
+    });
+    const res = await attachmentsGet(makeGetRequest("http://localhost/api/attachments?taskId=t1"));
+    expect(res.status).toBe(403);
   });
 
   it("returns attachments for a task", async () => {
@@ -83,6 +104,11 @@ describe("POST /api/attachments", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockAuth.mockResolvedValue({ userId: "user-1", permissions: "full" });
+    (prisma.task.findUnique as jest.Mock).mockResolvedValue({
+      creatorId: "user-1",
+      assigneeId: null,
+      projectId: "proj-1",
+    });
   });
 
   it("returns 401 when not authenticated", async () => {

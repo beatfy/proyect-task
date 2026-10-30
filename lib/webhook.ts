@@ -7,6 +7,7 @@ export async function notifyTaskWebhook(task: {
   description?: string | null;
   priority?: string | null;
   dueDate?: string | null;
+  projectId?: string | null;
   assigneeId?: string | null;
   assigneeEmail?: string | null;
   creatorId?: string;
@@ -46,7 +47,7 @@ export async function notifyTaskWebhook(task: {
           type: "TASK_ASSIGNED",
           title: `Tarea asignada: ${task.title}`,
           content: `Te han asignado la tarea "${task.title}"${priorityText ? ` (${priorityText})` : ""}${dueText}`,
-          data: { taskId: task.id },
+          data: { taskId: task.id, projectId: task.projectId || null },
         },
       })
     )

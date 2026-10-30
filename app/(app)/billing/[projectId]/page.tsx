@@ -41,7 +41,7 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 export default function ProjectBillingPage() {
   const params = useParams();
   const router = useRouter();
-  const projectId = params.id as string;
+  const projectId = (params.projectId || params.id) as string;
 
   const [project, setProject] = useState<Project | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -50,6 +50,38 @@ export default function ProjectBillingPage() {
   const [saving, setSaving] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState({ month: "", year: "", amount: "", dueDate: "", notes: "" });
+  const [hourlyRate, setHourlyRate] = useState("40");
+  const [calculatingHours, setCalculatingHours] = useState(false);
+  const [hoursSummary, setHoursSummary] = useState<{ totalHours: number; entriesCount: number } | null>(null);
+
+  const handleCalculateFromHours = async () => {
+    if (!form.month || !form.year) {
+      toast.error("Indica el mes y año para calcular las horas");
+      return;
+    }
+    setCalculatingHours(true);
+    try {
+      const res = await fetch(`/api/billing/projects/${projectId}/hours?month=${form.month}&year=${form.year}`);
+      if (res.ok) {
+        const data = await res.json();
+        setHoursSummary({ totalHours: data.totalHours, entriesCount: data.entriesCount });
+        const rate = parseFloat(hourlyRate) || 0;
+        const totalAmount = Math.round(data.totalHours * rate * 100) / 100;
+        setForm(prev => ({
+          ...prev,
+          amount: String(totalAmount),
+          notes: `${data.totalHours}h trabajadas a ${rate} €/h (${data.entriesCount} registros)`,
+        }));
+        toast.success(`Calculado: ${data.totalHours}h × ${rate}€ = ${totalAmount}€`);
+      } else {
+        toast.error("Error al obtener horas");
+      }
+    } catch {
+      toast.error("Error de conexión");
+    } finally {
+      setCalculatingHours(false);
+    }
+  };
 
   // Helper: get previous month info
   const getPrevMonth = () => {
@@ -229,6 +261,43 @@ export default function ProjectBillingPage() {
                 <Input type="number" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} placeholder="2025" className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600" />
               </div>
             </div>
+
+            <div className="p-3 rounded-lg border border-border bg-slate-50/50 dark:bg-slate-800/40 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Calcular por horas trabajadas</span>
+                {hoursSummary && (
+                  <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400">
+                    {hoursSummary.totalHours}h ({hoursSummary.entriesCount} reg.)
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 flex-1">
+                  <span className="text-xs text-muted-foreground">Tarifa:</span>
+                  <Input
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    value={hourlyRate}
+                    onChange={(e) => setHourlyRate(e.target.value)}
+                    placeholder="€/h"
+                    className="h-7 text-xs bg-white dark:bg-slate-800"
+                  />
+                  <span className="text-xs text-muted-foreground">€/h</span>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={handleCalculateFromHours}
+                  disabled={calculatingHours}
+                  className="h-7 text-xs"
+                >
+                  {calculatingHours ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                  Calcular
+                </Button>
+              </div>
+              </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-slate-700 dark:text-slate-300">Importe (€)</Label>

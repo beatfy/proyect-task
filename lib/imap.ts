@@ -23,7 +23,82 @@ interface ImapConfig {
   ssl: boolean;
 }
 
+/**
+ * Decode Quoted-Printable encoded string preserving multi-byte UTF-8 sequences.
+ */
+export function decodeQuotedPrintableUtf8(input: string): string {
+  const cleaned = input.replace(/=\r?\n/g, "");
+  const bytes: number[] = [];
+  for (let i = 0; i < cleaned.length; i++) {
+    if (cleaned[i] === "=" && /^[0-9A-Fa-f]{2}$/.test(cleaned.slice(i + 1, i + 3))) {
+      bytes.push(parseInt(cleaned.slice(i + 1, i + 3), 16));
+      i += 2;
+    } else {
+      const charBytes = Buffer.from(cleaned[i], "utf-8");
+      for (const b of charBytes) {
+        bytes.push(b);
+      }
+    }
+  }
+  return Buffer.from(bytes).toString("utf-8").trim();
+}
+
+/**
+ * Prevent SSRF against loopback, link-local, or private network addresses.
+ */
+export function isUnsafeMailHost(rawHost: string): boolean {
+  if (!rawHost || typeof rawHost !== "string") return true;
+  const host = rawHost.trim().toLowerCase();
+  if (!host || host.includes("/") || host.includes("\\") || host.includes("@") || host.includes(" ")) {
+    return true;
+  }
+  if (
+    host === "localhost" ||
+    host === "0.0.0.0" ||
+    host === "::1" ||
+    host === "[::1]" ||
+    host.endsWith(".local") ||
+    host.endsWith(".internal") ||
+    host.endsWith(".localhost")
+  ) {
+    return true;
+  }
+  // Check IPv4 private / loopback / link-local ranges
+  const ipv4Match = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4Match) {
+    const [, a, b] = ipv4Match.map(Number);
+    if (
+      a === 0 ||
+      a === 10 ||
+      a === 127 ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 100 && b >= 64 && b <= 127)
+    ) {
+      return true;
+    }
+  }
+  // Check IPv6 private/loopback prefixes
+  if (host.includes(":") || host.startsWith("[")) {
+    const cleanV6 = host.replace(/^\[|\]$/g, "");
+    if (
+      cleanV6 === "::1" ||
+      cleanV6 === "::" ||
+      cleanV6.startsWith("fc") ||
+      cleanV6.startsWith("fd") ||
+      cleanV6.startsWith("fe80")
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function createClient(config: ImapConfig): ImapFlow {
+  if (isUnsafeMailHost(config.host)) {
+    throw new Error("Servidor de correo no permitido");
+  }
   return new ImapFlow({
     host: config.host,
     port: config.port,
@@ -37,6 +112,9 @@ function createClient(config: ImapConfig): ImapFlow {
 }
 
 export async function testConnection(config: ImapConfig): Promise<{ success: boolean; error?: string }> {
+  if (isUnsafeMailHost(config.host)) {
+    return { success: false, error: "Servidor de correo no permitido" };
+  }
   const client = createClient(config);
   try {
     await client.connect();
@@ -60,8 +138,18 @@ export async function fetchInbox(
     const lock = await client.getMailboxLock(folder);
 
     try {
+      const total =
+        client.mailbox && typeof client.mailbox === "object" && "exists" in client.mailbox
+          ? Number(client.mailbox.exists)
+          : -1;
+
+      if (total === 0) {
+        return [];
+      }
+
+      const startSeq = total > 0 ? Math.max(1, total - limit + 1) : 1;
       const messages = client.fetch(
-        { seq: "1:*" },
+        { seq: `${startSeq}:*` },
         { envelope: true, flags: true },
         { uid: true }
       );
@@ -78,7 +166,7 @@ export async function fetchInbox(
           from: fromAddr,
           subject: env?.subject || "(Sin asunto)",
           date: env?.date?.toISOString() || new Date().toISOString(),
-          read: !msg.flags?.has("\\Seen"),
+          read: Boolean(msg.flags?.has("\\Seen")),
           snippet: "",
         });
       }
@@ -167,22 +255,15 @@ export async function fetchEmail(
         body = textMatch[1];
       }
 
-      body = body
-        .replace(/=\r?\n/g, "")
-        .replace(/=([0-9A-F]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
-        .trim();
-
-      html = html
-        .replace(/=\r?\n/g, "")
-        .replace(/=([0-9A-F]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
-        .trim();
+      body = decodeQuotedPrintableUtf8(body);
+      html = decodeQuotedPrintableUtf8(html);
 
       return {
         id: String(uid),
         from: fromAddr,
         subject: env?.subject || "(Sin asunto)",
         date: env?.date?.toISOString() || new Date().toISOString(),
-        read: !msg.flags?.has("\\Seen"),
+        read: Boolean(msg.flags?.has("\\Seen")),
         snippet: body.slice(0, 150),
         to: toAddr,
         body: html || body,

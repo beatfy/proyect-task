@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateRequest } from "@/lib/api-auth";
+import { canAccessProject, verifyOrgMembership } from "@/lib/tenant";
 import { agentRateLimit } from "@/lib/ai-rate-limit";
 import { cuid } from "@/lib/utils";
 import { executePlanToPipeline, PlanData } from "@/lib/plan-executor";
-import crypto, { randomBytes } from "crypto";
-import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -16,11 +16,10 @@ const INNIX_BASE = process.env.INNIX_BASE || "https://agents.beatfy.net/agent";
 const AGENT_CONFIG: Record<string, { path: string; apiKey: string; model: string }> = {
   "doc": {
     path: "doc",
-    apiKey: process.env.INNIX_DOC_KEY || "cecb3f99b46e7e16adfa60a5d4a839b5f27d1f3e1659",
+    apiKey: process.env.INNIX_DOC_KEY || "",
     model: "glm-5.2",
   },
 };
-
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,6 +35,13 @@ export async function GET(request: NextRequest) {
 
     if (!agentId) {
       return NextResponse.json({ error: "agentId es requerido" }, { status: 400 });
+    }
+
+    if (projectId) {
+      const hasAccess = await canAccessProject(authResult.userId, projectId);
+      if (!hasAccess) {
+        return NextResponse.json({ error: "No tienes acceso a este proyecto" }, { status: 403 });
+      }
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -71,13 +77,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Obtener detalles del usuario para personalizar el prompt
-    const userDetails = await prisma.user.findUnique({
-      where: { id: authResult.userId },
-      select: { name: true, email: true },
-    });
-    const userName = userDetails?.name || userDetails?.email || "Usuario";
-
     const { agentId, message, history, projectId, documentIds, sessionId: clientSessionId } = await req.json();
 
     if (!agentId || typeof agentId !== "string") {
@@ -89,8 +88,8 @@ export async function POST(req: NextRequest) {
     }
 
     const agentConfig = AGENT_CONFIG[agentId];
-    if (!agentConfig) {
-      return NextResponse.json({ error: "Agente no reconocido" }, { status: 400 });
+    if (!agentConfig || !agentConfig.apiKey) {
+      return NextResponse.json({ error: "Agente no reconocido o no configurado" }, { status: 400 });
     }
 
     const agentUrl = `${INNIX_BASE}/${agentConfig.path}/v1/chat/completions`;
@@ -98,12 +97,14 @@ export async function POST(req: NextRequest) {
 
     let organizationId: string | null = null;
     let orgApiKey: string | null = null;
-
     let clientContext = "";
 
-    /* ── ELE: Agente personal con acceso total ── */
-    /* ── Agentes normales: requieren projectId ── */
     if (projectId && typeof projectId === "string") {
+      const hasAccess = await canAccessProject(authResult.userId, projectId);
+      if (!hasAccess) {
+        return NextResponse.json({ error: "No tienes acceso a este proyecto" }, { status: 403 });
+      }
+
       try {
         const project = await prisma.project.findUnique({
           where: { id: projectId },
@@ -134,7 +135,7 @@ export async function POST(req: NextRequest) {
           });
 
           const recentChatMessages = await prisma.chatMessage.findMany({
-            where: { projectId },
+            where: { projectId, userId: authResult.userId },
             orderBy: { createdAt: "desc" },
             take: 5,
             select: { role: true, content: true },
@@ -165,16 +166,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (!organizationId && projectId) {
-      try {
-        const project = await prisma.project.findUnique({
-          where: { id: projectId },
-          select: { organizationId: true },
-        });
-        if (project) organizationId = project.organizationId;
-      } catch {}
-    }
-
     if (!organizationId) {
       try {
         const member = await prisma.organizationMember.findFirst({
@@ -188,98 +179,103 @@ export async function POST(req: NextRequest) {
 
     if (organizationId) {
       try {
-        const org = await prisma.organization.findUnique({
-          where: { id: organizationId },
-          select: { apiKey: true },
-        });
-        if (org?.apiKey) orgApiKey = org.apiKey;
+        const { valid: isOrgMember } = await verifyOrgMembership(authResult.userId, organizationId);
+        if (isOrgMember) {
+          const org = await prisma.organization.findUnique({
+            where: { id: organizationId },
+            select: { apiKey: true },
+          });
+          if (org?.apiKey) orgApiKey = org.apiKey;
+        }
       } catch {}
     }
 
     let agentApiContext = "";
     if (agentId === "doc") {
-      const secret = process.env.NEXTAUTH_SECRET || "default_secret";
-      const signature = crypto.createHmac("sha256", secret).update(authResult.userId).digest("hex");
-      const docToken = `tx2_doc_${authResult.userId}_${signature}`;
-      const base64DocToken = "tx2b64_" + Buffer.from(docToken).toString("base64");
+      const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
+      if (secret) {
+        const signature = crypto.createHmac("sha256", secret).update(authResult.userId).digest("hex");
+        const docToken = `tx2_doc_${authResult.userId}_${signature}`;
+        const base64DocToken = "tx2b64_" + Buffer.from(docToken).toString("base64");
 
-      agentApiContext = `\n\n---\n` +
-        `[INSTRUCCIONES DE IDENTIDAD Y ACCESO SUPER PRIVILEGIADO PARA DOC]\n` +
-        `Hola Doc, estás conectado al backend del usuario. Se te ha otorgado ACCESO CON SÚPER PRIVILEGIOS para actuar en nombre del usuario utilizando la siguiente API key:\n` +
-        `URL base de la API: ${appBaseUrl}/api/v1\n` +
-        `Cabecera de Autenticación: Authorization: Bearer ${base64DocToken}\n` +
-        `NOTA DE SEGURIDAD IMPORTANTE (API KEY): Para evitar la censura del gateway de IA en la transmisión, la clave anterior se proporciona codificada en Base64 con el prefijo "tx2b64_". Úsala EXACTAMENTE así en tus llamadas HTTP (Authorization: Bearer tx2b64_...). El servidor la decodificará automáticamente.\n\n` +
-        `[SECCIÓN DE ENFOQUE / FOCUS FLOW — INSTRUCCIONES OPERATIVAS Y CONCEPTUALES]\n` +
-        `El sistema tiene una sección llamada "Focus Flow" diseñada para mentes neurodivergentes o con TDAH. Su propósito es organizar tareas según la carga emocional (fricción mental) y energía disponible, en lugar de plazos tradicionales rígidos. Esto combate la parálisis de inicio y el burnout.\n\n` +
-        `1. Conceptos y Métricas Clave (tdahMetrics):\n` +
-        `   - Peso Emocional (emotionalWeight / baseWeight): De 1.0 (liviano) a 5.0 (parálisis extrema). Un peso alto indica una tarea que causa evitación, aburrimiento o ansiedad.\n` +
-        `   - Energía Requerida (energyRequired): "low" (baja), "medium" (media) o "high" (alta). Ayuda a filtrar tareas según el estado mental actual.\n` +
-        `   - Bloque de Tiempo (timeBlock): Duración sugerida (ej. "15min", "30min", "60min"). Promueve el timeboxing.\n` +
-        `   - Razón de Bloqueo (blockReason): Texto descriptivo del obstáculo psicológico o fricción percibida (ej. "No sé por dónde empezar", "Es muy aburrido").\n` +
-        `   - ¿Bloquea a Alguien? (blocksSomeone): true/false. Si bloquea a otros, tiene prioridad de escalación.\n` +
-        `   - Fuente de Dopamina (dopamineSource): "routine", "social", "creative" o "problem-solving". Indica qué tipo de recompensa genera.\n` +
-        `   - Streak Days (streakDays): Días sin tocar la tarea. Si pasa de 3 días y blocksSomeone es true, la tarea es promovida automáticamente al inicio de la cola.\n` +
-        `   - Orden de la Cola (Focus Queue): El sistema ordena automáticamente las tareas: Promovidas primero, luego por emotionalWeight desc, luego por streakDays desc.\n\n` +
-        `2. Endpoints de Focus Flow Disponibles:\n` +
-        `   - Obtener Cola de Enfoque: GET ${appBaseUrl}/api/v1/focus/tasks (Opcional: ?energy=low|medium|high)\n` +
-        `   - Crear Tarea de Enfoque: POST ${appBaseUrl}/api/v1/focus/tasks\n` +
-        `     Cuerpo JSON: { title, description, projectId, emotionalWeight, timeBlock, energyRequired, blocksSomeone, dopamineSource, blockReason, status }\n` +
-        `     *Nota*: El campo "status" puede ser "TODO" o "planning". Máximo 3 tareas pueden estar en estado "planning" a la vez (límite de procrastinación).\n` +
-        `   - Actualizar / Aliviar Tarea: PATCH ${appBaseUrl}/api/v1/focus/tasks/<id>\n` +
-        `     Cuerpo JSON: Permite actualizar cualquier campo. Para avances de TDAH, puedes mandar el campo "status":\n` +
-        `       - status: "hecha" (o "completed" o "DONE") -> Marca la tarea como completada.\n` +
-        `       - status: "aliviada" -> Reduce el emotionalWeight y baseWeight en 2 puntos (mínimo 1).\n` +
-        `       - status: "sigue_pesando" -> Incrementa el emotionalWeight y baseWeight en 0.5 puntos (máximo 5).\n` +
-        `   - Eliminar Tarea de Enfoque: DELETE ${appBaseUrl}/api/v1/focus/tasks/<id>\n` +
-        `   - Obtener Activador (Dopamine Primer): GET ${appBaseUrl}/api/v1/focus/primer (Retorna una actividad sugerida corta de 3-5 minutos para calentar el cerebro).\n` +
-        `   - Dividir Tarea (Micro-Split): POST ${appBaseUrl}/api/tasks/<id>/micro-split\n` +
-        `     Cuerpo JSON: { steps: ["Paso 1", "Paso 2", ...] } (Crea subtareas de 15min con peso emocional aliviado para deshacer la parálisis).\n\n` +
-        `3. Endpoints Generales de Gestión:\n` +
-        `   - GET/POST ${appBaseUrl}/api/v1/projects — Ver y crear proyectos (?id=X para detalle)\n` +
-        `   - GET/POST/PATCH/DELETE ${appBaseUrl}/api/v1/tasks — Gestionar tareas de proyectos tradicionales\n` +
-        `   - GET/POST/PATCH/DELETE ${appBaseUrl}/api/v1/contacts — CRM de Contactos\n` +
-        `   - GET/POST/PATCH ${appBaseUrl}/api/v1/deals — CRM de Negocios y Etapas\n` +
-        `   - GET ${appBaseUrl}/api/v1/pipeline — Pipeline del CRM\n` +
-        `   - GET/POST/PATCH/DELETE ${appBaseUrl}/api/billing/invoices — Gestionar facturas (?projectId=X, ?status=PENDING|PAID). En POST envía { projectId, amount, notes, month, year, dueDate } para crear. En PATCH envía { status: "PAID" | "PENDING" } para actualizar una factura.\n` +
-        `   - PATCH ${appBaseUrl}/api/billing/projects/<projectId> — Configurar cobro del cliente (monthlyFee, clientEmail, recurringInvoice, billingDay, invoiceEmailMsg).\n` +
-        `   - POST ${appBaseUrl}/api/billing/generate — Auto-generar facturas de cuota mensual del mes anterior.\n` +
-        `   - GET ${appBaseUrl}/api/mail/inbox — Leer correos electrónicos (?folder=INBOX|Sent|Drafts|Trash&limit=X).\n` +
-        `   - GET ${appBaseUrl}/api/mail/<id> — Obtener el contenido de un correo (?folder=X).\n` +
-        `   - POST ${appBaseUrl}/api/mail/send — Enviar un correo electrónico vía SMTP. Cuerpo JSON: { to: "destinatario@ejemplo.com", subject: "asunto", body: "cuerpo del mensaje" }.\n\n` +
-        `4. Generación de Planes de Negocio y Proyectos (Estilo Notion AI):\n` +
-        `   Cuando el usuario te pida crear un plan de negocio, plan de proyecto, estrategia de lanzamiento, roadmap o plan estructurado para un cliente:\n` +
-        `   a) Explica detalladamente el plan en tu respuesta con buen formato Markdown (resumen ejecutivo, fases, tareas, estrategia, análisis).\n` +
-        `   b) OBLIGATORIO: Al final de tu mensaje, incluye SIEMPRE un bloque de código estructurado con la sintaxis exacta \`\`\`json:task-plan ... \`\`\` con el siguiente formato JSON para que el usuario pueda cargarlo en el proyecto con un solo clic o diciendo "ahora carga el plan":\n` +
-        `\`\`\`json:task-plan\n` +
-        `{\n` +
-        `  "pipelineName": "Plan de Negocio: Nombre del Proyecto",\n` +
-        `  "description": "Breve descripción del plan",\n` +
-        `  "phases": [\n` +
-        `    {\n` +
-        `      "name": "Fase 1: Validación y Mercado",\n` +
-        `      "color": "#3b82f6",\n` +
-        `      "tasks": [\n` +
-        `        {\n` +
-        `          "title": "Entrevistas de validación con clientes",\n` +
-        `          "description": "Detalle de la tarea y objetivo.",\n` +
-        `          "priority": "HIGH",\n` +
-        `          "daysFromNow": 3,\n` +
-        `          "subtasks": [\n` +
-        `            "Paso 1: Redactar guión de preguntas",\n` +
-        `            "Paso 2: Agendar 15 llamadas"\n` +
-        `          ],\n` +
-        `          "comments": [\n` +
-        `            "Consejo clave de Doc sobre esta tarea"\n` +
-        `          ]\n` +
-        `        }\n` +
-        `      ]\n` +
-        `    }\n` +
-        `  ]\n` +
-        `}\n` +
-        `\`\`\`\n` +
-        `   c) Asegúrate de incluir subtareas (subtasks como checklist accionable), comentarios (tus recomendaciones y pautas clave como coach) y daysFromNow (días desde hoy para calcular la fecha de entrega en el calendario).\n\n` +
-        `Usa estas APIs de forma autónoma cuando el usuario te pida crear tareas, enviar correos, leer emails de su bandeja, facturas, configurar cobros, dividirlas, consultar su cola, aliviar el peso de una tarea o dar seguimiento a su día. ¡Tú eres su coach de confianza!\n` +
-        `[FIN DE INSTRUCCIONES OPERATIVAS]`;
+        agentApiContext = `\n\n---\n` +
+          `[INSTRUCCIONES DE IDENTIDAD Y ACCESO SUPER PRIVILEGIADO PARA DOC]\n` +
+          `Hola Doc, estás conectado al backend del usuario. Se te ha otorgado ACCESO CON SÚPER PRIVILEGIOS para actuar en nombre del usuario utilizando la siguiente API key:\n` +
+          `URL base de la API: ${appBaseUrl}/api/v1\n` +
+          `Cabecera de Autenticación: Authorization: Bearer ${base64DocToken}\n` +
+          `NOTA DE SEGURIDAD IMPORTANTE (API KEY): Para evitar la censura del gateway de IA en la transmisión, la clave anterior se proporciona codificada en Base64 con el prefijo "tx2b64_". Úsala EXACTAMENTE así en tus llamadas HTTP (Authorization: Bearer tx2b64_...). El servidor la decodificará automáticamente.\n\n` +
+          `[SECCIÓN DE ENFOQUE / FOCUS FLOW — INSTRUCCIONES OPERATIVAS Y CONCEPTUALES]\n` +
+          `El sistema tiene una sección llamada "Focus Flow" diseñada para mentes neurodivergentes o con TDAH. Su propósito es organizar tareas según la carga emocional (fricción mental) y energía disponible, en lugar de plazos tradicionales rígidos. Esto combate la parálisis de inicio y el burnout.\n\n` +
+          `1. Conceptos y Métricas Clave (tdahMetrics):\n` +
+          `   - Peso Emocional (emotionalWeight / baseWeight): De 1.0 (liviano) a 5.0 (parálisis extrema). Un peso alto indica una tarea que causa evitación, aburrimiento o ansiedad.\n` +
+          `   - Energía Requerida (energyRequired): "low" (baja), "medium" (media) o "high" (alta). Ayuda a filtrar tareas según el estado mental actual.\n` +
+          `   - Bloque de Tiempo (timeBlock): Duración sugerida (ej. "15min", "30min", "60min"). Promueve el timeboxing.\n` +
+          `   - Razón de Bloqueo (blockReason): Texto descriptivo del obstáculo psicológico o fricción percibida (ej. "No sé por dónde empezar", "Es muy aburrido").\n` +
+          `   - ¿Bloquea a Alguien? (blocksSomeone): true/false. Si bloquea a otros, tiene prioridad de escalación.\n` +
+          `   - Fuente de Dopamina (dopamineSource): "routine", "social", "creative" o "problem-solving". Indica qué tipo de recompensa genera.\n` +
+          `   - Streak Days (streakDays): Días sin tocar la tarea. Si pasa de 3 días y blocksSomeone es true, la tarea es promovida automáticamente al inicio de la cola.\n` +
+          `   - Orden de la Cola (Focus Queue): El sistema ordena automáticamente las tareas: Promovidas primero, luego por emotionalWeight desc, luego por streakDays desc.\n\n` +
+          `2. Endpoints de Focus Flow Disponibles:\n` +
+          `   - Obtener Cola de Enfoque: GET ${appBaseUrl}/api/v1/focus/tasks (Opcional: ?energy=low|medium|high)\n` +
+          `   - Crear Tarea de Enfoque: POST ${appBaseUrl}/api/v1/focus/tasks\n` +
+          `     Cuerpo JSON: { title, description, projectId, emotionalWeight, timeBlock, energyRequired, blocksSomeone, dopamineSource, blockReason, status }\n` +
+          `     *Nota*: El campo "status" puede ser "TODO" o "planning". Máximo 3 tareas pueden estar en estado "planning" a la vez (límite de procrastinación).\n` +
+          `   - Actualizar / Aliviar Tarea: PATCH ${appBaseUrl}/api/v1/focus/tasks/<id>\n` +
+          `     Cuerpo JSON: Permite actualizar cualquier campo. Para avances de TDAH, puedes mandar el campo "status":\n` +
+          `       - status: "hecha" (o "completed" o "DONE") -> Marca la tarea como completada.\n` +
+          `       - status: "aliviada" -> Reduce el emotionalWeight y baseWeight en 2 puntos (mínimo 1).\n` +
+          `       - status: "sigue_pesando" -> Incrementa el emotionalWeight y baseWeight en 0.5 puntos (máximo 5).\n` +
+          `   - Eliminar Tarea de Enfoque: DELETE ${appBaseUrl}/api/v1/focus/tasks/<id>\n` +
+          `   - Obtener Activador (Dopamine Primer): GET ${appBaseUrl}/api/v1/focus/primer (Retorna una actividad sugerida corta de 3-5 minutos para calentar el cerebro).\n` +
+          `   - Dividir Tarea (Micro-Split): POST ${appBaseUrl}/api/tasks/<id>/micro-split\n` +
+          `     Cuerpo JSON: { steps: ["Paso 1", "Paso 2", ...] } (Crea subtareas de 15min con peso emocional aliviado para deshacer la parálisis).\n\n` +
+          `3. Endpoints Generales de Gestión:\n` +
+          `   - GET/POST ${appBaseUrl}/api/v1/projects — Ver y crear proyectos (?id=X para detalle)\n` +
+          `   - GET/POST/PATCH/DELETE ${appBaseUrl}/api/v1/tasks — Gestionar tareas de proyectos tradicionales\n` +
+          `   - GET/POST/PATCH/DELETE ${appBaseUrl}/api/v1/contacts — CRM de Contactos\n` +
+          `   - GET/POST/PATCH ${appBaseUrl}/api/v1/deals — CRM de Negocios y Etapas\n` +
+          `   - GET ${appBaseUrl}/api/v1/pipeline — Pipeline del CRM\n` +
+          `   - GET/POST/PATCH/DELETE ${appBaseUrl}/api/billing/invoices — Gestionar facturas (?projectId=X, ?status=PENDING|PAID). En POST envía { projectId, amount, notes, month, year, dueDate } para crear. En PATCH envía { status: "PAID" | "PENDING" } para actualizar una factura.\n` +
+          `   - PATCH ${appBaseUrl}/api/billing/projects/<projectId> — Configurar cobro del cliente (monthlyFee, clientEmail, recurringInvoice, billingDay, invoiceEmailMsg).\n` +
+          `   - POST ${appBaseUrl}/api/billing/generate — Auto-generar facturas de cuota mensual del mes anterior.\n` +
+          `   - GET ${appBaseUrl}/api/mail/inbox — Leer correos electrónicos (?folder=INBOX|Sent|Drafts|Trash&limit=X).\n` +
+          `   - GET ${appBaseUrl}/api/mail/<id> — Obtener el contenido de un correo (?folder=X).\n` +
+          `   - POST ${appBaseUrl}/api/mail/send — Enviar un correo electrónico vía SMTP. Cuerpo JSON: { to: "destinatario@ejemplo.com", subject: "asunto", body: "cuerpo del mensaje" }.\n\n` +
+          `4. Generación de Planes de Negocio y Proyectos (Estilo Notion AI):\n` +
+          `   Cuando el usuario te pida crear un plan de negocio, plan de proyecto, estrategia de lanzamiento, roadmap o plan estructurado para un cliente:\n` +
+          `   a) Explica detalladamente el plan en tu respuesta con buen formato Markdown (resumen ejecutivo, fases, tareas, estrategia, análisis).\n` +
+          `   b) OBLIGATORIO: Al final de tu mensaje, incluye SIEMPRE un bloque de código estructurado con la sintaxis exacta \`\`\`json:task-plan ... \`\`\` con el siguiente formato JSON para que el usuario pueda cargarlo en el proyecto con un solo clic o diciendo "ahora carga el plan":\n` +
+          `\`\`\`json:task-plan\n` +
+          `{\n` +
+          `  "pipelineName": "Plan de Negocio: Nombre del Proyecto",\n` +
+          `  "description": "Breve descripción del plan",\n` +
+          `  "phases": [\n` +
+          `    {\n` +
+          `      "name": "Fase 1: Validación y Mercado",\n` +
+          `      "color": "#3b82f6",\n` +
+          `      "tasks": [\n` +
+          `        {\n` +
+          `          "title": "Entrevistas de validación con clientes",\n` +
+          `          "description": "Detalle de la tarea y objetivo.",\n` +
+          `          "priority": "HIGH",\n` +
+          `          "daysFromNow": 3,\n` +
+          `          "subtasks": [\n` +
+          `            "Paso 1: Redactar guión de preguntas",\n` +
+          `            "Paso 2: Agendar 15 llamadas"\n` +
+          `          ],\n` +
+          `          "comments": [\n` +
+          `            "Consejo clave de Doc sobre esta tarea"\n` +
+          `          ]\n` +
+          `        }\n` +
+          `      ]\n` +
+          `    }\n` +
+          `  ]\n` +
+          `}\n` +
+          `\`\`\`\n` +
+          `   c) Asegúrate de incluir subtareas (subtasks como checklist accionable), comentarios (tus recomendaciones y pautas clave como coach) y daysFromNow (días desde hoy para calcular la fecha de entrega en el calendario).\n\n` +
+          `Usa estas APIs de forma autónoma cuando el usuario te pida crear tareas, enviar correos, leer emails de su bandeja, facturas, configurar cobros, dividirlas, consultar su cola, aliviar el peso de una tarea o dar seguimiento a su día. ¡Tú eres su coach de confianza!\n` +
+          `[FIN DE INSTRUCCIONES OPERATIVAS]`;
+      }
     } else if (orgApiKey) {
       const base64ApiKey = "tx2b64_" + Buffer.from(orgApiKey).toString("base64");
 
@@ -439,7 +435,6 @@ export async function POST(req: NextRequest) {
     }
 
     if (dbHistory && dbHistory.length > 0) {
-      // Invert dbHistory array to chronological order (it was fetched desc)
       const contextMsg = dbHistory.reverse().map((m: { role: string; content: string }) => ({
         role: m.role === "user" ? "user" : "assistant",
         content: m.content
@@ -482,8 +477,13 @@ export async function POST(req: NextRequest) {
         : baseSessionId;
 
       let fullInput = finalUserMessage;
-      if (clientContext) {
-        fullInput = `${clientContext}\n\n---\n${fullInput}`;
+      const historyBlock = messages.filter((m) => m.role !== "system").slice(-10).map((m) => `${m.role === "user" ? "Usuario" : "Asistente"}: ${m.content}`).join("\n\n");
+      if (historyBlock) {
+        fullInput = `[HISTORIAL RECIENTE DE CONVERSACIÓN]\n${historyBlock}\n[FIN HISTORIAL]\n\n---\n${fullInput}`;
+      }
+      if (systemInstruction) {
+        fullInput = `${systemInstruction}\n\n---\n${fullInput}`;
+      // systemInstruction & historyBlock already prepended above
       }
 
       const runsUrl = `${INNIX_BASE}/${agentConfig.path}/v1/runs`;

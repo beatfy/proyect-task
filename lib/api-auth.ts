@@ -31,12 +31,14 @@ export async function authenticateRequest(request: NextRequest): Promise<{
     if (token.startsWith("tx2_")) {
       if (token.startsWith("tx2_doc_")) {
         const parts = token.split("_");
-        if (parts.length === 4) {
+        const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
+        if (parts.length === 4 && secret) {
           const userId = parts[2];
           const signature = parts[3];
-          const secret = process.env.NEXTAUTH_SECRET || "default_secret";
           const expectedSignature = crypto.createHmac("sha256", secret).update(userId).digest("hex");
-          if (signature === expectedSignature) {
+          const sigBuf = Buffer.from(signature, "utf8");
+          const expBuf = Buffer.from(expectedSignature, "utf8");
+          if (sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf)) {
             logDocToolCall(userId, request.nextUrl.pathname, request.method).catch(() => {});
             return { userId, permissions: "full" };
           }
@@ -45,19 +47,21 @@ export async function authenticateRequest(request: NextRequest): Promise<{
 
       const keyPrefix = token.substring(0, 8);
 
-      const apiKey = await prisma.apiKey.findFirst({
+      const apiKeys = await prisma.apiKey.findMany({
         where: { keyPrefix, active: true },
         select: { id: true, userId: true, permissions: true, key: true },
       });
 
-      if (apiKey && await bcrypt.compare(token, apiKey.key)) {
-        // Update lastUsedAt (non-blocking)
-        prisma.apiKey.update({
-          where: { id: apiKey.id },
-          data: { lastUsedAt: new Date() },
-        }).catch(() => {});
+      for (const apiKey of apiKeys) {
+        if (await bcrypt.compare(token, apiKey.key)) {
+          // Update lastUsedAt (non-blocking)
+          prisma.apiKey.update({
+            where: { id: apiKey.id },
+            data: { lastUsedAt: new Date() },
+          }).catch(() => {});
 
-        return { userId: apiKey.userId, permissions: apiKey.permissions };
+          return { userId: apiKey.userId, permissions: apiKey.permissions };
+        }
       }
 
       // Check if it's an Organization API key

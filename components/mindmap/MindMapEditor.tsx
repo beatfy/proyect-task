@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import {
   MindMapData,
   MindMapRecord,
@@ -17,7 +17,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -27,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { CheckSquare, Sparkles, FolderOpen } from "lucide-react";
+import { CheckSquare } from "lucide-react";
 
 interface MindMapEditorProps {
   initialMap: MindMapRecord;
@@ -59,7 +58,14 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
   const [isExporting, setIsExporting] = useState(false);
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const isFirstRender = useRef(true);
+  const lastSavedContentRef = useRef<string>(
+    JSON.stringify({
+      nodes: initialMap.data?.nodes || [],
+      edges: initialMap.data?.edges || [],
+      grid: initialMap.data?.grid,
+      theme: initialMap.data?.theme,
+    })
+  );
 
   // Debounced Auto-save to API
   const saveMapToServer = useCallback(
@@ -79,6 +85,12 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
 
         const updated = await res.json();
         setMapRecord(updated);
+        lastSavedContentRef.current = JSON.stringify({
+          nodes: currentData.nodes,
+          edges: currentData.edges,
+          grid: currentData.grid,
+          theme: currentData.theme,
+        });
         setSaveStatus("saved");
       } catch (err) {
         console.error("Auto-save error:", err);
@@ -89,7 +101,7 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
             `mindmap_backup_${initialMap.id}`,
             JSON.stringify({ title: currentTitle, data: currentData, timestamp: Date.now() })
           );
-        } catch (e) {
+        } catch {
           // ignore
         }
       }
@@ -97,10 +109,22 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
     [initialMap.id]
   );
 
-  // Trigger auto-save on change
+  // Trigger auto-save only when content (nodes, edges, grid, theme) changes — not on pure viewport pan/zoom
   const handleDataChange = useCallback(
     (newData: MindMapData) => {
       setData(newData);
+
+      const contentSnapshot = JSON.stringify({
+        nodes: newData.nodes,
+        edges: newData.edges,
+        grid: newData.grid,
+        theme: newData.theme,
+      });
+
+      if (contentSnapshot === lastSavedContentRef.current) {
+        return;
+      }
+
       setSaveStatus("unsaved");
 
       if (saveTimeoutRef.current) {

@@ -50,7 +50,7 @@ export async function canAccessProject(
     select: { organizationId: true, members: { where: { userId } } },
   });
   if (!project) return false;
-  if (project.members.length > 0) return true;
+  if (Array.isArray(project.members) && project.members.length > 0) return true;
   if (project.organizationId) {
     const { valid } = await verifyOrgMembership(userId, project.organizationId);
     return valid;
@@ -70,7 +70,7 @@ export async function canModifyProject(
     },
   });
   if (!project) return false;
-  if (project.members.length > 0) return true;
+  if (Array.isArray(project.members) && project.members.length > 0) return true;
   if (project.organizationId) {
     return isOrgAdmin(userId, project.organizationId);
   }

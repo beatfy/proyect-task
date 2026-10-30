@@ -1,5 +1,9 @@
--- CreateEnum
-CREATE TYPE "MemberRole" AS ENUM ('MEMBER', 'ADMIN');
+-- CreateEnum (guarded if already created by earlier migration)
+DO $$ BEGIN
+    CREATE TYPE "MemberRole" AS ENUM ('MEMBER', 'ADMIN');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- CreateTable
 CREATE TABLE "Contact" (

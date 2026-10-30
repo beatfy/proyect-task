@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateRequest } from "@/lib/api-auth";
+import { isUnsafeMailHost } from "@/lib/imap";
 
 // GET /api/mail/config - Check if user has IMAP config
 export async function GET(request: NextRequest) {
   const authResult = await authenticateRequest(request);
-    if (!authResult) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!authResult) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
   try {
@@ -35,8 +36,8 @@ export async function GET(request: NextRequest) {
 // POST /api/mail/config - Save IMAP config
 export async function POST(request: NextRequest) {
   const authResult = await authenticateRequest(request);
-    if (!authResult) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!authResult) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
   try {
@@ -46,6 +47,13 @@ export async function POST(request: NextRequest) {
     if (!host || !email || !password) {
       return NextResponse.json(
         { error: "Servidor, email y contraseña son requeridos" },
+        { status: 400 }
+      );
+    }
+
+    if (isUnsafeMailHost(host) || (smtpHost && isUnsafeMailHost(smtpHost))) {
+      return NextResponse.json(
+        { error: "Servidor de correo inválido o no permitido" },
         { status: 400 }
       );
     }

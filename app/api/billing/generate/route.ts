@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
-import { cuid } from "@/lib/utils";
+import { generateInvoicesForProjects, getPreviousBillingPeriod } from "@/lib/billing";
 
 // Auto-generate invoices for all projects with monthlyFee > 0
 export async function POST(request: NextRequest) {
@@ -11,13 +11,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    // Calculate previous month
     const now = new Date();
-    let month = now.getMonth(); // 0-indexed, so current month - 1 = previous month
-    let year = now.getFullYear();
-    if (month === 0) { month = 12; year--; } // January → December prev year
+    let { month, year } = getPreviousBillingPeriod(now);
 
-    // Override if body provides values
     const body = await request.json().catch(() => ({}));
     if (body.month) month = parseInt(body.month);
     if (body.year) year = parseInt(body.year);
@@ -38,32 +34,13 @@ export async function POST(request: NextRequest) {
           { organizationId: { in: orgIds } },
         ],
       },
+      select: { id: true, monthlyFee: true },
     });
 
-    const dueDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // today + 7 days
-    let created = 0;
+    const dueDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const { created, total } = await generateInvoicesForProjects(projects, month, year, dueDate);
 
-    for (const project of projects) {
-      // Skip if already exists
-      const existing = await prisma.invoice.findUnique({
-        where: { projectId_month_year: { projectId: project.id, month, year } },
-      });
-      if (existing) continue;
-
-      await prisma.invoice.create({
-        data: {
-          id: cuid(),
-          projectId: project.id,
-          month,
-          year,
-          amount: project.monthlyFee,
-          dueDate,
-        },
-      });
-      created++;
-    }
-
-    return NextResponse.json({ created, total: projects.length });
+    return NextResponse.json({ created, total });
   } catch (error) {
     console.error("Generate invoices error:", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });

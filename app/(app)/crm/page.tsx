@@ -135,7 +135,7 @@ export default function CrmDashboardPage() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">CRM</h1>
-          <p className="text-muted-foreground mt-1">Gestión de oportunidads, salas y pipeline de CRMs</p>
+          <p className="text-muted-foreground mt-1">Gestión de oportunidades, salas y pipeline de CRMs</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <CrmGlobalSearch />
@@ -169,7 +169,7 @@ export default function CrmDashboardPage() {
 
         <Card className="bg-card border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Oportunidads Abiertos</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Oportunidades Abiertas</CardTitle>
             <TrendingUp className="h-5 w-5 text-violet-500" />
           </CardHeader>
           <CardContent>
@@ -250,9 +250,9 @@ export default function CrmDashboardPage() {
             <Card className="bg-card border-border">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-foreground">Oportunidads por Etapa</CardTitle>
+                  <CardTitle className="text-foreground">Oportunidades por Etapa</CardTitle>
                   <Link href="/crm/pipeline" className="text-sm text-primary hover:underline flex items-center gap-1">
-                    Ver oportunidads <ArrowRight className="h-3 w-3" />
+                    Ver oportunidades <ArrowRight className="h-3 w-3" />
                   </Link>
                 </div>
               </CardHeader>
@@ -266,7 +266,7 @@ export default function CrmDashboardPage() {
                           <span className="text-sm text-foreground">{stage.name}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">{stage.dealCount} oportunidads</span>
+                          <span className="text-xs text-muted-foreground">{stage.dealCount} oportunidades</span>
                           <span className="text-sm font-medium text-foreground">{formatCurrency(stage.totalValue)}</span>
                         </div>
                       </div>
@@ -288,7 +288,7 @@ export default function CrmDashboardPage() {
         <TabsContent value="funnel">
           <Card className="bg-card border-border">
             <CardHeader>
-                  <CardTitle className="text-foreground">Funnel de Oportunidads</CardTitle>
+                  <CardTitle className="text-foreground">Funnel de Oportunidades</CardTitle>
             </CardHeader>
             <CardContent>
               <FunnelChart stages={enrichedStages} />
@@ -310,11 +310,11 @@ export default function CrmDashboardPage() {
 
             <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle className="text-foreground">Oportunidads más Valiosos</CardTitle>
+                <CardTitle className="text-foreground">Oportunidades más Valiosas</CardTitle>
               </CardHeader>
               <CardContent>
                 {topDeals.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">Sin oportunidads</p>
+                  <p className="text-sm text-muted-foreground text-center py-4">Sin oportunidades</p>
                 ) : (
                   <div className="space-y-3">
                     {topDeals.map((deal, idx) => (

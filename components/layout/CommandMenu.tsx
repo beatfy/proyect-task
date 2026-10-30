@@ -120,7 +120,7 @@ export function CommandMenu() {
       title: "Chatear con Agentes IA",
       subtitle: "Asistentes de marketing, código y gestión",
       icon: Bot,
-      action: () => { router.push("/chat"); setOpen(false); },
+      action: () => { router.push("/agents"); setOpen(false); },
     },
   ];
 

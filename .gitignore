@@ -18,7 +18,8 @@
 .DS_Store
 *.pem
 
-# debug
+# logs & debug
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -27,6 +28,7 @@ yarn-error.log*
 .env
 .env.local
 .env*.local
+.env.check
 
 # vercel
 .vercel
@@ -37,12 +39,10 @@ next-env.d.ts
 
 # prisma
 /src/generated/prisma/
-
-# uploads
-/public/uploads/
-
-# build trigger 1774601156
-.env.check
 generated/
+
+# uploads & temp
+/public/uploads/
+/uploads/
+/logs/
 .next.bak/
-.env

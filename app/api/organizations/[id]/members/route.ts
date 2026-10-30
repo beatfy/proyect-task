@@ -3,6 +3,15 @@ import { authenticateRequest } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { cuid } from "@/lib/utils";
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -130,7 +139,7 @@ export async function POST(
 
       // Build invite URL
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://taskproject.app";
-      const inviteUrl = `${appUrl}/join/${invitation.id}`;
+      const inviteUrl = `${appUrl}/join/${encodeURIComponent(invitation.id)}`;
 
       // Send invitation email via Resend
       const inviter = await prisma.user.findUnique({
@@ -140,14 +149,16 @@ export async function POST(
       const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
       if (RESEND_API_KEY) {
+        const safeOrgName = escapeHtml(org?.name || "taskProject");
+        const safeInviterName = escapeHtml(inviter?.name || "Un usuario");
         const html = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 32px; border-radius: 12px 12px 0 0; text-align: center;">
-              <h1 style="color: white; margin: 0; font-size: 24px;">Has sido invitado a ${org?.name || "taskProject"}</h1>
+              <h1 style="color: white; margin: 0; font-size: 24px;">Has sido invitado a ${safeOrgName}</h1>
             </div>
             <div style="padding: 32px; background: white; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
               <p style="color: #374151; font-size: 16px; line-height: 1.6;">
-                <strong>${inviter?.name || "Un usuario"}</strong> te ha invitado a unirte a la organización <strong>${org?.name || ""}</strong> en taskProject.
+                <strong>${safeInviterName}</strong> te ha invitado a unirte a la organización <strong>${safeOrgName}</strong> en taskProject.
               </p>
               <div style="text-align: center; margin: 32px 0;">
                 <a href="${inviteUrl}" style="background: #6366f1; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; display: inline-block;">
@@ -283,8 +294,16 @@ export async function DELETE(
       return NextResponse.json({ error: "No tienes permisos para eliminar miembros" }, { status: 403 });
     }
 
-    // Cannot remove last OWNER
+    // Only an OWNER can remove another OWNER
     if (targetMember.role === "OWNER") {
+      if (!isSelf && callerMembership.role !== "OWNER") {
+        return NextResponse.json(
+          { error: "Solo un propietario puede eliminar a otro propietario" },
+          { status: 403 }
+        );
+      }
+
+      // Cannot remove last OWNER
       const ownerCount = await prisma.organizationMember.count({
         where: { organizationId: id, role: "OWNER" },
       });

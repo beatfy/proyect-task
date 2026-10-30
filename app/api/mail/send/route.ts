@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateRequest } from "@/lib/api-auth";
+import { isUnsafeMailHost } from "@/lib/imap";
 import nodemailer from "nodemailer";
 
 // POST /api/mail/send - Send an email via SMTP
@@ -56,10 +57,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    if (isUnsafeMailHost(smtpHost)) {
+      return NextResponse.json(
+        { error: "Servidor SMTP no permitido por razones de seguridad." },
+        { status: 400 }
+      );
+    }
+
     const smtpPort = config.smtpPort || 587;
     const smtpSecure = config.smtpSecure !== null ? config.smtpSecure : (smtpPort === 465);
 
-    // Create transporter
+    // Create transporter with strict TLS certificate validation
     const transporter = nodemailer.createTransport({
       host: smtpHost,
       port: smtpPort,
@@ -67,9 +75,6 @@ export async function POST(request: NextRequest) {
       auth: {
         user: config.email,
         pass: password,
-      },
-      tls: {
-        rejectUnauthorized: false, // Prevents certificate verification errors
       },
     });
 
@@ -88,7 +93,7 @@ export async function POST(request: NextRequest) {
   } catch (err: any) {
     console.error("[mail/send] SMTP send error:", err);
     return NextResponse.json(
-      { error: err.message || "Error al enviar el correo vía SMTP. Verifica tu configuración." },
+      { error: "Error al enviar el correo vía SMTP. Verifica tu configuración." },
       { status: 500 }
     );
   }

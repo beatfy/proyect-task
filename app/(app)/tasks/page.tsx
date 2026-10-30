@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { Plus, MoreHorizontal, User, Pencil, Trash2, FolderOpen, LayoutGrid, List, Table, Calendar, MessageSquare, Paperclip, ChevronDown, ChevronUp, X, Upload, File, Image, FileText, Timer, Play, Square, LayoutTemplate, Download, Share2, Maximize2, Clock, CheckCircle2, Circle, AlertCircle, Copy, ChevronRight, CheckSquare } from "lucide-react";
+import { Plus, MoreHorizontal, User, Pencil, Trash2, FolderOpen, LayoutGrid, List, Table, Calendar, MessageSquare, Paperclip, ChevronDown, ChevronUp, X, Upload, File, Image, FileText, Timer, Play, Square, LayoutTemplate, Download, Share2, Maximize2, Clock, CheckCircle2, Circle, AlertCircle, Copy, ChevronRight, CheckSquare, Archive, ArchiveRestore, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -142,6 +142,7 @@ const statusLabels: Record<string, string> = {
   INPROGRESS: "En progreso",
   INREVIEW: "En revisión",
   DONE: "Hecho",
+  ARCHIVED: "Archivada",
 };
 
 const statusColors: Record<string, string> = {
@@ -149,6 +150,7 @@ const statusColors: Record<string, string> = {
   INPROGRESS: "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800",
   INREVIEW: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800",
   DONE: "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800",
+  ARCHIVED: "bg-purple-100 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800",
 };
 
 type ViewType = "kanban" | "list" | "table";
@@ -165,7 +167,21 @@ function DroppableColumn({ id, children }: { id: string; children: React.ReactNo
   return <div ref={setNodeRef}>{children}</div>;
 }
 
-function DraggableTaskCard({ task, onOpenDetail, onEdit, onDelete }: { task: Task; onOpenDetail: () => void; onEdit: () => void; onDelete: () => void }) {
+function DraggableTaskCard({
+  task,
+  onOpenDetail,
+  onEdit,
+  onDelete,
+  onArchive,
+  onUnarchive,
+}: {
+  task: Task;
+  onOpenDetail: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onArchive?: () => void;
+  onUnarchive?: () => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id, data: { task } });
   const style = { transform: transform ? `translate3d(${transform.x}px,${transform.y}px,0)` : undefined, transition, opacity: isDragging ? 0.5 : 1 };
   return (
@@ -183,6 +199,27 @@ function DraggableTaskCard({ task, onOpenDetail, onEdit, onDelete }: { task: Tas
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(); }} className="text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
                 <Pencil className="h-4 w-4 mr-2" /> Editar
               </DropdownMenuItem>
+              {task.status === "ARCHIVED" ? (
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUnarchive?.();
+                  }}
+                  className="text-primary hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                >
+                  <ArchiveRestore className="h-4 w-4 mr-2" /> Restaurar
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onArchive?.();
+                  }}
+                  className="text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                >
+                  <Archive className="h-4 w-4 mr-2" /> Archivar
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDelete(); }} className="text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
                 <Trash2 className="h-4 w-4 mr-2" /> Eliminar
               </DropdownMenuItem>
@@ -191,6 +228,11 @@ function DraggableTaskCard({ task, onOpenDetail, onEdit, onDelete }: { task: Tas
         </div>
         {task.description && <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{task.description}</p>}
         <div className="flex items-center gap-2 flex-wrap mb-2">
+          {task.status === "ARCHIVED" && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-purple-100 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800">
+              Archivada
+            </Badge>
+          )}
           {task.priority !== "NONE" && (
             <Badge variant="secondary" className={cn("text-[10px] px-1.5 py-0 h-5 border", priorityColors[task.priority as keyof typeof priorityColors])}>
               {priorityLabels[task.priority as keyof typeof priorityLabels]}
@@ -222,6 +264,9 @@ function TasksPageContent() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [detailTask, setDetailTask] = useState<Task | null>(null);
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+  const [archiveModalOpen, setArchiveModalOpen] = useState(false);
+  const [archiving, setArchiving] = useState(false);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const [title, setTitle] = useState("");
@@ -460,10 +505,11 @@ function TasksPageContent() {
     toast.success(`Template "${tmpl.name}" aplicado`);
   };
 
-  const fetchTasks = async () => {
+  const fetchTasks = async (includeArchived = showArchived) => {
     try {
       const params = new URLSearchParams();
       if (selectedOrg && selectedOrg !== "all") params.set("organizationId", selectedOrg);
+      if (includeArchived) params.set("includeArchived", "true");
       const response = await fetch(`/api/tasks?${params}`);
       if (response.status === 401) {
         setTasks([]);
@@ -479,6 +525,10 @@ function TasksPageContent() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchTasks(showArchived);
+  }, [showArchived]);
 
   const fetchProjects = async () => {
     try {
@@ -527,7 +577,11 @@ function TasksPageContent() {
 
   const activePipeline = pipelines.find(p => p.id === selectedPipelineId) || pipelines[0];
   const activeStages = activePipeline?.stages || [];
-  const stagesToRender = activeStages.length > 0 ? activeStages : fallbackStages;
+  const baseStages = activeStages.length > 0 ? activeStages : fallbackStages;
+  const stagesToRender = [
+    ...baseStages,
+    ...(showArchived ? [{ id: "ARCHIVED", name: "Archivadas", color: "#a855f7", position: 999 }] : []),
+  ];
 
   const getStageBadgeStyle = (color: string) => {
     return {
@@ -538,6 +592,13 @@ function TasksPageContent() {
   };
 
   const isTaskInStage = (task: Task, stageId: string, allStages: TaskPipelineStage[]) => {
+    if (task.status === "ARCHIVED") {
+      return stageId === "ARCHIVED";
+    }
+    if (stageId === "ARCHIVED") {
+      return task.status === "ARCHIVED";
+    }
+
     // 1. Direct match by stageId
     if (task.stageId === stageId) return true;
 
@@ -576,7 +637,7 @@ function TasksPageContent() {
     }
     if (
       columnIndex === 0 &&
-      !["INPROGRESS", "INREVIEW", "DONE", "COMPLETED", "HECHO", "REVISION", "PROGRESO"].includes(taskStatusUpper)
+      !["INPROGRESS", "INREVIEW", "DONE", "COMPLETED", "HECHO", "REVISION", "PROGRESO", "ARCHIVED", "ARCHIVADA"].includes(taskStatusUpper)
     ) {
       return true;
     }
@@ -753,6 +814,80 @@ function TasksPageContent() {
       }
     } catch {
       toast.error("Error al eliminar tarea");
+    }
+  };
+
+  const handleArchive = async (taskId: string) => {
+    try {
+      const response = await fetch("/api/tasks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: taskId, status: "ARCHIVED" }),
+      });
+      if (response.ok) {
+        setTasks((prev) =>
+          prev.map((t) => (t.id === taskId ? { ...t, status: "ARCHIVED" } : t))
+        );
+        if (detailTask?.id === taskId) {
+          setDetailTask((prev) => (prev ? { ...prev, status: "ARCHIVED" } : null));
+        }
+        toast.success("Tarea archivada");
+      } else {
+        const data = await response.json();
+        toast.error(data.error || "Error al archivar tarea");
+      }
+    } catch {
+      toast.error("Error al archivar tarea");
+    }
+  };
+
+  const handleUnarchive = async (taskId: string) => {
+    try {
+      const response = await fetch("/api/tasks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: taskId, status: "TODO" }),
+      });
+      if (response.ok) {
+        setTasks((prev) =>
+          prev.map((t) => (t.id === taskId ? { ...t, status: "TODO" } : t))
+        );
+        if (detailTask?.id === taskId) {
+          setDetailTask((prev) => (prev ? { ...prev, status: "TODO" } : null));
+        }
+        toast.success("Tarea restaurada");
+      } else {
+        const data = await response.json();
+        toast.error(data.error || "Error al restaurar tarea");
+      }
+    } catch {
+      toast.error("Error al restaurar tarea");
+    }
+  };
+
+  const handleBatchArchiveCompleted = async () => {
+    setArchiving(true);
+    try {
+      const res = await fetch("/api/tasks/archive-completed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: filterProject !== "all" ? filterProject : undefined,
+          daysOld: 7,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(data.message || `${data.archivedCount} tarea(s) archivada(s)`);
+        fetchTasks(showArchived);
+        setArchiveModalOpen(false);
+      } else {
+        toast.error(data.error || "Error al archivar tareas");
+      }
+    } catch {
+      toast.error("Error de conexión");
+    } finally {
+      setArchiving(false);
     }
   };
 
@@ -976,7 +1111,8 @@ function TasksPageContent() {
     }
   };
 
-  const filteredTasks = filterProject === "all" ? tasks : tasks.filter(t => t.projectId === filterProject);
+  const filteredTasks = (filterProject === "all" ? tasks : tasks.filter(t => t.projectId === filterProject))
+    .filter(t => (showArchived ? true : t.status !== "ARCHIVED"));
   const getProjectName = (id: string | null) => {
     if (!id) return null;
     return projects.find(p => p.id === id)?.name || null;
@@ -1168,19 +1304,41 @@ function TasksPageContent() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="border-border dark:text-slate-300 hidden sm:flex" disabled={!projectId || projectId === "none"}>
+              <Button variant="outline" className="border-border dark:text-slate-300 hidden sm:flex" disabled={filterProject === "all" && (!projectId || projectId === "none")}>
                 <Download className="h-4 w-4 mr-2" /> <span className="hidden md:inline">Exportar</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-white dark:bg-slate-900 border-border">
-              <DropdownMenuItem onClick={() => window.open(`/api/tasks/export?projectId=${projectId}&format=csv`)} className="cursor-pointer text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
+              <DropdownMenuItem onClick={() => window.open(`/api/tasks/export?projectId=${filterProject !== "all" ? filterProject : projectId}&format=csv`)} className="cursor-pointer text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
                 Exportar CSV
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => window.open(`/api/tasks/export?projectId=${projectId}&format=pdf`)} className="cursor-pointer text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
+              <DropdownMenuItem onClick={() => window.open(`/api/tasks/export?projectId=${filterProject !== "all" ? filterProject : projectId}&format=pdf`)} className="cursor-pointer text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
                 Exportar PDF
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <Button
+            variant={showArchived ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setShowArchived((prev) => !prev)}
+            className="border-border text-xs gap-1.5"
+            title={showArchived ? "Ocultar tareas archivadas" : "Mostrar tareas archivadas"}
+          >
+            <Archive className="h-4 w-4" />
+            <span className="hidden lg:inline">{showArchived ? "Archivadas (ON)" : "Archivadas"}</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setArchiveModalOpen(true)}
+            className="border-border text-xs gap-1.5 hidden sm:flex text-slate-700 dark:text-slate-300"
+            title="Archivar manualmente tareas completadas con más de 7 días"
+          >
+            <ArchiveRestore className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+            <span className="hidden xl:inline">Archivar Hechas (+7d)</span>
+          </Button>
 
         </div>
       </div>
@@ -1716,10 +1874,28 @@ function TasksPageContent() {
             <div className="flex items-center gap-3">
               <span className="text-sm font-mono text-muted-foreground">TASK-{detailTask?.id?.slice(-5).toUpperCase()}</span>
               <Badge variant="secondary" className="text-[10px] border dark:border-slate-600">Tarea</Badge>
+              {detailTask?.status === "ARCHIVED" && (
+                <Badge variant="outline" className="text-[10px] bg-purple-100 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800">
+                  Archivada
+                </Badge>
+              )}
             </div>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => { setDetailOpen(false); setDetailTask(null); setActiveTimer(null); setTimerSeconds(0); }}>
-              <X className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-2">
+              {detailTask && (
+                detailTask.status === "ARCHIVED" ? (
+                  <Button variant="outline" size="sm" onClick={() => handleUnarchive(detailTask.id)} className="h-7 text-xs">
+                    <ArchiveRestore className="h-3.5 w-3.5 mr-1 text-primary" /> Restaurar
+                  </Button>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={() => handleArchive(detailTask.id)} className="h-7 text-xs">
+                    <Archive className="h-3.5 w-3.5 mr-1 text-muted-foreground" /> Archivar
+                  </Button>
+                )
+              )}
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => { setDetailOpen(false); setDetailTask(null); setActiveTimer(null); setTimerSeconds(0); }}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
           {/* Two Column Layout */}
@@ -1742,7 +1918,7 @@ function TasksPageContent() {
 
               {/* Description */}
               <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground uppercase proyectoing-wide">Descripción</label>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Descripción</label>
                 <textarea
                   placeholder="Añadir descripción..."
                   value={detailDescription}
@@ -2043,6 +2219,8 @@ function TasksPageContent() {
                       onOpenDetail={() => handleOpenDetail(task)}
                       onEdit={() => handleEdit(task)}
                       onDelete={() => handleDelete(task.id)}
+                      onArchive={() => handleArchive(task.id)}
+                      onUnarchive={() => handleUnarchive(task.id)}
                     />
                   ))
                 )}
@@ -2113,6 +2291,15 @@ function TasksPageContent() {
                       <td className="p-3 text-sm text-slate-600 dark:text-muted-foreground">{task.assignedTo || "-"}</td>
                       <td className="p-3 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          {task.status === "ARCHIVED" ? (
+                            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleUnarchive(task.id); }} title="Restaurar tarea" className="h-8 w-8 p-0 text-purple-600 hover:bg-slate-100 dark:hover:bg-slate-700">
+                              <ArchiveRestore className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleArchive(task.id); }} title="Archivar tarea" className="h-8 w-8 p-0 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700">
+                              <Archive className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleEdit(task); }} className="h-8 w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700">
                             <Pencil className="h-4 w-4 text-muted-foreground" />
                           </Button>
@@ -2153,6 +2340,11 @@ function TasksPageContent() {
                             <Badge variant="secondary" className="text-[10px] border" style={taskStage ? getStageBadgeStyle(taskStage.color) : undefined}>
                               {taskStage ? taskStage.name : task.status}
                             </Badge>
+                            {task.status === "ARCHIVED" && (
+                              <Badge variant="outline" className="text-[10px] bg-purple-100 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800">
+                                Archivada
+                              </Badge>
+                            )}
                             {task.priority !== "NONE" && (
                               <Badge variant="secondary" className={cn("text-[10px] border", priorityColors[task.priority])}>{priorityLabels[task.priority]}</Badge>
                             )}
@@ -2172,6 +2364,15 @@ function TasksPageContent() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        {task.status === "ARCHIVED" ? (
+                          <Button variant="ghost" size="sm" onClick={() => handleUnarchive(task.id)} title="Restaurar tarea" className="h-10 w-10 md:h-8 md:w-8 p-0 text-purple-600 hover:bg-slate-100 dark:hover:bg-slate-700">
+                            <ArchiveRestore className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <Button variant="ghost" size="sm" onClick={() => handleArchive(task.id)} title="Archivar tarea" className="h-10 w-10 md:h-8 md:w-8 p-0 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700">
+                            <Archive className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button variant="ghost" size="sm" onClick={() => handleEdit(task)} className="h-10 w-10 md:h-8 md:w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700">
                           <Pencil className="h-4 w-4 text-muted-foreground" />
                         </Button>
@@ -2187,6 +2388,40 @@ function TasksPageContent() {
           )}
         </div>
       )}
+
+      {/* Manual Batch Archive Dialog */}
+      <Dialog open={archiveModalOpen} onOpenChange={setArchiveModalOpen}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <ArchiveRestore className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+              Archivar Tareas Hechas (+7 días)
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2 text-xs text-muted-foreground">
+            <p>
+              Esta acción manual moverá a <strong>Archivadas</strong> todas las tareas de la columna &quot;Hecho&quot; completadas con más de 7 días.
+            </p>
+            <div className="p-3 bg-muted/60 rounded-md space-y-1">
+              <p>• El historial de horas trabajadas (Time Tracking) y comentarios se mantendrá intacto.</p>
+              <p>• Las tareas no se borrarán; podrás consultarlas y restaurarlas en cualquier momento con el botón &quot;Archivadas&quot;.</p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setArchiveModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleBatchArchiveCompleted}
+              disabled={archiving}
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              {archiving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+              Archivar Ahora
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

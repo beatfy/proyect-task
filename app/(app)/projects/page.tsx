@@ -135,7 +135,7 @@ export default function ProjectsPage() {
 
   const handleDuplicate = async (project: Project) => {
     try {
-      const response = await fetch(`/api/projects/${project.id}/duplicate`, {
+      const response = await fetch(`/api/projects/${project.id}`, {
         method: "POST",
       });
       if (response.ok) {

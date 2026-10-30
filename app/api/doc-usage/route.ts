@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/api-auth";
+import { verifyOrgMembership } from "@/lib/tenant";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
@@ -10,16 +11,31 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const organizationId = searchParams.get("organizationId");
 
+    if (organizationId) {
+      const { valid: isMember } = await verifyOrgMembership(authResult.userId, organizationId);
+      if (!isMember) {
+        return NextResponse.json({ error: "No tienes acceso a esta organización" }, { status: 403 });
+      }
+    }
+
     const chatWhere: Record<string, unknown> = {
       agentId: "doc",
       role: "user",
     };
-    if (organizationId) chatWhere.organizationId = organizationId;
+    if (organizationId) {
+      chatWhere.organizationId = organizationId;
+    } else {
+      chatWhere.userId = authResult.userId;
+    }
 
     const toolWhere: Record<string, unknown> = {
       prompt: "doc_tool_call",
     };
-    if (organizationId) toolWhere.organizationId = organizationId;
+    if (organizationId) {
+      toolWhere.organizationId = organizationId;
+    } else {
+      toolWhere.userId = authResult.userId;
+    }
 
     // 1. Total queries (user messages to Doc)
     const totalQueries = await prisma.chatMessage.count({

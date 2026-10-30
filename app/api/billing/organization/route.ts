@@ -21,7 +21,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Sin organización" }, { status: 404 });
     }
 
-    return NextResponse.json(member.organization);
+    const { apiKey: _apiKey, ...safeOrg } = member.organization;
+    return NextResponse.json(safeOrg);
   } catch (error) {
     console.error("Get organization billing error:", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
@@ -67,7 +68,8 @@ export async function PATCH(request: NextRequest) {
       data: updateData,
     });
 
-    return NextResponse.json(updated);
+    const { apiKey: _apiKey, ...safeUpdated } = updated;
+    return NextResponse.json(safeUpdated);
   } catch (error) {
     console.error("Update organization billing error:", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });

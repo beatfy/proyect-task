@@ -150,6 +150,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Verify caller's email matches the invitation email (prevents invitation hijacking)
+    if (invitation.email) {
+      const currentUser = await prisma.user.findUnique({
+        where: { id: authResult.userId },
+        select: { email: true },
+      });
+
+      if (!currentUser || currentUser.email.toLowerCase() !== invitation.email.toLowerCase()) {
+        return NextResponse.json(
+          { error: "Esta invitación fue enviada a otro correo electrónico" },
+          { status: 403 }
+        );
+      }
+    }
+
     // ---- ORGANIZATION invitation ----
     if (invitation.organizationId && !invitation.projectId) {
       const existingOrgMember = await prisma.organizationMember.findUnique({

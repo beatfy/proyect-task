@@ -50,6 +50,15 @@ export async function POST(request: NextRequest) {
 
   if (!title || !stageId) return apiError("title y stageId son requeridos", 400);
 
+  let resolvedPipelineId = pipelineId;
+  if (!resolvedPipelineId) {
+    const stageRecord = await prisma.pipelineStage.findFirst({
+      where: { id: stageId, pipeline: { organizationId: auth.organizationId } },
+      select: { pipelineId: true },
+    });
+    resolvedPipelineId = stageRecord?.pipelineId;
+  }
+
   const deal = await prisma.deal.create({
     data: {
       id: cuid(),
@@ -57,7 +66,7 @@ export async function POST(request: NextRequest) {
       value: value || 0,
       stageId,
       contactId: contactId || undefined,
-      pipelineId: pipelineId || undefined,
+      pipelineId: resolvedPipelineId || undefined,
       probability: probability || 0,
       expectedClose: expectedClose ? new Date(expectedClose) : null,
       notes: notes || null,
