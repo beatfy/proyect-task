@@ -7,6 +7,7 @@ import { canAccessProject, getUserOrgIds, verifyOrgMembership } from "@/lib/tena
 import { taskCreateSchema, taskUpdateSchema } from "@/lib/validations/task";
 import { notifyTaskWebhook } from "@/lib/webhook";
 import { storeFile } from "@/lib/storage";
+import { recordTaskAudit, TaskChange } from "@/lib/task-audit";
 import { jsPDF } from "jspdf";
 
 const LONG_DESC_THRESHOLD = 200;
@@ -413,6 +414,13 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Record audit trail for task creation
+    await recordTaskAudit(prisma, {
+      taskId: task.id,
+      userId: authResult.userId,
+      action: "CREATE",
+    }).catch((e) => console.error("Audit log error:", e));
+
     // Auto-convert long descriptions to attachments
     if (task.description && task.description.length > LONG_DESC_THRESHOLD) {
       const shortDesc = await maybeConvertLongDescription(task.description, task.id);
@@ -493,6 +501,10 @@ export async function PATCH(request: NextRequest) {
     }
 
     const { id, status, priority, title, description, projectId, assignedTo, assigneeId, assigneeIds, dueDate, organizationId, pipelineId, stageId, tdahMetrics } = parsed.data;
+
+    if (!id) {
+      return NextResponse.json({ error: "ID de tarea requerido" }, { status: 400 });
+    }
 
     const authorized = await canModifyTask(authResult.userId, id);
     if (!authorized) {
@@ -628,6 +640,23 @@ export async function PATCH(request: NextRequest) {
       },
     });
 
+    // Record audit trail
+    const auditChanges: TaskChange[] = [];
+    for (const [key, val] of Object.entries(updateData)) {
+      const oldVal = (currentTask as any)?.[key];
+      if (oldVal !== val) {
+        auditChanges.push({ field: key, oldValue: oldVal, newValue: val });
+      }
+    }
+    if (auditChanges.length > 0) {
+      await recordTaskAudit(prisma, {
+        taskId: id,
+        userId: authResult.userId,
+        action: "UPDATE",
+        changes: auditChanges,
+      }).catch((e) => console.error("Audit log error:", e));
+    }
+
     // Auto-convert long descriptions to attachments on update
     if (description !== undefined && description !== null && description.length > LONG_DESC_THRESHOLD) {
       const shortDesc = await maybeConvertLongDescription(description, id);
@@ -692,7 +721,12 @@ export async function DELETE(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id");
+    let id = searchParams.get("id");
+
+    if (!id) {
+      const body = await request.json().catch(() => ({}));
+      id = body?.id || null;
+    }
 
     if (!id) {
       return NextResponse.json({ error: "ID requerido" }, { status: 400 });

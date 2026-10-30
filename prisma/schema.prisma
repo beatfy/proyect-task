@@ -35,6 +35,7 @@ model User {
   gaConnection GoogleAnalyticsConnection?
   agentDocuments AgentDocument[]
   mindMaps       MindMap[]
+  taskAuditLogs  TaskAuditLog[]
 }
 
 model Project {
@@ -107,6 +108,7 @@ model Task {
   stageId       String?
   stage         TaskPipelineStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
   tdahMetrics   Json?
+  auditLogs     TaskAuditLog[]
 
   @@index([projectId, status])
   @@index([organizationId])
@@ -124,6 +126,23 @@ model TaskAssignee {
   user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([taskId, userId])
+  @@index([userId])
+}
+
+model TaskAuditLog {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String   // "CREATE", "UPDATE", "DELETE", "RESTORE"
+  field     String?  // e.g. "status", "title", "description", "priority", "stageId", "dueDate"
+  oldValue  String?
+  newValue  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([taskId, createdAt])
   @@index([userId])
 }
 

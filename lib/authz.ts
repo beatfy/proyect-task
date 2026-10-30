@@ -54,13 +54,13 @@ export async function canModifyTask(userId: string, taskId: string): Promise<boo
   if (task.assigneeId === userId) return true;
   if (task.taskAssignees.some(ta => ta.userId === userId)) return true;
 
-  // 3. Project members can modify
+  // 3. Project members can modify (excluding read-only VIEWER / CLIENT roles)
   if (task.projectId) {
     const membership = await prisma.projectMember.findFirst({
       where: { projectId: task.projectId, userId },
-      select: { id: true },
+      select: { id: true, role: true },
     });
-    if (membership) return true;
+    if (membership && !["VIEWER", "CLIENT"].includes(membership.role.toUpperCase())) return true;
 
     // Organization OWNER/ADMIN of the project's organization can modify
     if (task.project?.organizationId) {
@@ -112,4 +112,45 @@ export async function isProjectMember(userId: string, projectId: string): Promis
     select: { id: true },
   });
   return !!membership;
+}
+
+export type AppModule = "tasks" | "crm" | "billing" | "mail" | "settings";
+
+/**
+ * Granular RBAC check per module and action.
+ * OWNER/ADMIN: Full access to all modules.
+ * MEMBER: Can read/write tasks and crm, but cannot write/generate billing or modify org settings.
+ * VIEWER: Read-only access across allowed modules.
+ */
+export async function hasModulePermission(
+  userId: string,
+  organizationId: string,
+  module: AppModule,
+  action: "read" | "write" = "read"
+): Promise<boolean> {
+  const orgMember = await prisma.organizationMember.findUnique({
+    where: {
+      userId_organizationId: { userId, organizationId },
+    },
+    select: { role: true },
+  });
+
+  if (!orgMember) return false;
+
+  const role = orgMember.role.toUpperCase();
+
+  // OWNER and ADMIN have full access
+  if (["OWNER", "ADMIN"].includes(role)) return true;
+
+  // MEMBER
+  if (role === "MEMBER") {
+    if ((module === "billing" || module === "settings") && action === "write") {
+      return false;
+    }
+    return true;
+  }
+
+  // VIEWER can only read
+  if (action === "write") return false;
+  return true;
 }
